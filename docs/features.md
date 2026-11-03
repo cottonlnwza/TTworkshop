@@ -1,6 +1,6 @@
 # TTworkshop — Feature Inventory
 
-> **DRAFT v0.1 — NOT APPROVED — 2026-11-03** · Issue [P1-01 / #1](https://github.com/cottonlnwza/TTworkshop/issues/1) · Deliverable 1 Part B
+> **DRAFT v0.1.1 — NOT APPROVED — 2026-11-03** · Issue [P1-01 / #1](https://github.com/cottonlnwza/TTworkshop/issues/1) · Deliverable 1 Part B
 > Scope source: `docs/srs.md` (draft FR-01–FR-15, BR-01–BR-16, NFR-01–NFR-07). Feature IDs/sprints follow the **proposed** three-period allocation described in `SKILL.md` v1.3.1 §3; that plan does not itself approve product requirements.
 
 ## 1. Feature register
@@ -26,7 +26,7 @@
 | **SYS-01 — Persistent relational data** | Schema, migrations, constraints, seed; durability through restart and later redeploy. | NFR-02; domain BR-05/06/13 as applicable | Sprint 1 (F-02/F-03/F-04); Lab 5/GCP verification |
 | **SYS-02 — Secure identity, ownership & configuration** | Auth middleware, server-side role/owner checks, hashing, safe secrets/config. | BR-01, NFR-01, NFR-07 | Sprint 1 (F-01); new-path regressions every sprint |
 | **SYS-03 — Transaction & concurrency verification** | Database-atomic registration seat allocation and repeatable concurrent test. | BR-05, BR-06, NFR-03 | Sprint 1 (F-03); regression later |
-| **SYS-04 — Versioned engineering & delivery** | Issue → contract/test design → branch → PR review → staging → reviewed release; build/tests, Docker/GCP/CI from Lab 5. | NFR-06 | Sprint 1 local evidence, Lab 5 then Sprints 2–3 |
+| **SYS-04 — Versioned engineering & delivery** | Issue → contract/test design → branch → teammate-reviewed PR → staging → reviewed release. **Starting Sprint 1**, run applicable build and automated tests on relevant PRs; retain tested SHA/results and **block integration/release if any required check fails**, using documented peer-review evidence until hosted enforcement is configured. **Lab 5 expands** to hosted CI required-check enforcement, Docker and GCP deployment; do not defer the Sprint 1 PR quality gate. | NFR-06 | Sprint 1 PR quality checks and documented release gate; Lab 5 automated CI/CD + Docker/GCP; regress Sprints 2–3 |
 | **SYS-05 — Performance/responsive verification** | Workshop list load measurements and responsive critical screens. | NFR-04, NFR-05 | Sprint 3 (F-09 and cross-feature UI), measured against approved targets |
 
 These responsibilities are **not additional product features** or a license to add unrelated functionality. Cross-cutting requirements may map to both a Feature and SYS responsibility.
@@ -51,7 +51,7 @@ The expected **Sprint 1 integrated journey** is Organizer publish → Participan
 
 | Checkpoint | Required feature progress | Assessment/process work (not new product feature) |
 |---|---|---|
-| **Sprint 1 / D1, 2026-11-08** | F-01–F-04 complete, tested and locally runnable. | P1-01 SRS/Features/Traceability/SDS/Plan; P1-02 contracts/AC/STS/DoD; Issue/PR/test/release evidence. No GCP requirement yet. |
+| **Sprint 1 / D1, 2026-11-08** | F-01–F-04 complete, tested and locally runnable. | P1-01 SRS/Features/Traceability/SDS/Plan; P1-02 contracts/AC/STS/DoD; **relevant PR build/automated-test evidence and failed-check exclusion**, Issue/PR/release evidence. No GCP requirement yet. |
 | **Period 2 / D2, 2026-11-29** | F-05–F-07 fully complete; **real implemented and tested F-08 progress** integrated on main. | Lab 5 Docker/CI/GCP (Nov 15), Lab 6 UAT (Nov 22), Lab 7 maintenance (Nov 29); fully deployed candidate/traceability. |
 | **Sprint 3 / Final, 2026-12-13** | Complete remaining F-08 and F-09 plus cross-feature validation/usability/error handling. | Final regression/UAT re-tests, Docker/GCP accepted release, self-contained PDF, demo video. |
 
@@ -65,3 +65,4 @@ The expected **Sprint 1 integrated journey** is Organizer publish → Participan
 | Version | Date | Reason | Approval |
 |---|---|---|---|
 | v0.1 | 2026-11-03 | Initial **DRAFT** inventory from Theme 3 and proposed period plan | Pending both students |
+| v0.1.1 | 2026-11-03 | R-01: separate Sprint 1 PR checks (SYS-04) from Lab 5 hosted CI/CD, Docker and GCP | Pending re-review and both students |

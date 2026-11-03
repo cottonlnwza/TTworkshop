@@ -1,7 +1,7 @@
 # TTworkshop — Requirements → Features → Sprints → Verification Traceability
 
-> **DRAFT v0.1 — NOT APPROVED — 2026-11-03** · [Issue #1 / P1-01](https://github.com/cottonlnwza/TTworkshop/issues/1) · Deliverable 1 Part B
-> Source baseline: `docs/srs.md` draft v0.1, feature mapping: `docs/features.md` draft v0.1. **No Acceptance Criteria (AC), Software Test Specification (STS), executable tests, or test results have yet been produced.** P1-02 must create Sprint 1 AC/STS **before** corresponding implementation.
+> **DRAFT v0.1.1 — NOT APPROVED — 2026-11-03** · [Issue #1 / P1-01](https://github.com/cottonlnwza/TTworkshop/issues/1) · Deliverable 1 Part B
+> Source baseline: `docs/srs.md` draft v0.1.1, feature mapping: `docs/features.md` draft v0.1.1. **No Acceptance Criteria (AC), Software Test Specification (STS), executable tests, or test results have yet been produced.** P1-02 must create Sprint 1 AC/STS **before** corresponding implementation.
 
 ## 1. Conventions and status
 
@@ -60,7 +60,7 @@
 | NFR-03 | F-03, SYS-03 | S1; integrated regression | 10 concurrent real requests for one seat: exactly 1 success; DB ACTIVE count=capacity | NOT EXECUTED; provisional number |
 | NFR-04 | F-09, SYS-05 | S3 | 100 events/10 users p95 ≤3s measurement, environment and sample method | NOT EXECUTED; provisional target |
 | NFR-05 | F-01–F-09, SYS-05 | S3 final UX | Checks at 375px and 1280px against specified key journeys | NOT EXECUTED; provisional widths |
-| NFR-06 | SYS-04 | D1 local; Lab 5; D2/Final | Commands, checks including blocked failure, required PR gate, reviewed staging→main release, CI/deploy SHA | NOT EXECUTED |
+| NFR-06 | SYS-04 | **S1/D1** relevant-PR build + automated tests and failed-check exclusion; **Lab 5** hosted CI enforcement, Docker/GCP; D2/Final regression | **S1:** per-PR applicable build/test command, output/status and tested SHA, reviewer gate evidence, no failed required check integrated/released, reviewed staging→main PR. **Lab 5:** hosted status checks with deliberate failure blocked, Docker image and GCP deployment linked to released SHA. Neither gate nor tests are asserted as executed here. | NOT EXECUTED; Sprint 1 PR gate required before Lab 5 |
 | NFR-07 | F-01, SYS-02, SYS-04 | All sprints | Example env only; repo/diff/secret scan; synthetic seed evidence | NOT EXECUTED |
 
 ## 5. Coverage accounting and risks
@@ -85,3 +85,4 @@
 | Version | Date | Revision | Approval |
 |---|---|---|---|
 | v0.1 | 2026-11-03 | Initial **DRAFT** full-baseline mapping; no actual test claims | Pending both students |
+| v0.1.1 | 2026-11-03 | R-01: NFR-06 verification explicitly splits Sprint 1 PR checks from Lab 5 hosted CI/CD | Pending re-review and both students |

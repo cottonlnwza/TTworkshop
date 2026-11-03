@@ -1,6 +1,6 @@
 # TTworkshop — Software Requirements Specification (SRS)
 
-> **DRAFT v0.1 — NOT APPROVED — 2026-11-03 (Asia/Bangkok)**
+> **DRAFT v0.1.1 — NOT APPROVED — 2026-11-03 (Asia/Bangkok)**
 > Issue: [P1-01 / #1](https://github.com/cottonlnwza/TTworkshop/issues/1) · Theme 3: Event Registration and Attendance System
 > **Purpose:** Engineering baseline for the full product (Deliverable 1, Part A). No implementation, test, or release is asserted by this document.
 > **Approval gate:** Both students must review the choices/IDs, resolve or explicitly accept open decisions, and record approval in a versioned review before this becomes a binding SRS.
@@ -90,7 +90,7 @@ These are **draft test targets**, not instructor-imposed numerical thresholds; a
 | **NFR-03** | In a test with **10 concurrent registration attempts for one remaining seat**, exactly one succeeds and ACTIVE count never exceeds capacity. | Real concurrent API/DB integration test; Sprint 1 and regression | TEAM-REPORTED provisional load; COURSE requires race safety |
 | **NFR-04** | Published workshop list p95 response time **≤3 seconds** under **100 seeded workshops and 10 concurrent users**, with documented environment and measurement procedure. | Repeatable API or E2E load measurement; Sprint 3 | TEAM-REPORTED provisional target |
 | **NFR-05** | Key login, workshop browse, registration, and Organizer management journeys remain usable without horizontal page overflow at **375px and 1280px** viewport widths. | Documented UI checks at both viewports; Sprint 3 | TEAM-REPORTED provisional widths |
-| **NFR-06** | For every accepted release: build and required automated tests have a recorded result and associated commit; after Lab 5, required PR checks must block a deliberately failing check and main releases follow a repeatable Docker/GCP pipeline. | PR/CI screenshots/logs, test counts, commit, deployed version; Sprint 1 local, Lab 5 onward | COURSE engineering/delivery |
+| **NFR-06** | **From Sprint 1**, run applicable build and automated-test checks for every relevant PR and retain the commands, results and tested commit SHA; a failed required check blocks normal PR integration/release (no waiver by deadline). Before hosted CI/branch protection is configured, verify this gate through documented test evidence and peer review; do **not** claim technical enforcement exists. **Lab 5** establishes/expands hosted CI/CD with required-check enforcement, Docker packaging and repeatable GCP deployment of accepted `main` releases. | Sprint 1: PR build/test evidence, peer-reviewed no-failed-check gate and staging→main release record; Lab 5: hosted CI required checks, deliberate failing-check rejection, Docker/GCP pipeline and deployed SHA; repeat later | COURSE §5.3 and §8.3; no implemented gate claimed in this draft |
 | **NFR-07** | No production secrets or real private user data are committed; demo/seed data are synthetic; configuration is provided as names/examples outside code. | Config and diff/secret review per PR; all sprints | COURSE security/configuration |
 
 ## 7. Example end-to-end acceptance narratives (scope, not AC or STS)
@@ -126,5 +126,6 @@ These narratives are **not** finished feature acceptance criteria. P1-02 will de
 | Version | Date | Change | Approval |
 |---|---|---|---|
 | v0.1 | 2026-11-03 | Initial source-grounded full-product **DRAFT** for P1-01 | **Pending both students** |
+| v0.1.1 | 2026-11-03 | Address PR #7 Reviewer R-01: make Sprint 1 build/test PR gate distinct from Lab 5 hosted CI/CD and deployment; still DRAFT | **Pending re-review and both students** |
 
 **Current state:** Specification drafted only; no implementation, executed AC/STS, PR, integration, release or deployment is represented here. Requirements-to-feature allocation: `docs/features.md` and `docs/traceability.md`. Architecture choices: `docs/system-sds.md`. Schedule/dependencies: `docs/sprints/plan.md`.

@@ -1,8 +1,8 @@
 # TTworkshop — Three-Sprint Development Plan
 
-> **DRAFT v0.1 — NOT APPROVED — 2026-11-03 (Asia/Bangkok)**
+> **DRAFT v0.1.1 — NOT APPROVED — 2026-11-03 (Asia/Bangkok)**
 > [P1-01 / Issue #1](https://github.com/cottonlnwza/TTworkshop/issues/1) · Deliverable 1 Part D (5 points).
-> Feature IDs and requirements refer to `docs/features.md`, `docs/srs.md`, and `docs/traceability.md` draft v0.1. Team assignment, estimates and technical choices remain proposals.
+> Feature IDs and requirements refer to `docs/features.md`, `docs/srs.md`, and `docs/traceability.md` draft v0.1.1. Team assignment, estimates and technical choices remain proposals.
 
 ## 1. Three-sprint outcomes
 
@@ -24,7 +24,7 @@ The **SKILL Period** grouping is an operational work calendar, not identical to 
 | 4 | [P1-04 / #4](https://github.com/cottonlnwza/TTworkshop/issues/4) F-02 | Owned draft/publish and validation; forbidden role/owner attempts tested | Backlog |
 | 5 | [P1-05 / #5](https://github.com/cottonlnwza/TTworkshop/issues/5) F-03 | Published browse + ACTIVE registration + DB capacity and duplicate checks, **concurrent last-seat** test | Backlog |
 | 6 | [P1-06 / #6](https://github.com/cottonlnwza/TTworkshop/issues/6) F-04 | Own and owner-event registration retrieval, role/ownership tests, selected UI journey | Backlog |
-| 7 | Integration and release gate (not an added Feature ID) | PRs into sprint staging with substantive teammate approval; integrated tests; reviewed release PR staging→main; tag/commit, README and actual local build/test results | **NOT STARTED** |
+| 7 | Integration and release gate (not an added Feature ID) | **From Sprint 1:** applicable build/automated-test checks for relevant PRs, commands/results/commit SHA; failed required checks **block** staging integration and release, even before Lab 5 hosted CI enforcement; substantive teammate review, integrated tests, reviewed staging→main release PR and local setup evidence | **NOT STARTED** |
 | 8 | D1 self-contained PDF (separate assessment packaging) | Part A–F content and selected evidence directly embedded; page navigation, 2 students, repo/release, tests and process records | **NOT STARTED** |
 
 **Feasible short-horizon targets (PROPOSED; not completed):**
@@ -41,7 +41,7 @@ This is a **high-risk compressed plan**, not a promise of completion. Delayed co
 - Full end-to-end transaction through UI/API/database and read-back after persistence.
 - Login/logout/current identity; at least two role permissions checked on the **backend**, including anonymous, wrong-role and cross-owner access.
 - Publish rules, one ACTIVE registration, positive capacity, last-seat concurrency and deadline guards tested meaningfully.
-- Feature AC ↔ STS/test mapping and real executed results on specified SHA; actual source/test commit/branch lineage.
+- Feature AC ↔ STS/test mapping and real executed results on specified SHA; **PR build/test checks on relevant code PRs must pass; do not integrate/release a failed required check**; actual source/test commit/branch lineage.
 - Issue → contracted change → feature branch from staging → teammate-reviewed PR into staging → integration → **separately reviewed** staging→main PR; recorded main release/tag.
 - Local reproducible dependencies/migrations/seed/build/test demo instructions; Docker/GCP not required **yet**.
 
@@ -49,7 +49,7 @@ This is a **high-risk compressed plan**, not a promise of completion. Delayed co
 
 | Work slot (planned; no GitHub Issue exists yet) | Goal | Dependency / evidence |
 |---|---|---|
-| **P2-01 — Lab 5** | Docker, CI PR gate and GCP deployment of accepted Sprint 1; successful and deliberately blocked check | Actual Lab 5 handout, persistent DB configuration, reviewed pipeline/deploy; **due Sun 15 Nov** |
+| **P2-01 — Lab 5** | Docker, **hosted CI/CD automation and required-status-check enforcement** (including deliberate failed-check rejection), and GCP deployment of accepted Sprint 1. **Sprint 1 PR build/test gate already applies; Lab 5 must not be its first use.** | Actual Lab 5 handout, persistent DB configuration, reviewed pipeline/deploy; **due Sun 15 Nov** |
 | **P2-02 — Lab 6** | Cross-team independent UAT: prepare/execute cases, triage defects, fix and independent re-test | Test fixed release/version; participation from other team; **due Sun 22 Nov** |
 | **P2-03 — F-05** | Cancellation and correct persisted ACTIVE/CANCELLED state; review after eligibility/cancellation rule | F-03/04 and approved F-05 contract |
 | **P2-04 — F-06** | Deadline and manual close/reopen; closure distinct from cancellation rights | F-05 plus policy and time boundary approval |
@@ -79,7 +79,7 @@ This is a **high-risk compressed plan**, not a promise of completion. Delayed co
 1. Jointly review and approve **P1-01** baseline; a draft file and Issue creation do not confer approval.
 2. Version an approved **Feature Contract with AC/STS/DoD before implementing that feature**. Use TDD for meaningful domain rule/defect/change work; record actual test RED then GREEN.
 3. One bounded Issue per authorized change. Local/remote branch must derive from current `sprint_N_staging`; feature PR targets staging. Teammate reviews with a concrete finding/reason; authors never approve or merge their own PR.
-4. Run staging integration/system tests; a **separate reviewed** staging→main PR carries accepted release. Record tag, commit, commands/tests and subsequent cloud deployment from Lab 5 onward.
+4. **From Sprint 1**, every relevant application PR has its applicable build/automated tests run and documented against the reviewed SHA; any failed required check blocks staging integration or normal release, including when only local logs and peer review are available before hosted CI. Run staging integration/system tests; a **separate reviewed** staging→main PR carries accepted release. **Lab 5** establishes hosted required checks/CI-CD and Docker/GCP deployment; record tag, commit, commands/tests and deployment evidence. Do not claim unconfigured automated branch protection.
 5. Both students contribute to design, implementation, testing, review, AI supervision and release across the project. **Issue #1 GitHub Author: `cottonlnwza`; Reviewer: `thananun-7203`**, as designated by the user and checked for repository write permissions. Legal/student identity and both students' baseline approval are **NOT VERIFIED**; record review decisions before promotion to an approved baseline. Assign Author/Reviewer explicitly for later Issues.
 6. Avoid adding scope without versioned approved change. Defects may need new bounded fix Issues; neither the proposed planned count (6/7/5) nor a deadline overrides safety/test/review requirements.
 
@@ -107,3 +107,4 @@ This is a **high-risk compressed plan**, not a promise of completion. Delayed co
 | Version | Date | Change | Approval |
 |---|---|---|---|
 | v0.1 | 2026-11-03 | Initial **DRAFT** three-sprint allocation and dependency plan | Pending both students |
+| v0.1.1 | 2026-11-03 | R-01: separate Sprint 1 PR build/automated-test release gate from Lab 5 hosted CI/CD, Docker and GCP | Pending re-review and both students |

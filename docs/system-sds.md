@@ -1,8 +1,8 @@
 # TTworkshop — System-Level Software Design Specification (SDS)
 
-> **DRAFT v0.1 — PROPOSED ARCHITECTURE — NOT APPROVED — 2026-11-03**
+> **DRAFT v0.1.1 — PROPOSED ARCHITECTURE — NOT APPROVED — 2026-11-03**
 > [P1-01 / Issue #1](https://github.com/cottonlnwza/TTworkshop/issues/1) · Deliverable 1 Part C
-> Requirements: `docs/srs.md` v0.1; inventory/ownership: `docs/features.md` v0.1. **No code, migration, API, container, test, cloud resource or deployment exists by virtue of this design.**
+> Requirements: `docs/srs.md` v0.1.1; inventory/ownership: `docs/features.md` v0.1.1. **No code, migration, API, container, test, cloud resource or deployment exists by virtue of this design.**
 
 ## 1. Purpose, design constraints and decision status
 
@@ -17,7 +17,7 @@ COURSE §5 requires a **real UI → API/application layer → persistent databas
 | Persistence | PostgreSQL with Prisma (or a transaction/constraint-capable query layer) | Durable relational ownership links, transactional capacity guards, partial uniqueness strategy | **PROPOSED**; finalize actual DB constraints before implementation |
 | Auth | Server-backed, opaque session in `HttpOnly` cookie; hashed passwords | Explicit lifecycle and backend identity; protected cookie and CSRF design | **PROPOSED** |
 | Deployment | Docker image, Cloud Run app/API and durable managed PostgreSQL (e.g., Cloud SQL) on GCP | Repeatable deployment, persistent data outside ephemeral containers | **PROPOSED**, pending Lab 5 instructions/resources |
-| Tests | Unit + real PostgreSQL/API integration + selected browser E2E, with CI after Lab 5 | Covers rule, persistence, ownership and end-user journey | **PROPOSED** tooling to be selected in contracts |
+| Tests | Unit + real PostgreSQL/API integration + selected browser E2E; applicable build/automated-test checks on relevant PRs from Sprint 1; hosted CI/CD automation expanded in Lab 5 | Covers rule, persistence, ownership, PR quality gate and end-user journey | **PROPOSED** tooling to be selected in contracts; no CI or test execution asserted |
 
 **Design principle:** enforce authorization and business invariants in the backend and transactionally in the database, not through UI-only checks or mock-only persistence.
 
@@ -151,9 +151,11 @@ With cookie auth, protect state-changing routes against CSRF using a suitable va
 
 **Local reproducibility plan:** documented tool versions → obtain synthetic example config → start local DB → execute schema migrations/seed → start UI/API → run build, unit/API integration and selected E2E tests; record commands/commit/test counts. No actual commands or passing test logs exist yet.
 
-**Lab 5 onward (plan, not implementation):** Docker image builds from reviewed main release; PR quality gate runs build/tests and rejects intentional failed check; acceptance PR goes via sprint staging → reviewed release PR → `main`; pipeline deploys accepted version to GCP (e.g., Cloud Run) with durable external DB (e.g., Cloud SQL), secret management/config externalized, and a reproducible post-deploy workflow/persistence verification. Lab handout may mandate different resources; update plan accordingly.
+**Sprint 1 PR quality gate (required delivery process, not yet implemented):** for every PR that affects a runnable application, run the applicable build and automated tests **before review/merge**, record exact commands, outcomes and tested commit SHA in the PR, and reject integration into sprint staging or release to `main` if any required check fails. For this documentation-only P1-01 PR, no application build/test exists or is claimed; verify the document diff and coverage. Until hosted required checks are actually configured, the gate must be demonstrated by explicit reviewer inspection of recorded results; do not present this as an enforced GitHub branch-protection rule. This requirement does **not** wait until Lab 5 (COURSE §5.3; §8.3 allows local evidence before mandatory CI).
 
-**D1 boundary:** GCP URL, completed Docker/CI/CD and demo video are **not** required for 8 November D1. Sprint 1 must run locally and be deployment-ready, with actual test and reviewed Git history evidence at submission time.
+**Lab 5 onward (plan, not implementation):** establish/expand hosted CI/CD to run relevant PR build/automated tests as required status checks, demonstrate deliberate failed-check rejection, package Docker images from reviewed accepted release, and deploy from `main` via a repeatable pipeline to GCP (e.g., Cloud Run) with durable external DB (e.g., Cloud SQL), external secrets/config and post-deployment workflow/persistence verification. These automate and extend, **not replace or postpone**, the Sprint 1 PR checks. Lab handout may mandate different resources; update plan accordingly.
+
+**D1 boundary:** GCP URL, completed Docker/CI/CD and demo video are **not** required for 8 November D1. Sprint 1 must run locally and be deployment-ready, with **applicable build/automated-test evidence for relevant PRs, failed-check exclusion**, and reviewed Git history at submission time.
 
 ## 10. Architectural risks and decisions to confirm
 
@@ -173,3 +175,4 @@ With cookie auth, protect state-changing routes against CSRF using a suitable va
 | Version | Date | Description | Approval |
 |---|---|---|---|
 | v0.1 | 2026-11-03 | First **proposed** system design for P1-01; no code or deployment | Pending both students |
+| v0.1.1 | 2026-11-03 | R-01: require Sprint 1 PR quality checks; reserve hosted CI/CD, Docker and GCP expansion for Lab 5 | Pending re-review and both students |
