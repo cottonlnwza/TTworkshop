@@ -1,6 +1,6 @@
 # TTworkshop — Feature Inventory
 
-> **DRAFT v0.1.1 — NOT APPROVED — 2026-11-03** · Issue [P1-01 / #1](https://github.com/cottonlnwza/TTworkshop/issues/1) · Deliverable 1 Part B
+> **DRAFT v0.1.2 — NOT APPROVED — 2026-11-03** · Issue [P1-01 / #1](https://github.com/cottonlnwza/TTworkshop/issues/1) · P1-02 reference update on [PR #8](https://github.com/cottonlnwza/TTworkshop/pull/8) · Deliverable 1 Part B
 > Scope source: `docs/srs.md` (draft FR-01–FR-15, BR-01–BR-16, NFR-01–NFR-07). Feature IDs/sprints follow the **proposed** three-period allocation described in `SKILL.md` v1.3.1 §3; that plan does not itself approve product requirements.
 
 ## 1. Feature register
@@ -9,7 +9,7 @@
 |---|---|---|---|---|---|
 | **F-01 — Authentication & role authorization** | Login/logout/current identity; Participant/Organizer backend permissions, seeded identities. | FR-01, FR-02; BR-01; NFR-01, NFR-07 | **1** | Approved SRS/SDS and auth contract | [P1-03 #3](https://github.com/cottonlnwza/TTworkshop/issues/3) |
 | **F-02 — Workshop draft & publication** | Organizer creates owned draft, publishes eligible workshop, views own workshops; no full edit workflow yet. | FR-03, FR-04, FR-05; BR-01, BR-02, BR-03, BR-04; NFR-01, NFR-02 | **1** | F-01; decisions on mandatory draft/publish fields | [P1-04 #4](https://github.com/cottonlnwza/TTworkshop/issues/4) |
-| **F-03 — Discovery & registration** | Participant browses published workshops and creates ACTIVE registration, with deadline, uniqueness and **atomic last-seat capacity** checks. | FR-06, FR-07; BR-01, BR-04, BR-05, BR-06, BR-07, BR-08; NFR-01, NFR-02, NFR-03 | **1** | F-01/F-02; consistent time/deadline policy | [P1-05 #5](https://github.com/cottonlnwza/TTworkshop/issues/5) |
+| **F-03 — Discovery & registration** | Participant browses published workshops and creates ACTIVE registration, with **BR-07 time eligibility and BR-08 default/configured deadline validation tested independently**, uniqueness and **atomic last-seat capacity**. **BR-10 manual closure belongs to F-05/F-06 in S2**, not this Sprint 1 contract. | FR-06, FR-07; BR-01, BR-04, BR-05, BR-06, BR-07, BR-08; NFR-01, NFR-02, NFR-03 | **1** | F-01/F-02; DEC-04 time/deadline policy still OPEN | [P1-05 #5](https://github.com/cottonlnwza/TTworkshop/issues/5) |
 | **F-04 — Registration views & ownership** | Participant retrieves own registration; owning Organizer inspects registrants; private data enforced server-side. | FR-08, FR-09; BR-01, BR-05; NFR-01, NFR-02 | **1** | F-01/F-02/F-03 | [P1-06 #6](https://github.com/cottonlnwza/TTworkshop/issues/6) |
 | **F-05 — Cancellation** | Timely self-cancellation of ACTIVE record, retained cancelled status/history, authorized re-registration as applicable. | FR-10; BR-01, BR-09, BR-10, BR-12; NFR-01, NFR-02 | **2** | F-03/F-04; closure/cancellation rule resolution | Planned **P2-03** (Issue not yet created) |
 | **F-06 — Deadline & manual closure** | Organizer configures eligible deadline and manually closes/reopens registration while keeping cancellation semantics distinct. | FR-11; BR-01, BR-07, BR-08, BR-10, BR-11; NFR-01, NFR-02 | **2** | F-02/F-03/F-05; edit/deadline policy | Planned **P2-04** (Issue not yet created) |
@@ -60,9 +60,10 @@ The expected **Sprint 1 integrated journey** is Organizer publish → Participan
 - **Current planned feature inventory:** F-01–F-09. **Current approved feature inventory:** **NOT VERIFIED** (no joint approval evidence in repository).
 - Draft `FR/BR/NFR → feature/responsibility → sprint → planned verification` coverage is explicit in `docs/traceability.md`; approved changes must update both files together while preserving change history.
 - Open SRS decisions, especially draft-field completeness, deadlines and time zone, post-publication editing, registration history UI, exact filters and NFR numbers, remain **unresolved**; any feature depending on them is **not ready to implement** until specified.
-- No feature-level UI/API/data contract, AC, STS or DoD is created by this inventory. That is **P1-02** for Sprint 1 features and later respective feature Issues.
+- This inventory is **not** a feature-level contract itself. P1-02 [PR #8](https://github.com/cottonlnwza/TTworkshop/pull/8) now contains **DRAFT / NOT APPROVED** Feature SDS, UI/API/data, **39 AC ↔ 39 planned STS** and DoD for F-01–F-04 in [`docs/contracts/README.md`](contracts/README.md); STS are **NOT IMPLEMENTED / NOT EXECUTED**. F-05–F-09 contracts remain future work. See `docs/traceability.md` for explicit requirement-to-AC/STS references.
 
 | Version | Date | Reason | Approval |
 |---|---|---|---|
 | v0.1 | 2026-11-03 | Initial **DRAFT** inventory from Theme 3 and proposed period plan | Pending both students |
 | v0.1.1 | 2026-11-03 | R-01: separate Sprint 1 PR checks (SYS-04) from Lab 5 hosted CI/CD, Docker and GCP | Pending re-review and both students |
+| v0.1.2 | 2026-11-03 | PR #8 Reviewer R-01/R-02: clarify F-03 BR-07/08 vs deferred BR-10; link newly drafted P1-02 AC/STS (39 each); feature allocation unchanged | **NOT APPROVED; contracts unexecuted** |

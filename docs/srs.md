@@ -1,6 +1,6 @@
 # TTworkshop — Software Requirements Specification (SRS)
 
-> **DRAFT v0.1.1 — NOT APPROVED — 2026-11-03 (Asia/Bangkok)**
+> **DRAFT v0.1.2 — NOT APPROVED — 2026-11-03 (Asia/Bangkok)**
 > Issue: [P1-01 / #1](https://github.com/cottonlnwza/TTworkshop/issues/1) · Theme 3: Event Registration and Attendance System
 > **Purpose:** Engineering baseline for the full product (Deliverable 1, Part A). No implementation, test, or release is asserted by this document.
 > **Approval gate:** Both students must review the choices/IDs, resolve or explicitly accept open decisions, and record approval in a versioned review before this becomes a binding SRS.
@@ -99,7 +99,7 @@ These are **draft test targets**, not instructor-imposed numerical thresholds; a
 - **Sprint 2:** Participant cancels within policy; Organizer changes deadline/closure or capacity under explicit constraints; previously registered users' data remains correct.
 - **Sprint 3:** Organizer checks in eligible Participant during event, observes accurate attendance summary and useful filtering. Final integrated tests cover earlier access and business rules.
 
-These narratives are **not** finished feature acceptance criteria. P1-02 will define uniquely identified AC/STS/DoD per F-01–F-04, before implementation.
+These narratives are **not themselves acceptance criteria**. P1-02 [PR #8](https://github.com/cottonlnwza/TTworkshop/pull/8) has now authored **DRAFT v0.1 / v0.1.1 Feature-Level AC/STS/DoD** for F-01–F-04 in `docs/contracts/README.md` and its linked four contracts: **39 proposed AC and 39 planned STS** (F-03 has 13 after Reviewer R-01). Their IDs are traceable in `docs/traceability.md` DRAFT v0.1.2. **NOT APPROVED / NOT IMPLEMENTED / NOT EXECUTED**: authoring a test specification does not establish test results or grant permission to implement. All contract and baseline decisions, including DEC-04, remain pending approval.
 
 ## 8. Assumptions, decisions, and unresolved questions
 
@@ -127,5 +127,6 @@ These narratives are **not** finished feature acceptance criteria. P1-02 will de
 |---|---|---|---|
 | v0.1 | 2026-11-03 | Initial source-grounded full-product **DRAFT** for P1-01 | **Pending both students** |
 | v0.1.1 | 2026-11-03 | Address PR #7 Reviewer R-01: make Sprint 1 build/test PR gate distinct from Lab 5 hosted CI/CD and deployment; still DRAFT | **Pending re-review and both students** |
+| v0.1.2 | 2026-11-03 | PR #8 Reviewer R-02 status correction: reference P1-02 Draft AC/STS/DoD (39 each after R-01), keep approval and execution separate; requirement text/IDs unchanged | **NOT APPROVED; formal decision pending** |
 
-**Current state:** Specification drafted only; no implementation, executed AC/STS, PR, integration, release or deployment is represented here. Requirements-to-feature allocation: `docs/features.md` and `docs/traceability.md`. Architecture choices: `docs/system-sds.md`. Schedule/dependencies: `docs/sprints/plan.md`.
+**Current state:** Product specification remains **DRAFT / NOT APPROVED**; P1-02 documentation [PR #8](https://github.com/cottonlnwza/TTworkshop/pull/8) adds planned AC/STS but no implementation, executed application tests, CI, feature release or deployment. Requirements-to-feature allocation: `docs/features.md` and `docs/traceability.md`. Architecture choices: `docs/system-sds.md`. Schedule/dependencies: `docs/sprints/plan.md`.
