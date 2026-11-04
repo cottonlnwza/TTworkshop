@@ -1,14 +1,14 @@
 # TTworkshop — Requirements → Features → Sprints → Verification Traceability
 
-> **DRAFT v0.1.3 — NOT APPROVED — 2026-11-03** · [Issue #1 / P1-01](https://github.com/cottonlnwza/TTworkshop/issues/1) · [Issue #2 / P1-02](https://github.com/cottonlnwza/TTworkshop/issues/2) review crosswalk correction · Deliverable 1 Part B/E
-> Source baseline: `docs/srs.md` DRAFT v0.1.3 (unchanged FR/BR/NFR IDs); feature mapping: `docs/features.md` DRAFT v0.1.3. P1-02 [PR #8](https://github.com/cottonlnwza/TTworkshop/pull/8) now authors **41 DRAFT AC and 41 PLANNED STS for F-01–F-04** in [`docs/contracts/README.md`](contracts/README.md). **NOT APPROVED / NOT IMPLEMENTED / NOT EXECUTED**: no executable feature tests or actual test results exist.
+> **DRAFT v0.1.4 — NOT APPROVED — 2026-11-04** · [Issue #1 / P1-01](https://github.com/cottonlnwza/TTworkshop/issues/1) · [Issue #2 / P1-02](https://github.com/cottonlnwza/TTworkshop/issues/2) · Reviewer R-04 crosswalk update on [PR #10](https://github.com/cottonlnwza/TTworkshop/pull/10) · Deliverable 1 Part B/E
+> Source baseline: `docs/srs.md` DRAFT v0.1.5; feature mapping: `docs/features.md` DRAFT v0.1.4. Historical P1-02 PR #8 contained 41 DRAFT AC / 41 PLANNED STS (F-01 8, F-02 11, F-03 13, F-04 9). PR #10 proposes the current 42 DRAFT AC / 42 PLANNED STS set after adding F-02 AC/STS-12 (F-01 8, F-02 12, F-03 13, F-04 9). F-01 implementation evidence is recorded separately below; F-02-F-04 remain without implementation/executed STS. No hosted CI, main release or deployment is claimed.
 
 ## 1. Conventions and status
 
 - **S1 / S2 / S3**: planned sprint of implementation or first verification; later regression may span multiple sprints.
 - **SYS-01–SYS-05**: cross-cutting responsibilities, not extra product features (defined in `docs/features.md`).
 - **Verification** is a planned check and level only. **DRAFT P1-02** points to newly authored provisional AC and planned STS (crosswalk in section 5A), **not executed test evidence**. **TBD** applies to later-sprint contracts and means not specified; neither status means PASS.
-- **Current status of every row below: DRAFT / NOT IMPLEMENTED / NOT EXECUTED**, except where noted as an additional scope-decision risk. Do not mark a row PASS until its real test, file, version and output are recorded.
+- Requirement allocations and AC/STS crosswalks below remain DRAFT / NOT APPROVED. Execution status is feature-specific: F-01 has merged implementation and 21/21 local application tests plus a local build (see section 5); F-02-F-04 remain unimplemented with planned STS not executed. Do not infer full-product requirement closure or hosted CI from that evidence.
 
 ## 2. Functional requirement matrix
 
@@ -67,39 +67,39 @@
 
 | Metric | DRAFT planned coverage | Verified implementation |
 |---|---|---|
-| Functional requirements | 15/15 mapped to at least one Feature | **0/15 verified** |
-| Business rules | 16/16 mapped | **0/16 verified** |
-| Important NFRs | 7/7 mapped to Feature and/or SYS responsibility | **0/7 verified** |
-| Sprint 1 AC/STS | **41 DRAFT AC + 41 PLANNED STS written in P1-02 PR #8**: F-01 8, F-02 11, F-03 13, F-04 9. See section 5A and linked contract files. **NOT APPROVED** | **0 tests implemented / 0 executed; no PASS evidence** |
-| Approved scope | **Not verified**; FR-15 and several detailed rules require approval | **No approval evidence** |
+| Functional requirements | 15/15 mapped to at least one Feature | 0/15 full-product requirements closed |
+| Business rules | 16/16 mapped | 0/16 full-product rules closed |
+| Important NFRs | 7/7 mapped to Feature and/or SYS responsibility | 0/7 full-product NFRs closed |
+| Sprint 1 AC/STS | 42 current DRAFT AC + 42 PLANNED STS: F-01 8, F-02 12, F-03 13, F-04 9. Historical PR #8 was 41/41 before PR #10 added F-02-12. See section 5A and linked contracts. NOT APPROVED | F-01: PR #9 merged to sprint_1_staging; Author ran 21/21 local application tests (11 PostgreSQL/API, 5 React UI, 2 Chrome E2E, 3 DB guard) and npm run build PASS on merge SHA 21e9d9de83ccef24214484ab159a83d398f544b3. F-02-F-04: planned STS not implemented/executed. Local results are not hosted CI; no main release/deployment is claimed. |
+| Approved scope | Full-product baseline approval not claimed; FR-15 and several detailed rules remain open | No instructor/full-product sign-off claimed |
 
 **Known open verification dependencies:** `DEC-03` incomplete drafts, `DEC-04` deadline/time zone/boundary, `DEC-06` cancellation/history UI, `DEC-07` published-event edits, `DEC-09` metric interpretation, `DEC-11` public/filter scope, and `DEC-12` NFR thresholds. They are **not silently treated as resolved**.
 
-## 5A. Sprint 1 P1-02 Draft AC ↔ planned STS crosswalk — NOT EXECUTED
+## 5A. Sprint 1 current DRAFT AC-to-planned-STS crosswalk - NOT EXECUTED
 
-Each ID below links to the acceptance-criteria and software-test-specification tables in the named file. **For each `AC-Fxx-NN` in a row, the matching test is `STS-Fxx-NN` in that same contract** (e.g., AC-F03-12 → STS-F03-12). Every listed test is **PLANNED / NOT IMPLEMENTED / NOT EXECUTED**; no linked requirement is approved merely because a draft AC exists. Only Sprint 1 coverage is represented here; follow-up S2/S3 rules and NFR-06 delivery checks remain separate.
+Each ID below links to the acceptance-criteria and software-test-specification tables in the named file. For each AC-Fxx-NN in a row, the matching test is STS-Fxx-NN in that same contract. This table is a requirement-to-test design crosswalk, not execution evidence. The current 42 AC/STS are DRAFT / NOT APPROVED; F-02-F-04 planned STS are NOT IMPLEMENTED / NOT EXECUTED. F-01 actual application test results are recorded separately in section 5 and are not inferred from this crosswalk. Only Sprint 1 coverage is represented here; follow-up S2/S3 rules and NFR-06 delivery checks remain separate.
 
 | Draft requirement | Feature contract (read AC and matching STS) | AC IDs representing proposed Sprint 1 verification |
 |---|---|---|
 | FR-01 | [F-01](contracts/f-01-auth.md) | AC-F01-01, AC-F01-03, AC-F01-04, AC-F01-06, AC-F01-08 |
 | FR-02 | [F-01](contracts/f-01-auth.md) | AC-F01-01, AC-F01-02, AC-F01-05 |
-| FR-03 | [F-02](contracts/f-02-workshop-publish.md) | AC-F02-01, AC-F02-09, **AC-F02-10** (Create BR-08 validation) |
-| FR-04 | [F-02](contracts/f-02-workshop-publish.md) | AC-F02-03, AC-F02-04, AC-F02-05, AC-F02-07, AC-F02-08, **AC-F02-11** (Publish BR-08 validation) |
+| FR-03 | [F-02](contracts/f-02-workshop-publish.md) | AC-F02-01, AC-F02-09, AC-F02-10 (Create BR-08 validation), AC-F02-12 (complete the same owned DRAFT) |
+| FR-04 | [F-02](contracts/f-02-workshop-publish.md) | AC-F02-03, AC-F02-04, AC-F02-05, AC-F02-07, AC-F02-08, AC-F02-11 (Publish BR-08 validation), AC-F02-12 (update then publish the same DRAFT) |
 | FR-05 | [F-02](contracts/f-02-workshop-publish.md) | AC-F02-02 |
 | FR-06 | [F-03](contracts/f-03-discovery-registration.md) | AC-F03-01, AC-F03-02 |
 | FR-07 | [F-03](contracts/f-03-discovery-registration.md) | AC-F03-03, AC-F03-04, AC-F03-05, AC-F03-06, AC-F03-07, AC-F03-08, AC-F03-09, AC-F03-10, AC-F03-11, AC-F03-12, AC-F03-13 |
 | FR-08 | [F-04](contracts/f-04-registration-views.md) | AC-F04-01, AC-F04-02, AC-F04-03, AC-F04-07, AC-F04-08, AC-F04-09 |
 | FR-09 | [F-04](contracts/f-04-registration-views.md) | AC-F04-04, AC-F04-05, AC-F04-06, AC-F04-07, AC-F04-08 |
-| BR-01 | [F-01](contracts/f-01-auth.md), [F-02](contracts/f-02-workshop-publish.md), [F-03](contracts/f-03-discovery-registration.md), [F-04](contracts/f-04-registration-views.md) | AC-F01-02, AC-F01-04, AC-F01-05; AC-F02-01, AC-F02-02, AC-F02-06; AC-F03-01, AC-F03-09; AC-F04-01, AC-F04-03, AC-F04-04, AC-F04-05, AC-F04-06 |
+| BR-01 | [F-01](contracts/f-01-auth.md), [F-02](contracts/f-02-workshop-publish.md), [F-03](contracts/f-03-discovery-registration.md), [F-04](contracts/f-04-registration-views.md) | AC-F01-02/04/05; AC-F02-01, AC-F02-02, AC-F02-06, **AC-F02-12**; AC-F03-01/09; AC-F04-01/03/04/05/06 |
 | BR-02 | [F-02](contracts/f-02-workshop-publish.md) | AC-F02-03, AC-F02-04 |
 | BR-03 | [F-02](contracts/f-02-workshop-publish.md) | AC-F02-03, AC-F02-05 |
-| BR-04 | [F-02](contracts/f-02-workshop-publish.md), [F-03](contracts/f-03-discovery-registration.md) | AC-F02-01, AC-F02-02, AC-F02-03, AC-F02-06, AC-F02-07; AC-F03-01, AC-F03-07 |
+| BR-04 | [F-02](contracts/f-02-workshop-publish.md), [F-03](contracts/f-03-discovery-registration.md) | AC-F02-01, AC-F02-02, AC-F02-03, AC-F02-06, AC-F02-07, **AC-F02-12**; AC-F03-01/07 |
 | BR-05 | [F-03](contracts/f-03-discovery-registration.md), [F-04](contracts/f-04-registration-views.md) | AC-F03-04, AC-F04-09 |
 | BR-06 | [F-03](contracts/f-03-discovery-registration.md) | AC-F03-05, AC-F03-06 |
 | BR-07 | [F-03](contracts/f-03-discovery-registration.md) | **AC-F03-08** (deadline eligibility independently; DEC-04 PENDING) |
 | BR-08 | **[F-02](contracts/f-02-workshop-publish.md) Create/Publish owner**; **[F-03](contracts/f-03-discovery-registration.md) Registration default + fail-closed guard** | **AC-F02-10 (Create)**, **AC-F02-11 (Publish)**; **AC-F03-12 (no deadline default)**, **AC-F03-13 (invalid persisted data: Registration reject only)**. Four separate matching STS IDs, DEC-04 **OPEN / NOT APPROVED** |
 | BR-10 | **S2 F-05/F-06 — no P1-02 Sprint 1 AC/STS** | **TBD S2**, manual-closure/cancellation rule, not combined into AC-F03-08 |
-| NFR-01 | [F-01](contracts/f-01-auth.md), [F-02](contracts/f-02-workshop-publish.md), [F-03](contracts/f-03-discovery-registration.md), [F-04](contracts/f-04-registration-views.md) | AC-F01-03, AC-F01-04, AC-F01-05, AC-F01-07; AC-F02-06; AC-F03-09; AC-F04-03, AC-F04-05, AC-F04-06 |
+| NFR-01 | [F-01](contracts/f-01-auth.md), [F-02](contracts/f-02-workshop-publish.md), [F-03](contracts/f-03-discovery-registration.md), [F-04](contracts/f-04-registration-views.md) | AC-F01-03/04/05/07; AC-F02-06, **AC-F02-12**; AC-F03-09; AC-F04-03/05/06 |
 | NFR-02 | [F-02](contracts/f-02-workshop-publish.md), [F-03](contracts/f-03-discovery-registration.md), [F-04](contracts/f-04-registration-views.md) | AC-F02-01, AC-F02-09; AC-F03-03, AC-F03-10; AC-F04-02, AC-F04-08 |
 | NFR-03 | [F-03](contracts/f-03-discovery-registration.md) | AC-F03-06 (10 users / 1 remaining seat, provisional target) |
 | NFR-07 | [F-01](contracts/f-01-auth.md) | AC-F01-07 (synthetic accounts, no real secrets; other PR checks remain SYS-04) |
@@ -108,14 +108,15 @@ Each ID below links to the acceptance-criteria and software-test-specification t
 
 ## 6. Required updates at later checkpoints
 
-1. **P1-02 Draft now written, not approved:** 41 provisional AC/STS with levels/preconditions/outcomes are in PR #8 (see section 5A). Resolve DEC gates and obtain versioned **formal baseline/contract approval** before any corresponding implementation; a merged documentation PR alone does not satisfy this gate.
+1. **Current Sprint 1 working contract set:** 42 DRAFT AC / 42 PLANNED STS (8+12+13+9) are indexed in `docs/contracts/README.md`; historical PR #8 was 41/41 before PR #10 added F-02-12. A scoped working-document change is accepted only after independent substantive peer APPROVE, actual merge into `sprint_1_staging`, and Author post-merge verification. This does not claim instructor approval or full-product sign-off; resolve any still-open decision in its own versioned scope before dependent implementation.
 2. **After each feature test execution:** Add actual `test file::test name`, build/test command, pass/fail/skipped count, tested commit SHA and reviewed PR/release. Never label a pending check PASS.
 3. **D2:** Include all S2 AC and results, actual S3 implemented progress, deployed integration/regression checks, open defects, and approved baseline changes.
 4. **Final:** Include complete FR/BR/NFR → Feature → Sprint → AC/verification → test file or measurement → result → **final released commit**; preserve rejected or incomplete requirements explicitly.
 
 | Version | Date | Revision | Approval |
 |---|---|---|---|
-| v0.1 | 2026-11-03 | Initial **DRAFT** full-baseline mapping; no actual test claims | Pending both students |
-| v0.1.1 | 2026-11-03 | R-01: NFR-06 verification explicitly splits Sprint 1 PR checks from Lab 5 hosted CI/CD | Pending re-review and both students |
-| v0.1.2 | 2026-11-03 | PR #8 Reviewer R-01/R-02: map 39 Draft AC to matching planned STS in F-01–F-04, distinguish BR-07/08 from Sprint 2 BR-10, correct stale AC/STS status | **NOT APPROVED; no tests executed** |
-| v0.1.3 | 2026-11-03 | PR #8 Reviewer R-03: clarify F-02 ownership at Create/Publish, separate F-03 defensive Registration, add F-02 AC/STS-10/11 (41 pairs total), fix malformed section delimiter; decisions remain OPEN | **NOT APPROVED; no tests executed** |
+| v0.1 | 2026-11-03 | Initial DRAFT full-baseline mapping; no actual test claims | Historical status at this version: pending both students |
+| v0.1.1 | 2026-11-03 | R-01: NFR-06 verification explicitly splits Sprint 1 PR checks from Lab 5 hosted CI/CD | Historical status at this version: pending re-review |
+| v0.1.2 | 2026-11-03 | PR #8 Reviewer R-01/R-02: map 39 Draft AC to matching planned STS in F-01-F-04, distinguish BR-07/08 from Sprint 2 BR-10, correct stale AC/STS status | Historical status: NOT APPROVED; no tests executed |
+| v0.1.3 | 2026-11-03 | PR #8 Reviewer R-03: clarify F-02 ownership at Create/Publish, separate F-03 defensive Registration, add F-02 AC/STS-10/11 (41 pairs total); decisions remain OPEN | Historical status: NOT APPROVED; no tests executed |
+| v0.1.4 | 2026-11-04 | PR #10 Reviewer R-04: add AC-F02-12 / STS-F02-12 to FR-03/FR-04/BR-01/BR-04/NFR-01; distinguish historical PR #8 41/41 from current 42/42; record F-01 local evidence separately from F-02-F-04 unexecuted STS | PENDING PEER REVIEW; full SRS remains DRAFT / NOT APPROVED |
