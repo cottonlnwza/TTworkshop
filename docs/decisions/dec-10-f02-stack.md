@@ -1,6 +1,6 @@
 # DEC-10-F02 — F-02 stack and persistence-layer selection
 
-> **PROPOSED v0.1 — NOT APPROVED — 2026-11-04** · Scope: F-02 Workshop Draft & Publish (P1-04 / Issue #4)
+> **v0.1 choice accepted for F-02 scoped working use; global architecture NOT APPROVED** · 2026-11-05 reconciliation [Issue #11](https://github.com/cottonlnwza/TTworkshop/issues/11). Original proposal: 2026-11-04, [Issue #4](https://github.com/cottonlnwza/TTworkshop/issues/4). Evidence: [PR #10](https://github.com/cottonlnwza/TTworkshop/pull/10); [acceptance ledger](p1-ex01-working-acceptance-ledger.md).
 
 ## Decision
 
@@ -25,4 +25,4 @@ F-02 adds its Workshop schema through versioned SQL migrations and uses the repo
 
 ## Status and evidence
 
-**Pending independent teammate review and merge of the authorized Issue #4 documentation PR.** F-01 is the implementation precedent; this record does not claim that every proposed F-02 choice has already been implemented or that the global architecture is approved.
+**Historical review completed:** PR #10 peer-APPROVED `671a98e`, merged as `a863246`, and Author-verified (Issue #4); Reviewer explicitly conditioned acceptance of the scoped working stack choice on those events. F-01's existing implementation remains the integration precedent, not evidence F-02 has been written or that global GCP/CI architecture is approved. See [Issue #11's ledger](p1-ex01-working-acceptance-ledger.md).
