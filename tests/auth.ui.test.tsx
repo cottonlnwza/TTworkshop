@@ -7,6 +7,26 @@ import { AuthApp } from "../web/AuthApp.js";
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe("F-01 UI acceptance / synthetic browser", () => {
+  it("R-04: 403 /auth/me displays forbidden state, not anonymous login", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ status:403,ok:false,
+      json:async()=>({error:{code:"FORBIDDEN"}}) })));
+    render(<AuthApp />);
+    expect((await screen.findByRole("alert")).textContent).toContain("Access denied");
+    expect(screen.queryByRole("button",{name:"Sign in"})).toBeNull();
+    expect(screen.getByRole("button",{name:"Retry session check"})).toBeTruthy();
+  });
+  it("R-04: 500 /auth/me shows service error, retry recovers to login after 401", async () => {
+    const fetcher=vi.fn()
+      .mockResolvedValueOnce({status:500,ok:false,json:async()=>({error:{code:"INTERNAL"}})})
+      .mockResolvedValueOnce({status:401,ok:false,json:async()=>({error:{code:"UNAUTHENTICATED"}})});
+    vi.stubGlobal("fetch", fetcher);
+    render(<AuthApp />);
+    expect((await screen.findByRole("alert")).textContent).toContain("Service unavailable");
+    expect(screen.queryByRole("button",{name:"Sign in"})).toBeNull();
+    fireEvent.click(screen.getByRole("button",{name:"Retry session check"}));
+    expect(await screen.findByRole("button",{name:"Sign in"})).toBeTruthy();
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
   it("STS-F01-08: form has accessible labels and required-field feedback", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ status:401,ok:false,json:async()=>({error:{code:"UNAUTHENTICATED"}}) })));
     render(<AuthApp />);

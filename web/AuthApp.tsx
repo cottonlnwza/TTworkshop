@@ -1,7 +1,7 @@
 import React, { useEffect, useState, type FormEvent } from "react";
 
 type User = { id: string; email: string; role: "PARTICIPANT" | "ORGANIZER" };
-type Mode = "loading" | "anonymous" | "authenticated";
+type Mode = "loading" | "anonymous" | "authenticated" | "forbidden" | "error";
 const url = "/api/v1/auth";
 function userFromReply(body: unknown): User | null {
   if (!body || typeof body !== "object" || !("data" in body)) return null;
@@ -19,14 +19,33 @@ export function AuthApp() {
   const [password,setPassword] = useState("");
   const [error,setError] = useState("");
   const [busy,setBusy] = useState(false);
+  const [sessionAttempt,setSessionAttempt] = useState(0);
   useEffect(() => {
     let active = true;
+    setMode("loading");
+    setError("");
     fetch(url + "/me", { credentials:"same-origin" })
-      .then(async res => active ? (res.ok ? userFromReply(await res.json()) : null) : null)
-      .then(found => { if (active) { setUser(found); setMode(found ? "authenticated" : "anonymous"); } })
-      .catch(() => { if (active) { setUser(null); setMode("anonymous"); setError("Unable to check session"); } });
+      .then(async response => {
+        if (!active) return;
+        if (response.status === 401) {
+          setUser(null);setMode("anonymous");return;
+        }
+        if (response.status === 403) {
+          setUser(null);setMode("forbidden");setError("Access denied. Please retry or contact support.");return;
+        }
+        if (!response.ok) {
+          setUser(null);setMode("error");setError("Service unavailable. Please try again.");return;
+        }
+        const found = userFromReply(await response.json());
+        if (!active) return;
+        if (!found) {
+          setUser(null);setMode("error");setError("Service unavailable. Please try again.");return;
+        }
+        setUser(found);setMode("authenticated");
+      })
+      .catch(() => { if (active) { setUser(null); setMode("error"); setError("Unable to contact server. Please try again."); } });
     return () => { active=false; };
-  }, []);
+  }, [sessionAttempt]);
   async function login(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
@@ -62,7 +81,15 @@ export function AuthApp() {
   return <main className="page">
     <header><span className="brand">TT / WORKSHOP</span><span className="tag">CPE334 · Sprint 1</span></header>
     <section className="panel" aria-label="Authentication">
-      {mode==="loading" ? <p role="status">Checking your session…</p> : mode==="authenticated" && user ?
+      {mode==="loading" ? <p role="status">Checking your session…</p> :
+        mode==="forbidden" || mode==="error" ?
+        <>
+          <p className="eyebrow">SESSION CHECK</p>
+          <h1>{mode==="forbidden" ? "Access denied" : "Unable to load session"}</h1>
+          <p role="alert" className="error">{error}</p>
+          <button onClick={()=>setSessionAttempt(value=>value+1)}>Retry session check</button>
+        </> :
+        mode==="authenticated" && user ?
         <>
           <p className="eyebrow">SIGNED IN</p>
           <h1>{user.role==="ORGANIZER"?"Organizer workspace":"Participant workspace"}</h1>

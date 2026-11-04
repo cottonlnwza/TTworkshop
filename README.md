@@ -30,10 +30,10 @@ This increment implements **real** browser UI → Express API → PostgreSQL per
 
 ### Checks and contract evidence
 
-- `PG_TEST_URL=postgresql://<db-user>@127.0.0.1:<port>/ttworkshop_test npm test` — real PostgreSQL API/integration, React UI, and headless **Chrome** E2E tests. The command intentionally refuses DB URLs without `ttworkshop_test`. Browser tests use isolated local port 15173; you may set `CHROME_PATH` if Chrome is installed elsewhere.
+- `PG_TEST_URL=postgresql://<db-user>@127.0.0.1:<port>/ttworkshop_test npm test` — real PostgreSQL API/integration, React UI, and headless **Chrome** E2E tests. Tests parse the URL and require **exactly** `/ttworkshop_test` on a loopback host, then verify the PostgreSQL `current_database()` and server IP **before any `TRUNCATE`**. A marker in URL query parameters cannot bypass this protection. Browser tests use isolated local port 15173; you may set `CHROME_PATH` if Chrome is installed elsewhere.
 - `npm run build` — strict TypeScript checking and production Vite frontend bundle.
 - `npm audit --omit=dev --audit-level=high` — production dependency audit (not a substitute for code/security review).
-- Test migration is idempotent; the tests **TRUNCATE `sessions` and `users` in `ttworkshop_test`**, never point `PG_TEST_URL` at live/product data.
+- Test migration is idempotent; the tests **TRUNCATE `sessions` and `users` in `ttworkshop_test`**, never point `PG_TEST_URL` at live/product data. Never override the exact-database/loopback guard to run a test against a non-test database.
 
 Implementation decisions and security design: [DEC-10 for F-01](docs/decisions/dec-10-f01.md). TDD/test evidence: [P1-03 evidence](docs/evidence/p1-03-f01.md). Original reviewed acceptance criteria: [F-01 contract](docs/contracts/f-01-auth.md).
 

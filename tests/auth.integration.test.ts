@@ -4,10 +4,14 @@ import { Pool } from "pg";
 import { createApp } from "../api/app.js";
 import { hashPassword } from "../api/password.js";
 import { migrate } from "../api/migrate.js";
+import { requireTestDatabaseUrl, assertTestDatabase } from "./helpers/testDatabase.js";
+import { execFileSync } from "node:child_process";
+import { resolve } from "node:path";
 
 const origin = "http://localhost:5173";
 const credentials = "synthetic-f01-password-not-for-production";
-const pool = new Pool({ connectionString: process.env.PG_TEST_URL });
+const testDatabaseUrl = requireTestDatabaseUrl(process.env.PG_TEST_URL);
+const pool = new Pool({ connectionString: testDatabaseUrl });
 const app = createApp(pool, { appOrigin: origin, production: false, sessionHours: 8 });
 
 async function login(email: string, extra?: object) {
@@ -21,21 +25,19 @@ function sessionCookie(res: { headers: Record<string, unknown> }) {
 }
 
 beforeAll(async () => {
-  if (!process.env.PG_TEST_URL || !process.env.PG_TEST_URL.includes("ttworkshop_test")) {
-    throw new Error("PG_TEST_URL must explicitly point at dedicated ttworkshop_test DB");
-  }
+  await assertTestDatabase(pool);
   await migrate(pool);
 });
 beforeEach(async () => {
   await pool.query("TRUNCATE TABLE sessions, users RESTART IDENTITY CASCADE");
-  const passHash = await hashPassword(credentials);
   for (const [email, role] of [
     ["participant.a@example.test", "PARTICIPANT"],
     ["participant.b@example.test", "PARTICIPANT"],
     ["organizer.a@example.test", "ORGANIZER"],
     ["organizer.b@example.test", "ORGANIZER"]
   ]) {
-    await pool.query("INSERT INTO users(email, password_hash, role) VALUES($1,$2,$3)", [email, passHash, role]);
+    await pool.query("INSERT INTO users(email, password_hash, role) VALUES($1,$2,$3)",
+      [email, await hashPassword(credentials), role]);
   }
 });
 afterAll(async () => { await pool.end(); });
@@ -112,7 +114,23 @@ describe("F-01 acceptance / actual real PostgreSQL API", () => {
     expect(empty.status).toBe(400);
     expect(empty.body.error.code).toBe("VALIDATION");
     expect(malformed.status).toBe(400);
+    expect(malformed.headers["cache-control"]).toContain("no-store");
     expect((await pool.query("SELECT count(*)::int AS n FROM sessions")).rows[0].n).toBe(0);
+  });
+  it("STS-F01-07 / R-01: synthetic CLI seed generates distinct salts per account", async () => {
+    execFileSync(process.execPath, ["--import", "tsx", resolve("scripts/seed.ts")], {
+      cwd: resolve("."), env: { ...process.env, DATABASE_URL: testDatabaseUrl,
+        SEED_PASSWORD: credentials, NODE_ENV: "test" }, stdio: "pipe"
+    });
+    const result = await pool.query<{ email: string; password_hash: string }>(
+      "SELECT email,password_hash FROM users ORDER BY email"
+    );
+    expect(result.rows).toHaveLength(4);
+    expect(new Set(result.rows.map(row => row.password_hash)).size).toBe(4);
+    const salts = result.rows.map(row => row.password_hash.split("$")[1]);
+    expect(salts.every(salt => /^[a-f0-9]{32}$/.test(salt ?? ""))).toBe(true);
+    expect(new Set(salts).size).toBe(4);
+    expect(result.rows.every(row => !row.password_hash.includes(credentials))).toBe(true);
   });
   it("F-01 additional security: rejected foreign Origin, bad role, unauthenticated probes", async () => {
     const foreign = await request(app).post("/api/v1/auth/login")

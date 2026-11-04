@@ -29,12 +29,13 @@ function safeUser(row: { id: string | number; email: string; role: Role }): Iden
 export function createApp(pool: Pool, options: Options) {
   const app = express();
   app.disable("x-powered-by");
-  app.use(express.json({ limit: "8kb" }));
-  // Identity and session responses are private, including 401 and logout.
+  // Must run BEFORE body parsing: malformed JSON can fail in express.json and
+  // still requires no-store on all auth responses (including error status 400).
   app.use("/api/v1/auth", (_req, res, next) => {
     res.setHeader("Cache-Control", "no-store");
     next();
   });
+  app.use(express.json({ limit: "8kb" }));
   const requireOrigin = (req: Request, res: Response, next: NextFunction) => {
     if (req.headers.origin !== options.appOrigin) {
       res.status(403).json(fail("FORBIDDEN_ORIGIN", "Request origin not allowed"));

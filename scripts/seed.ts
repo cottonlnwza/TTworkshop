@@ -10,13 +10,14 @@ if (process.env.NODE_ENV === "production") throw new Error("Never seed demo cred
 const pool = new Pool({ connectionString: url });
 try {
   await migrate(pool);
-  const hash = await hashPassword(password);
   for (const [email, role] of [
     ["participant.a@example.test", "PARTICIPANT"],
     ["participant.b@example.test", "PARTICIPANT"],
     ["organizer.a@example.test", "ORGANIZER"],
     ["organizer.b@example.test", "ORGANIZER"]
   ]) {
+    // Every account gets its own random salt, even when using a shared synthetic demo password.
+    const hash = await hashPassword(password);
     await pool.query("INSERT INTO users(email,password_hash,role) VALUES($1,$2,$3) " +
       "ON CONFLICT(email) DO UPDATE SET password_hash=EXCLUDED.password_hash, role=EXCLUDED.role", [email,hash,role]);
   }

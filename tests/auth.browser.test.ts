@@ -7,23 +7,23 @@ import type { Server } from "node:http";
 import { createApp } from "../api/app.js";
 import { migrate } from "../api/migrate.js";
 import { hashPassword } from "../api/password.js";
+import { requireTestDatabaseUrl, assertTestDatabase } from "./helpers/testDatabase.js";
 
 const password = "synthetic-f01-password-not-for-production";
-const pool = new Pool({ connectionString: process.env.PG_TEST_URL });
+const pool = new Pool({ connectionString: requireTestDatabaseUrl(process.env.PG_TEST_URL) });
 let api: Server;
 let vite: ViteDevServer;
 let browser: Browser;
 let webOrigin: string;
 
 beforeAll(async () => {
-  if (!process.env.PG_TEST_URL?.includes("ttworkshop_test")) throw new Error("Dedicated test DB required");
+  await assertTestDatabase(pool);
   await migrate(pool);
   await pool.query("TRUNCATE TABLE sessions, users RESTART IDENTITY CASCADE");
-  const hash = await hashPassword(password);
   await pool.query("INSERT INTO users(email,password_hash,role) VALUES($1,$2,'ORGANIZER')",
-    ["organizer.a@example.test",hash]);
+    ["organizer.a@example.test",await hashPassword(password)]);
   await pool.query("INSERT INTO users(email,password_hash,role) VALUES($1,$2,'PARTICIPANT')",
-    ["participant.a@example.test",hash]);
+    ["participant.a@example.test",await hashPassword(password)]);
 
   // The browser and API have a single browser origin via Vite proxy, and the
   // API is bound to localhost only. A real Chromium process drives the UI.
