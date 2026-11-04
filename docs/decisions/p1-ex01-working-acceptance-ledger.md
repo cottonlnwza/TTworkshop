@@ -1,6 +1,6 @@
 # P1-EX01 — Sprint 1 baseline and F-02 decision acceptance ledger
 
-> **Reconciliation proposal v0.1 — 2026-11-05** · [Issue #11](https://github.com/cottonlnwza/TTworkshop/issues/11) · Author: `cottonlnwza` · Intended independent Reviewer: `thananun-7203`  
+> **Reconciliation proposal v0.1 — 2026-11-05** · [Issue #11](https://github.com/cottonlnwza/TTworkshop/issues/11) · Author: `cottonlnwza` · Intended independent Reviewer: `thananun-7203`
 > This ledger documents **historical, independently verifiable scoped acceptance**. Its own Issue #11 change is **NOT YET REVIEWED/MERGED**. It does not grant approval for feature implementation, instructor sign-off, or unrelated open decisions.
 
 ## 1. What the existing review evidence actually accepts
