@@ -1,8 +1,8 @@
 # TTworkshop — System-Level Software Design Specification (SDS)
 
-> **DRAFT v0.1.2 — PROPOSED ARCHITECTURE — NOT APPROVED — 2026-11-04**
+> **DRAFT v0.1.3 — PROPOSED ARCHITECTURE — NOT APPROVED — 2026-11-04**
 > [P1-01 / Issue #1](https://github.com/cottonlnwza/TTworkshop/issues/1) · Deliverable 1 Part C
-> Requirements: `docs/srs.md` v0.1.4; inventory/ownership: `docs/features.md` v0.1.1. **No new Workshop code, migration, API, container, test, cloud resource or deployment exists by virtue of this design.**
+> Requirements: `docs/srs.md` v0.1.5; inventory/ownership: `docs/features.md` v0.1.1. **No new Workshop code, migration, API, container, test, cloud resource or deployment exists by virtue of this design.**
 
 ## 1. Purpose, design constraints and decision status
 
@@ -164,7 +164,7 @@ With cookie auth, protect state-changing routes against CSRF using a suitable va
 | `ARCH-01` Stack/ORM/DB selection | PostgreSQL locks/partial indexes vs ORM support; integration DB must match concurrency semantics | F-01 implemented React 19/TS/Vite 8, Express 5/Node TS, PostgreSQL 15+ and `pg` SQL with no ORM; F-02 reuse proposed in DEC-10-F02, **pending peer review; global architecture not approved** |
 | `ARCH-02` Session approach | Cookie + CSRF vs bearer tokens; expiry/logout semantics | F-01 implements opaque server-side sessions and Origin validation; F-02 reuse proposed in DEC-10-F02; broader lifecycle/security policy remains open |
 | `ARCH-03` UTC/storage timezone | Accurate deadline/check-in windows; time-zone input and output | Proposed in DEC-04: explicit-offset ISO API, UTC instants in `timestamptz`, configured university display timezone and closed-at-equality boundary; **pending peer review** |
-| `ARCH-04` DRAFT required fields | Nullability/migrations and create/publish screens | Proposed in DEC-03: incomplete DRAFT allowed; required fields enforced at Publish; **pending peer review** |
+| `ARCH-04` DRAFT required fields/update | Nullability/migrations and create/update/publish screens | Proposed in DEC-03: incomplete DRAFT allowed; owner-only partial updates while DRAFT; required fields enforced at Publish; no edits after PUBLISHED in F-02; **pending peer review** |
 | `ARCH-05` Editing after publishing | Active registrations vs changed times/deadlines; transaction checks | **OPEN**, SRS DEC-07 |
 | `ARCH-06` Registration history/privacy | Retain cancelled history with partial uniqueness; whether more audit records needed | **OPEN**, SRS DEC-06 |
 | `ARCH-07` Runtime/test infrastructure | DB service on local and cloud, runner setup, role of staging branch | **OPEN**, Lab 5 guidance pending |
@@ -174,6 +174,7 @@ With cookie auth, protect state-changing routes against CSRF using a suitable va
 
 | Version | Date | Description | Approval |
 |---|---|---|---|
-| v0.1 | 2026-11-03 | First **proposed** system design for P1-01; no code or deployment | Pending both students |
-| v0.1.1 | 2026-11-03 | R-01: require Sprint 1 PR quality checks; reserve hosted CI/CD, Docker and GCP expansion for Lab 5 | Pending re-review and both students |
+| v0.1 | 2026-11-03 | First **proposed** system design for P1-01; no code or deployment | Historical status at that version: pending both students |
+| v0.1.1 | 2026-11-03 | R-01: require Sprint 1 PR quality checks; reserve hosted CI/CD, Docker and GCP expansion for Lab 5 | Historical status at that version: pending re-review and both students |
 | v0.1.2 | 2026-11-04 | Align stack proposal with implemented F-01 precedent; add F-02-scoped DEC-02/03/04/10 proposal references for Workshop fields, incomplete DRAFT and timestamps | **Pending peer review; global architecture remains not approved** |
+| v0.1.3 | 2026-11-04 | Address PR #10 R-03 by aligning ARCH-08 working-document acceptance with SRS DEC-13; update SRS reference and reflect DEC-03 DRAFT-only update proposal | **Pending peer review; global architecture remains not approved** |
