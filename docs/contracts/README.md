@@ -1,18 +1,18 @@
 # P1-02 — Sprint 1 Feature Engineering Contracts (Deliverable 1 Part E)
 
-> **DRAFT v0.1.2 — NOT APPROVED — 2026-11-03 (Asia/Bangkok)** · [Issue #2](https://github.com/cottonlnwza/TTworkshop/issues/2) · Period 1 · Author: `cottonlnwza` · Proposed peer Reviewer: `thananun-7203`
-> All contracts are **proposals** based on `docs/srs.md`, `docs/features.md`, `docs/traceability.md` DRAFT v0.1.3 (review-status and cross-reference corrections) and `docs/system-sds.md` DRAFT v0.1.1. PR #7 approval was approval of a **Draft change**, not formal Product Baseline approval. No application code, migration, executable test or CI exists because of P1-02.
+> **DRAFT v0.1.3 – NOT APPROVED – 2026-11-04 (Asia/Bangkok)** · [Issue #2](https://github.com/cottonlnwza/TTworkshop/issues/2) · Period 1 · Author: `cottonlnwza` · Proposed peer Reviewer: `thananun-7203`
+> Current references: `docs/srs.md` DRAFT v0.1.5, `docs/features.md` DRAFT v0.1.4, `docs/traceability.md` DRAFT v0.1.4 and `docs/system-sds.md` DRAFT v0.1.3. Historical P1-02 PR #8 authored 41/41 planned AC/STS; PR #10 adds F-02 AC/STS-12, bringing the current set to 42 DRAFT AC / 42 PLANNED STS. F-01 has separate merged implementation evidence (21/21 local application tests and local build PASS); this does not mean every planned F-01 STS was executed. F-02-F-04 planned STS remain unimplemented/unexecuted. This index is not instructor approval or full-product baseline sign-off.
 
 ## 1. Scope and navigation (Deliverable 1 Part E / master specification section 8.2)
 
 | Feature | Issue for later implementation | Contract | Requirement IDs from draft Feature Inventory | AC ↔ planned STS |
 |---|---|---|---|---|
 | **F-01** Auth/session/roles | [#3](https://github.com/cottonlnwza/TTworkshop/issues/3) | [f-01-auth.md](f-01-auth.md) | FR-01, FR-02; BR-01; NFR-01, NFR-07 | AC-F01-01–08 ↔ STS-F01-01–08 |
-| **F-02** Organizer draft/publish + BR-08 validation owner | [#4](https://github.com/cottonlnwza/TTworkshop/issues/4) | [f-02-workshop-publish.md](f-02-workshop-publish.md) | FR-03–05; BR-01–04, **BR-08 Create/Publish**; NFR-01, NFR-02 | AC-F02-01–11 ↔ STS-F02-01–11 |
+| **F-02** Organizer draft/publish + BR-08 validation owner | [#4](https://github.com/cottonlnwza/TTworkshop/issues/4) | [f-02-workshop-publish.md](f-02-workshop-publish.md) | FR-03–05; BR-01–04, **BR-08 Create/Publish**; NFR-01, NFR-02 | AC-F02-01–12 ↔ STS-F02-01–12 |
 | **F-03** Published browse/atomic registration + BR-08 defensive read | [#5](https://github.com/cottonlnwza/TTworkshop/issues/5) | [f-03-discovery-registration.md](f-03-discovery-registration.md) | FR-06–07; BR-01, BR-04–08 (**default/fail-closed Registration only**); NFR-01–03; BR-10 manual closure deferred to F-05/F-06 (S2) | AC-F03-01–13 ↔ STS-F03-01–13 |
 | **F-04** Registration visibility/ownership | [#6](https://github.com/cottonlnwza/TTworkshop/issues/6) | [f-04-registration-views.md](f-04-registration-views.md) | FR-08–09; BR-01, BR-05; NFR-01, NFR-02 | AC-F04-01–09 ↔ STS-F04-01–09 |
 
-**Totals:** 41 uniquely identified Draft AC and 41 matching **planned, NOT EXECUTED** STS (F-01: 8; F-02: 11; F-03: 13; F-04: 9), each containing inputs/preconditions, expected outcomes and test level. Implementation Issues #3–#6 must add actual test filenames/commands/results/SHA. A list of planned tests **is not** proof they pass.
+**Current totals:** 42 uniquely identified DRAFT AC and 42 matching planned STS (F-01: 8; F-02: 12; F-03: 13; F-04: 9), each containing inputs/preconditions, expected outcomes and test level. **Historical PR #8 total:** 41/41 (F-02 then had 11); PR #10 adds AC-F02-12 <-> STS-F02-12. F-02-F-04 STS are NOT IMPLEMENTED / NOT EXECUTED. F-01 has separate merged application evidence: 21/21 local tests and `npm run build` PASS on the verified staging merge SHA, but this index does not assert every planned F-01 STS was executed. Implementation Issues #3-#6 record their own actual test filenames/commands/results/SHA. A planned test is not proof it passes.
 
 ## 2. Contract architecture and cross-feature boundaries
 
@@ -24,33 +24,34 @@ All four follow the proposed `Browser UI → authenticated API/application servi
 
 | Decision | Candidate / impact | Current approval status |
 |---|---|---|
-| DEC-01 | Seeded Participant/Organizer roles and session identity | TEAM-REPORTED; **PENDING BOTH STUDENTS** |
-| DEC-02 | Workshop required fields, types/limits | TEAM-REPORTED; **PENDING BOTH STUDENTS** |
-| DEC-03 / ARCH-04 | Partial DRAFT allowed? Which fields required at create vs publish? Affects F-02 migrations/validation/AC-F02-08 | **OPEN; BLOCKS F-02 CONTRACT FINALIZATION** |
-| DEC-04 / ARCH-03 | Canonical timestamps/timezone, default registration deadline and at-boundary eligibility; affects F-02/F-03 | **OPEN; BLOCKS FINAL F-03 CLOCK TEST** |
-| DEC-10 / ARCH-01/02/07 | React/Express/Postgres/ORM and server session/cookie/CSRF are *proposed only*; DB atomic strategy and runner depend on selection | **OPEN; BLOCKS FEATURE IMPLEMENTATION** |
+| DEC-01 | Seeded Participant/Organizer roles and session identity | TEAM-REPORTED in the DRAFT baseline; no instructor/full-product approval is claimed |
+| DEC-02 | Workshop required fields, types/limits | Proposed in `docs/decisions/dec-02-workshop-fields.md`; PR #10 peer review/merge pending |
+| DEC-03 / ARCH-04 | Partial DRAFT create/update and required fields at Publish; affects F-02 validation and AC/STS-F02-01/08/12 | Proposed in `docs/decisions/dec-03-workshop-drafts.md`; PR #10 peer review/merge pending |
+| DEC-04 / ARCH-03 | Canonical timestamps/timezone, default registration deadline and at-boundary eligibility; affects F-02/F-03 | Proposed in `docs/decisions/dec-04-workshop-time.md`; PR #10 peer review/merge pending |
+| DEC-10 / ARCH-01/02/07 | React/Express/Postgres/pg and F-01 session reuse proposal; DB atomic strategy and runner depend on selection | Proposed in `docs/decisions/dec-10-f02-stack.md`; PR #10 peer review/merge pending |
 | DEC-11 | Anonymous and Organizer browse access to published Workshop | **OPEN; default deny pending team approval** |
 | DEC-12 | NFR-03 10-concurrent-request target is provisional, course mandates race safety | **PENDING; KEEP 10 AS PROPOSED TEST INPUT** |
 | DEC-06 (future) | CANCELLED status history/visibility and re-registration later | **OPEN, F-05, not F-04 work** |
-| DEC-13 | GitHub Author/Reviewer identities for P1-02 | User authorized `cottonlnwza` Developer and `thananun-7203` reviewer; accounts checked. **Not formal baseline approval.** |
+| DEC-13 | GitHub Author/Reviewer identities and scoped working-document acceptance | Author/reviewer identities are recorded. Scoped acceptance requires independent substantive peer APPROVE + actual merge into sprint_1_staging + Author post-merge verification; this is not instructor approval or full-product sign-off. |
 
 The official course brief mandates capability outcomes, but **does not prescribe** endpoint spellings, session lifetime, JSON envelope, exact HTTP code taxonomy, ORM/DB or UI field limits. These remain **PROPOSED**, and any selected values must be reviewed/versioned before corresponding Issue #3–#6 implementation.
 
 ## 4. Review readiness and evidence boundaries
 
 - [x] Feature-level workflows, validation, access, negative/boundary cases, dependencies and proposed UI/API/data contracts written for F-01–F-04.
-- [x] 41 unique Draft AC and 41 planned STS, all AC linked to at least one planned STS, including **F-02 BR-08 Create vs Publish**, **F-03 independent fail-closed Registration**, BR-07/08 deadline guards, auth, ownership, persistence and the planned real concurrent last-seat scenario.
+- [x] 42 unique current DRAFT AC and 42 matching planned STS (F-01 8 / F-02 12 / F-03 13 / F-04 9), all AC linked to at least one planned STS, including F-02 DRAFT-only update AC/STS-F02-12, BR-08 Create vs Publish, F-03 independent fail-closed Registration, BR-07/08 deadline guards, auth, ownership, persistence and the planned real concurrent last-seat scenario. Historical PR #8 was 41/41 before PR #10.
 - [x] Each contract includes a **NOT MET** Product/Feature DoD and explicit `OPEN` decisions.
 - [ ] Reviewer checks consistency of all contracts with master specification sections 5 and 8 and Deliverable 1 Part E and leaves a substantive review on this Issue's PR.
-- [ ] Both students approve the actual product baseline and affected contract decisions in a versioned record **before feature implementation**.
+- [ ] Scoped working-document acceptance is evidenced by independent substantive peer APPROVE, actual merge into `sprint_1_staging`, and Author post-merge verification. This does not assert instructor approval or full-product sign-off; unresolved decisions remain OPEN and must be resolved in their own versioned scope before dependent implementation.
 - [ ] Actual application code, tests, CI and release evidence — **OUT OF SCOPE** for this documentation Issue; require individually authorized subsequent Issues.
 
-**Status:** `READY FOR DOCUMENTATION REVIEW`; **NOT READY FOR FEATURE IMPLEMENTATION**. Draft document PR may be peer-reviewed and merged to staging without implying the baseline or contracts are formally approved.
+**Status:** `READY FOR RE-REVIEW`; 42/42 current DRAFT AC/PLANNED STS and all traceability/index checks are reconciled. This is still a documentation proposal pending independent peer review and merge; no instructor approval or full-product sign-off is claimed.
 
 ## 5. Version and peer-review history
 
 | Revision | Date | Evidence/meaning | Decision |
 |---|---|---|---|
-| v0.1 | 2026-11-03 | P1-02 draft Feature SDS, proposed UI/API/data, AC/STS/DoD created before any feature code | **PENDING PEER REVIEW; FORMAL BASELINE/CONTRACT APPROVAL PENDING** |
-| v0.1.1 | 2026-11-03 | Reviewer PR #8 R-01/R-02 corrections: separate F-03 BR-07/08 cases, defer BR-10, add two planned AC/STS, align parent draft status/traceability; fix heading code delimiter | **PENDING RE-REVIEW; NO FORMAL BASELINE/CONTRACT APPROVAL** |
-| v0.1.2 | 2026-11-03 | Reviewer R-03: assign F-02 BR-08 Create/Publish, split F-03 defensive Registration test, add 2 AC/STS; 41 total; correct Traceability Markdown and OPEN wording | **PENDING RE-REVIEW; NO FORMAL BASELINE/CONTRACT APPROVAL** |
+| v0.1 | 2026-11-03 | P1-02 draft Feature SDS, proposed UI/API/data, AC/STS/DoD created before any feature code | Historical status at this version: formal baseline/contract approval pending |
+| v0.1.1 | 2026-11-03 | Reviewer PR #8 R-01/R-02 corrections: separate F-03 BR-07/08 cases, defer BR-10, add two planned AC/STS, align parent draft status/traceability; fix heading code delimiter | Historical status at this version: pending re-review; no full-product approval claimed |
+| v0.1.2 | 2026-11-03 | Reviewer R-03: assign F-02 BR-08 Create/Publish, split F-03 defensive Registration test, add 2 AC/STS; 41 total; correct Traceability Markdown and OPEN wording | Historical status at this version: pending re-review; no full-product approval claimed |
+| v0.1.3 | 2026-11-04 | Reviewer PR #10 R-04: index F-02 AC/STS-01-12 and current 42/42 totals; reconcile decision register and scoped working acceptance; link current Traceability/Feature versions; separate F-01 local evidence from F-02-F-04 planned STS | PENDING PEER REVIEW; full-product baseline remains DRAFT / NOT APPROVED |
