@@ -1,15 +1,15 @@
 # F-01 — Authentication, Session and Role Authorization
 
-> **DRAFT v0.1 — NOT APPROVED — 2026-11-03** · P1-02 [Issue #2](https://github.com/cottonlnwza/TTworkshop/issues/2) · Implementation [Issue #3](https://github.com/cottonlnwza/TTworkshop/issues/3) · Sprint 1
-> Source: `docs/srs.md` DRAFT v0.1.1 FR-01, FR-02, BR-01, NFR-01, NFR-07; `docs/features.md` F-01; `docs/system-sds.md` sections 7–8. All paths/DTOs below are **PROPOSED**, not an approved contract or existing API. **No application tests executed.**
+> **v0.2 — F-01 IMPLEMENTATION EVIDENCE ADDENDUM · PR REVIEW PENDING — 2026-11-03** · P1-02 [Issue #2](https://github.com/cottonlnwza/TTworkshop/issues/2) · Implementation [Issue #3](https://github.com/cottonlnwza/TTworkshop/issues/3) · Sprint 1
+> Source: peer-reviewed and merged **working** SRS `docs/srs.md` v0.1.3, FR-01, FR-02, BR-01, NFR-01, NFR-07; `docs/features.md` F-01; `docs/system-sds.md` sections 7–8. This document retains the **original v0.1 proposal and planned AC/STS** below; implementation evidence for Issue #3 is recorded in section 9 and `docs/evidence/p1-03-f01.md`. A local implementation/test is **not** evidence of peer Merge.
 
 ## 1. Goal, dependencies and scope
 
 An existing synthetic, seeded Participant or Organizer authenticates using credentials, receives a protected session, reads server-derived identity and logs out. Unauthorized/wrong-role requests must be rejected **at the API**, not just hidden in UI. No self-registration, password reset, social login, admin role or production identity provider is in Sprint 1.
 
-**Depends on:** team approval of SRS/SDS; DEC-01 role model; DEC-10 stack/DB/session approach; ARCH-01/02/07 runtime. F-02/F-03/F-04 depend on the identity/role guard established here. Seed two Organizers and at least two Participants to prove cross-owner isolation in later feature tests. All identities/data are synthetic.
+**Depends on:** peer-reviewed and merged working SRS/SDS and F-01 contract (PR #7/#8); DEC-01 role model; **DEC-10 scoped implementation choices documented for review in `docs/decisions/dec-10-f01.md`**; ARCH-01/02/07 runtime. No second formal signature by both students is required under Skill v1.3.4. F-02/F-03/F-04 depend on the identity/role guard established here. Seed two Organizers and at least two Participants to prove cross-owner isolation in later feature tests. All identities/data are synthetic.
 
-**Decision holds (not silently resolved):** DEC-10 session cookie vs token, expiry/revocation/storage, cookie CSRF defenses, login-ID normalization, initial account provisioning and rate-limit policy. The interface below *illustrates* the opaque-cookie option from System SDS; tests and implementation must follow approved changes.
+**Original v0.1 decision holds (now scoped for this PR):** DEC-10 session cookie vs token, expiry/revocation/storage, cookie CSRF defenses, login-ID normalization and initial account provisioning are explicitly chosen and documented in the Issue #3 DEC-10 record, subject to teammate PR review. Rate-limit policy remains **OPEN** and is not represented as implemented. The contract examples below were originally illustrative; section 9 records what this PR actually implements.
 
 ## 2. Feature SDS — behavior and rejection
 
@@ -86,14 +86,26 @@ Use real API and approved session implementation for integration tests. All IDs 
 | **STS-F01-07** | AC-F01-07 | Security inspection | Seeded DB row + API output + repo diff → hash only, safe response fields, no committed production secret |
 | **STS-F01-08** | AC-F01-08 | UI+API negative | Missing email/password and malformed JSON → 400 + field feedback, no issued session |
 
-**Evidence on implementation:** RED then GREEN when appropriate, exact command, test filename/assertion, DB engine, test count/status, commit SHA and PR. Status of all STS IDs: **NOT IMPLEMENTED / NOT EXECUTED**.
+**Original v0.1 planned status:** all STS were **NOT IMPLEMENTED / NOT EXECUTED** when documentation PR #8 merged. **Issue #3 update:** tests are now implemented and have been run locally; see section 9 and the linked evidence file. Do not treat this historical sentence as their current status.
 
 ## 8. Feature Definition of Done — NOT MET
 
-- [ ] Team-approved baseline and F-01 contract/DEC-10 session/security decisions recorded before implementation.
-- [ ] UI + server + durable DB implemented with versioned migrations/seed; role guard and login/current user/logout work end-to-end.
-- [ ] All AC-F01-01–08 mapped STS executed (negative role/session checks included); no skipped/failing mandatory checks; secure storage verified.
-- [ ] Actual RED→GREEN, local build/test evidence and tested SHA recorded on relevant PR; substantive teammate review and approved staging merge, then post-merge verification.
-- [ ] No live credentials/secrets committed; reproduction/config instructions and observed results versioned.
+- [x] Existing SRS/SDS and F-01 contract were independently APPROVED + MERGED as team working documents (PR #7/#8); scoped DEC-10 recorded in Issue #3 for peer review; **no extra bilateral sign-off gate**.
+- [x] UI + server + real durable PostgreSQL DB, migration/seed, role guard, login/current user/logout implemented and locally verified.
+- [x] AC-F01-01–08 mapped tests run locally with real DB and Chrome; privacy negative check added. Test log documented in Issue #3 evidence.
+- [ ] Exact post-commit SHA test/build evidence in PR, **substantive teammate review/APPROVE and teammate staging MERGE, then Author post-merge verification** still required.
+- [x] Only synthetic demo data; no real credentials in repository; reproducible configuration and observed test outcomes versioned.
 
 **Change record:** v0.1, 2026-11-03, initial PRE-IMPLEMENTATION DRAFT for P1-02; author `cottonlnwza`, proposed reviewer `thananun-7203`; **PENDING PEER REVIEW + BOTH STUDENTS' CONTRACT/BASELINE APPROVAL**.
+
+## 9. Issue #3 implementation evidence (v0.2 addendum; local verified, PR review pending)
+
+**Implemented:** React+TS browser identity screen at `/` and `/login` via Vite development SPA, backend `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `POST /api/v1/auth/logout`, PostgreSQL `users`/`sessions`, salted scrypt password hashes, SHA-256-digested opaque session tokens (8-hour expiry), revocation, strict-origin CSRF check, HttpOnly/SameSite=Strict cookies (Secure in production), and `Cache-Control: no-store`. Role guard probes at the future F-02/F-03 write endpoints deny wrong role but intentionally return **501** to valid roles until those features are separately implemented.
+
+**Test mapping:** executable `tests/auth.integration.test.ts` covers STS-F01-01–08 plus NFR-01 privacy and distinct per-account seed salts; `tests/auth.ui.test.tsx` covers accessible validation, role/logout and explicit `/auth/me` 401/403/500; `tests/auth.browser.test.ts` executes real Chrome login/role/logout/refresh through API/PostgreSQL; `tests/testDatabase.guard.test.ts` covers destructive-test connection safety. The original **15/15** tests passed on the opening PR HEAD `d3ac9ce`; Reviewer R-01–R-04 correction adds six tests for **21/21 local pre-commit GREEN**, with final SHA rerun recorded in [Details/RED→GREEN](../evidence/p1-03-f01.md) and PR re-review comment. [DEC-10 choice](../decisions/dec-10-f01.md).
+
+**Required remaining gate:** independent Reviewer checks the **actual tested commit SHA** on Issue #3 PR, accepts or requests changes, merges to staging personally, then Author verifies integrated result. Until then, Issue #3 is **NOT DONE**; no CI, Cloud deployment or release to main claimed. All other F-02–F-04 contracts remain separate.
+
+**Change record v0.2 (2026-11-03):** scoped Issue #3 implementation and executed local test evidence; original v0.1 planned table preserved, outdated bilateral-approval gate superseded by peer-merged working-acceptance procedure. **Peer review and staging merge pending.**
+
+**Reviewer correction addendum (2026-11-04; R-01–R-04):** Synthetic seed salts now independent (STS-F01-07); destructive test database URLs have an exact-path/loopback/actual-database guard; malformed JSON now receives `Cache-Control: no-store` (STS-F01-08); UI distinguishes 401, forbidden 403 and 5xx/transport failures with retry. Still **PR RE-REVIEW PENDING; NOT MERGED**.
