@@ -1,6 +1,6 @@
 # TTworkshop — Software Requirements Specification (SRS)
 
-> **DRAFT v0.1.3 — NOT APPROVED — 2026-11-03 (Asia/Bangkok)**
+> **DRAFT v0.1.4 — NOT APPROVED — 2026-11-04 (Asia/Bangkok)**
 > Issue: [P1-01 / #1](https://github.com/cottonlnwza/TTworkshop/issues/1) · Theme 3: Event Registration and Attendance System
 > **Purpose:** Engineering baseline for the full product (Deliverable 1, Part A). No implementation, test, or release is asserted by this document.
 > **Approval gate:** Both students must review the choices/IDs, resolve or explicitly accept open decisions, and record approval in a versioned review before this becomes a binding SRS.
@@ -106,15 +106,15 @@ These narratives are **not themselves acceptance criteria**. P1-02 [PR #8](https
 | ID | Question / provisional position | Status / owner of decision |
 |---|---|---|
 | **DEC-01** | University workshop domain, Participant + Organizer with one role/account; synthetic seeded users. | TEAM-REPORTED; both students to confirm |
-| **DEC-02** | Workshop fields title, description, location, start/end, capacity; ownership and status server-side. | TEAM-REPORTED; both students to confirm |
-| **DEC-03** | DRAFT → PUBLISHED; only owned drafts viewable; draft incomplete-field policy? | State TEAM-REPORTED; **OPEN** incomplete draft fields |
-| **DEC-04** | Deadline defaults to workshop start; optional earlier; exact clock/time-zone serialization and equality boundary? | TEAM-REPORTED; **OPEN** clock representation/boundary |
+| **DEC-02** | Workshop fields and publication requirements: title, description, location, starts/ends, positive integer capacity; optional registration deadline; server-derived owner and status. | Proposed in `docs/decisions/dec-02-workshop-fields.md`; **PENDING PEER REVIEW / NOT APPROVED** |
+| **DEC-03** | Allow incomplete DRAFT creation; require title, description, location, starts/ends and positive capacity at Publish; failed Publish remains DRAFT. | Proposed in `docs/decisions/dec-03-workshop-drafts.md`; **PENDING PEER REVIEW / NOT APPROVED** |
+| **DEC-04** | Explicit-offset ISO 8601 API values; UTC instants in `timestamptz`; configured university timezone for UI; absent deadline defaults to start; exact deadline is closed. | Proposed in `docs/decisions/dec-04-workshop-time.md`; **PENDING PEER REVIEW / NOT APPROVED** |
 | **DEC-05** | Manual Closure A; timely cancellation allowed while closed; reopen not automatic. | TEAM-REPORTED; confirm |
 | **DEC-06** | Cancelled record retained; re-registration eligible; status/history presentation and cancellation exact boundary? | TEAM-REPORTED; **OPEN** UX/boundary |
 | **DEC-07** | Edit start/end/deadline/location after publish and after active registrations? | **OPEN**, blocks detailed F-07/F-06 contracts |
 | **DEC-08** | Event capacity may not fall below ACTIVE; should increasing or reducing capacity require other guardrails? | TEAM-REPORTED + **OPEN** extra policy |
 | **DEC-09** | Check-in once, during workshop; reporting metrics and no-show timing as in BR-14/15. | TEAM-REPORTED; confirm numerator/denominator |
-| **DEC-10** | Technology stack, DB dialect, ORM, cookie/session vs token, cloud deployment architecture. | **PROPOSED in System SDS; OPEN** |
+| **DEC-10** | F-02 reuses the F-01 React/TypeScript/Vite, Express/Node/TypeScript, PostgreSQL and `pg` SQL approach; no ORM; reuse F-01 server session. Deployment/CI/CD remains open. | Proposed in `docs/decisions/dec-10-f02-stack.md`; **F-02-SCOPED, PENDING PEER REVIEW / NOT APPROVED**; global architecture remains open |
 | **DEC-11** | Anonymous access to published workshop list and exact organizer/participant search/filter breadth. | **OPEN**; do not imply public API access yet |
 | **DEC-12** | NFR-03/04/05 numeric targets and test environment. | TEAM-REPORTED provisional; approve/revise |
 | **DEC-13** | Issue #1 GitHub Author `cottonlnwza` and Reviewer `thananun-7203` are designated by the user; repository permissions were checked. Both students' formal identities and baseline approval record remain to be established. | **ASSIGNMENT REPORTED; APPROVAL NOT VERIFIED**; both students required |
@@ -129,5 +129,6 @@ These narratives are **not themselves acceptance criteria**. P1-02 [PR #8](https
 | v0.1.1 | 2026-11-03 | Address PR #7 Reviewer R-01: make Sprint 1 build/test PR gate distinct from Lab 5 hosted CI/CD and deployment; still DRAFT | **Pending re-review and both students** |
 | v0.1.2 | 2026-11-03 | PR #8 Reviewer R-02 status correction: reference P1-02 Draft AC/STS/DoD (39 each after R-01), keep approval and execution separate; requirement text/IDs unchanged | **NOT APPROVED; formal decision pending** |
 | v0.1.3 | 2026-11-03 | PR #8 Reviewer R-03 status correction: reference 41 Draft AC/STS with F-02 BR-08 Create/Publish ownership and F-03 independent defensive Registration; requirement IDs unchanged | **NOT APPROVED; formal decision pending** |
+| v0.1.4 | 2026-11-04 | Add scoped proposed DEC-02/03/04/10 records for F-02 and align the decision register; requirement IDs and normative FR/BR/NFR text unchanged | **PENDING PEER REVIEW; NOT APPROVED** |
 
-**Current state:** Product specification remains **DRAFT / NOT APPROVED**; P1-02 documentation [PR #8](https://github.com/cottonlnwza/TTworkshop/pull/8) adds planned AC/STS but no implementation, executed application tests, CI, feature release or deployment. Requirements-to-feature allocation: `docs/features.md` and `docs/traceability.md`. Architecture choices: `docs/system-sds.md`. Schedule/dependencies: `docs/sprints/plan.md`.
+**Current state:** Product specification remains **DRAFT / NOT APPROVED**. The F-02 decision records are proposals pending peer review; they do not constitute approval merely by being written. P1-02 documentation [PR #8](https://github.com/cottonlnwza/TTworkshop/pull/8) adds planned AC/STS but no implementation, executed application tests, CI, feature release or deployment. Requirements-to-feature allocation: `docs/features.md` and `docs/traceability.md`. Architecture choices: `docs/system-sds.md`. Schedule/dependencies: `docs/sprints/plan.md`.
