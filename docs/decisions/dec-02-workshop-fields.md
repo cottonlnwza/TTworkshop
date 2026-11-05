@@ -1,6 +1,6 @@
 # DEC-02 — Workshop fields and publication requirements
 
-> **PROPOSED v0.1 — NOT APPROVED — 2026-11-04** · Scope: F-02 Workshop Draft & Publish (P1-04 / Issue #4)
+> **v0.1 choice accepted for F-02 scoped working use; global SRS/SDS NOT APPROVED** · 2026-11-05 reconciliation [Issue #11](https://github.com/cottonlnwza/TTworkshop/issues/11). Original proposal: 2026-11-04, [Issue #4](https://github.com/cottonlnwza/TTworkshop/issues/4). Evidence: [PR #10](https://github.com/cottonlnwza/TTworkshop/pull/10); [acceptance ledger](p1-ex01-working-acceptance-ledger.md).
 
 ## Decision
 
@@ -28,4 +28,4 @@ The authenticated Organizer identity is assigned by the server to `owner_user_id
 
 ## Status and evidence
 
-**Pending independent teammate review and merge of the authorized Issue #4 documentation PR.** This is a scoped proposal, not instructor approval, implementation evidence, or approval of the full product baseline.
+**Historical review completed:** PR #10 was peer-APPROVED by `cottonlnwza` on `671a98e`, merged into `sprint_1_staging` at `a863246`, and independently verified after merge by its Author (recorded in Issue #4). That review expressly conditioned **scoped working-choice acceptance** on merge and Author verification; both occurred. This does **not** approve every SRS/SDS decision, constitute instructor sign-off, or demonstrate F-02 implementation. [Issue #11](https://github.com/cottonlnwza/TTworkshop/issues/11) reconciles current evidence without changing the historical PR.

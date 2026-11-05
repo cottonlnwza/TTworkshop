@@ -1,8 +1,8 @@
 # TTworkshop — System-Level Software Design Specification (SDS)
 
-> **DRAFT v0.1.3 — PROPOSED ARCHITECTURE — NOT APPROVED — 2026-11-04**
+> **DRAFT full-product SDS v0.1.4 — NOT GLOBALLY APPROVED — 2026-11-05** · [Issue #11 reconciliation](https://github.com/cottonlnwza/TTworkshop/issues/11)
 > [P1-01 / Issue #1](https://github.com/cottonlnwza/TTworkshop/issues/1) · Deliverable 1 Part C
-> Requirements: `docs/srs.md` v0.1.5; inventory/ownership: `docs/features.md` v0.1.1. **No new Workshop code, migration, API, container, test, cloud resource or deployment exists by virtue of this design.**
+> Requirements: `docs/srs.md` v0.1.6; inventory/ownership: `docs/features.md` v0.1.5. F-02 scoped design choices were peer-approved/merged in [PR #10](https://github.com/cottonlnwza/TTworkshop/pull/10), but global architecture remains DRAFT. **No new Workshop code, migration, API, container, test, cloud resource or deployment exists by virtue of this design.** See [decision ledger](decisions/p1-ex01-working-acceptance-ledger.md).
 
 ## 1. Purpose, design constraints and decision status
 
@@ -12,10 +12,10 @@ COURSE §5 requires a **real UI → API/application layer → persistent databas
 
 | Layer | Candidate | Rationale | Status |
 |---|---|---|---|
-| Web UI | React 19 + TypeScript + Vite 8 | Existing F-01 implementation precedent; role-specific views and form state | **F-01 IMPLEMENTED; F-02 reuse PROPOSED / pending peer review** |
-| API / domain | Node.js + TypeScript + Express 5 | Existing F-01 implementation precedent; HTTP controllers, services and permission middleware | **F-01 IMPLEMENTED; F-02 reuse PROPOSED / pending peer review** |
-| Persistence | PostgreSQL 15+ with `pg` parameterized SQL and explicit transactions; no ORM selected | Matches F-01 migration/query approach; preserves relational constraints and PostgreSQL transaction semantics | **F-01 IMPLEMENTED; F-02 reuse PROPOSED / pending peer review** |
-| Auth | Reuse F-01 server-side session and `HttpOnly` cookie middleware; derive identity/role server-side | Avoids parallel auth; Workshop owner comes from authenticated Organizer session | **F-01 IMPLEMENTED; F-02 integration PROPOSED / pending peer review** |
+| Web UI | React 19 + TypeScript + Vite 8 | Existing F-01 implementation precedent; role-specific views and form state | **F-01 IMPLEMENTED; F-02 scoped stack choice accepted in PR #10; F-02 not implemented** |
+| API / domain | Node.js + TypeScript + Express 5 | Existing F-01 implementation precedent; HTTP controllers, services and permission middleware | **F-01 IMPLEMENTED; F-02 scoped stack choice accepted; F-02 not implemented** |
+| Persistence | PostgreSQL 15+ with `pg` parameterized SQL and explicit transactions; no ORM selected | Matches F-01 migration/query approach; preserves relational constraints and PostgreSQL transaction semantics | **F-01 IMPLEMENTED; F-02 scoped stack choice accepted; Workshop schema not implemented** |
+| Auth | Reuse F-01 server-side session and `HttpOnly` cookie middleware; derive identity/role server-side | Avoids parallel auth; Workshop owner comes from authenticated Organizer session | **F-01 IMPLEMENTED; F-02 scoped reuse accepted; integration untested** |
 | Deployment | Docker image, Cloud Run app/API and durable managed PostgreSQL (e.g., Cloud SQL) on GCP | Repeatable deployment, persistent data outside ephemeral containers | **PROPOSED**, pending Lab 5 instructions/resources |
 | Tests | Unit + real PostgreSQL/API integration + selected browser E2E; applicable build/automated-test checks on relevant PRs from Sprint 1; hosted CI/CD automation expanded in Lab 5 | Covers rule, persistence, ownership, PR quality gate and end-user journey | **PROPOSED** tooling to be selected in contracts; no CI or test execution asserted |
 
@@ -71,7 +71,7 @@ User (1) --------- (many) Session  [if server-stored sessions adopted]
 |---|---|---|
 | **User** | `id`, `email` (unique), `password_hash`, `role` {PARTICIPANT, ORGANIZER}, `created_at` | Exactly one role/account in proposed initial model; no plaintext password |
 | **Session** | F-01 implementation: opaque random token in `ttw_session` HttpOnly cookie; PostgreSQL stores SHA-256 token digest, `user_id`, `expires_at`, `revoked_at`, `created_at` | F-02 reuses the existing F-01 session middleware under DEC-10-F02; broader session-policy changes remain out of this Issue |
-| **Workshop** | `id`, `owner_user_id`, nullable-during-DRAFT `title`, `description`, `location`, `starts_at`, `ends_at`, `capacity`, `status` {DRAFT, PUBLISHED}, optional `registration_deadline`, `registration_closed` (bool), timestamps | FK owner→User; Publish requires DEC-02 fields, positive integer capacity and end>start; configured deadline ≤ start. Partial-DRAFT policy proposed in DEC-03; post-publication edit policy remains OPEN |
+| **Workshop** | `id`, `owner_user_id`, nullable-during-DRAFT `title`, `description`, `location`, `starts_at`, `ends_at`, `capacity`, `status` {DRAFT, PUBLISHED}, optional `registration_deadline`, `registration_closed` (bool), timestamps | FK owner→User; Publish requires DEC-02 fields, positive integer capacity and end>start; configured deadline ≤ start. Partial-DRAFT policy is an **accepted F-02 scoped working choice (DEC-03, PR #10)**; later post-publication editing remains OPEN |
 | **Registration** | `id`, `workshop_id`, `participant_user_id`, `status` {ACTIVE, CANCELLED}, `registered_at`, `cancelled_at`, `checked_in_at` (nullable), timestamps | FKs to Workshop and User; one ACTIVE record per Participant/workshop; cancellation retained, check-in only for eligible ACTIVE row |
 
 **Important schema/DB constraints (candidate):**
@@ -80,7 +80,7 @@ User (1) --------- (many) Session  [if server-stored sessions adopted]
 2. Unique ACTIVE registration per (`workshop_id`, `participant_user_id`). PostgreSQL **partial unique index** (`WHERE status = 'ACTIVE'`) is a possible enforcement option. The current F-01/F-02 proposal uses versioned SQL migrations and `pg`; no ORM is selected.
 3. Workshop capacity cannot be violated during concurrent inserts. **Proposed transaction:** lock the corresponding workshop row (`SELECT … FOR UPDATE` or equivalent), check eligibility/ACTIVE count against capacity, insert in the *same* database transaction, commit; database uniqueness guard handles duplicate races. A read-check-write sequence without a lock/isolation guarantee is unsafe.
 4. Restrict `checked_in_at` to one successful check-in; server-level time/ownership checks and transactional update. If a DB constraint is practical, add it as defense in depth.
-5. Proposed DEC-04: API timestamps carry explicit ISO 8601 offsets; store instants in PostgreSQL `timestamptz`; UI uses configured university timezone. If `registration_deadline` is null, effective deadline = `starts_at`; `now >= effective_deadline` is closed. **Pending peer review; not approved.**
+5. F-02 **scoped working** DEC-04: API timestamps carry explicit ISO 8601 offsets; store instants in PostgreSQL `timestamptz`; UI uses configured university timezone. If `registration_deadline` is null, effective deadline = `starts_at`; `now >= effective_deadline` is closed. **PR #10 peer-accepted/merged/Author-verified; actual timezone configuration and executable validation remain outstanding.**
 6. Persist cancellation and timestamps so status and summaries can be reproduced after restart. Whether an additional immutable status-history table is needed is **OPEN**; do not add it by default.
 
 **Migration/seed plan:** versioned schema migrations; deterministic synthetic users (one per role, ideally multiple Participants/Organizers for ownership tests), seed workshop with known capacity/time and registrations for negative tests. Provide a documented reset procedure for local/test DB only. Production data must survive new application containers/redeployment. Migration files and seed commands are **not created by P1-01**.
@@ -161,16 +161,16 @@ With cookie auth, protect state-changing routes against CSRF using a suitable va
 
 | Item | Impact / alternative | Decision |
 |---|---|---|
-| `ARCH-01` Stack/ORM/DB selection | PostgreSQL locks/partial indexes vs ORM support; integration DB must match concurrency semantics | F-01 implemented React 19/TS/Vite 8, Express 5/Node TS, PostgreSQL 15+ and `pg` SQL with no ORM; F-02 reuse proposed in DEC-10-F02, **pending peer review; global architecture not approved** |
-| `ARCH-02` Session approach | Cookie + CSRF vs bearer tokens; expiry/logout semantics | F-01 implements opaque server-side sessions and Origin validation; F-02 reuse proposed in DEC-10-F02; broader lifecycle/security policy remains open |
-| `ARCH-03` UTC/storage timezone | Accurate deadline/check-in windows; time-zone input and output | Proposed in DEC-04: explicit-offset ISO API, UTC instants in `timestamptz`, configured university display timezone and closed-at-equality boundary; **pending peer review** |
-| `ARCH-04` DRAFT required fields/update | Nullability/migrations and create/update/publish screens | Proposed in DEC-03: incomplete DRAFT allowed; owner-only partial updates while DRAFT; required fields enforced at Publish; no edits after PUBLISHED in F-02; **pending peer review** |
+| `ARCH-01` Stack/ORM/DB selection | PostgreSQL locks/partial indexes vs ORM support; integration DB must match concurrency semantics | F-01 implemented React 19/TS/Vite 8, Express 5/Node TS, PostgreSQL 15+ and `pg` SQL with no ORM; F-02 scoped reuse accepted in PR #10; **global architecture not approved** |
+| `ARCH-02` Session approach | Cookie + CSRF vs bearer tokens; expiry/logout semantics | F-01 implements opaque server-side sessions and Origin validation; **F-02 scoped reuse accepted in DEC-10-F02 (PR #10)**; broader lifecycle/security policy remains OPEN |
+| `ARCH-03` UTC/storage timezone | Accurate deadline/check-in windows; time-zone input and output | F-02 scoped DEC-04 accepted in PR #10; explicit-offset ISO API, UTC instants in `timestamptz`, configured university display timezone and closed-at-equality; **actual zone identifier remains config** |
+| `ARCH-04` DRAFT required fields/update | Nullability/migrations and create/update/publish screens | F-02 scoped DEC-03 accepted in PR #10; incomplete DRAFT allowed, owner-only partial updates while DRAFT, required fields at Publish, no edits after PUBLISHED; **code not implemented** |
 | `ARCH-05` Editing after publishing | Active registrations vs changed times/deadlines; transaction checks | **OPEN**, SRS DEC-07 |
 | `ARCH-06` Registration history/privacy | Retain cancelled history with partial uniqueness; whether more audit records needed | **OPEN**, SRS DEC-06 |
 | `ARCH-07` Runtime/test infrastructure | DB service on local and cloud, runner setup, role of staging branch | **OPEN**, Lab 5 guidance pending |
-| `ARCH-08` Team review / working acceptance | Author `cottonlnwza`, peer Reviewer `thananun-7203`; substantive peer review and merge accepts the scoped working draft change, not instructor approval or a global architecture sign-off | **Assignments verified; this F-02 proposal awaits its own peer review/merge** |
+| `ARCH-08` Team review / working acceptance | Historical PR #10 Author `thananun-7203` / Reviewer `cottonlnwza`; substantive peer review, actual staging merge and Author post-merge verification establish **scoped** working acceptance, not global or instructor approval | **F-02 docs PR #10 complete**, this Issue #11 reconciliation still awaits separate peer review/merge |
 
-**Design acceptance at draft stage only:** architecture, data ownership/constraints, API/UI conventions, permissions and delivery path are documented as proposals; they cannot be called implemented or approved.
+**Design acceptance boundary:** DEC-02/03/04/10-F02 are **accepted for F-02 scoped working use**, supported by PR #10 peer APPROVE, staging merge and Author verification. They are **not implemented** and do not approve the **full System SDS**, other features' decisions, CI/GCP architecture, or instructor sign-off. Remaining global architecture and later-sprint design choices are still DRAFT / NOT APPROVED.
 
 | Version | Date | Description | Approval |
 |---|---|---|---|
@@ -178,3 +178,4 @@ With cookie auth, protect state-changing routes against CSRF using a suitable va
 | v0.1.1 | 2026-11-03 | R-01: require Sprint 1 PR quality checks; reserve hosted CI/CD, Docker and GCP expansion for Lab 5 | Historical status at that version: pending re-review and both students |
 | v0.1.2 | 2026-11-04 | Align stack proposal with implemented F-01 precedent; add F-02-scoped DEC-02/03/04/10 proposal references for Workshop fields, incomplete DRAFT and timestamps | **Pending peer review; global architecture remains not approved** |
 | v0.1.3 | 2026-11-04 | Address PR #10 R-03 by aligning ARCH-08 working-document acceptance with SRS DEC-13; update SRS reference and reflect DEC-03 DRAFT-only update proposal | **Pending peer review; global architecture remains not approved** |
+| v0.1.4 | 2026-11-05 | Issue #11 correct historical PR #10 status, accept only F-02 scoped DEC-03/04/10 choices, update SRS/Features references and separate future Issue #12 implementation | Pending this Issue #11 peer review; global SDS remains DRAFT |

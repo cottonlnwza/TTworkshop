@@ -1,6 +1,6 @@
 # DEC-03 — Incomplete Workshop DRAFT policy
 
-> **PROPOSED v0.2 — NOT APPROVED — 2026-11-04** · Scope: F-02 Workshop Draft & Publish (P1-04 / Issue #4)
+> **v0.2 choice accepted for F-02 scoped working use; global SRS/SDS NOT APPROVED** · 2026-11-05 reconciliation [Issue #11](https://github.com/cottonlnwza/TTworkshop/issues/11). Original proposal: 2026-11-04, [Issue #4](https://github.com/cottonlnwza/TTworkshop/issues/4). Evidence: [PR #10](https://github.com/cottonlnwza/TTworkshop/pull/10); [acceptance ledger](p1-ex01-working-acceptance-ledger.md).
 
 ## Decision
 
@@ -23,4 +23,4 @@ If both `registration_deadline` and `starts_at` are supplied at Create, validate
 
 ## Status and evidence
 
-**Pending independent teammate review and merge of the authorized Issue #4 documentation PR.** v0.2 addresses PR #10 Reviewer R-01 by defining owner-only, DRAFT-only partial update. This is a scoped proposal, not instructor approval, implementation evidence, or approval of the full product baseline.
+**Historical review completed:** PR #10 Reviewer R-01 led to v0.2's owner-only, DRAFT-only update; the corrected PR was peer-APPROVED on `671a98e`, merged at `a863246`, and Author-verified (Issue #4). The Reviewer explicitly accepted these **scoped working choices conditional on those events**. This is not instructor/global product approval or an assertion that Create/Update/Publish code exists. See [Issue #11's ledger](p1-ex01-working-acceptance-ledger.md).

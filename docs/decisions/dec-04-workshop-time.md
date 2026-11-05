@@ -1,6 +1,6 @@
 # DEC-04 — Workshop timestamps and registration deadline boundary
 
-> **PROPOSED v0.1 — NOT APPROVED — 2026-11-04** · Scope: F-02/F-03 date-time interoperability; F-02 write-side validation
+> **v0.1 F-02 scoped working choice accepted; global SRS/SDS NOT APPROVED** · 2026-11-05 reconciliation [Issue #11](https://github.com/cottonlnwza/TTworkshop/issues/11). Original proposal: 2026-11-04. Evidence: [PR #10](https://github.com/cottonlnwza/TTworkshop/pull/10); [acceptance ledger](p1-ex01-working-acceptance-ledger.md).
 
 ## Decision
 
@@ -20,4 +20,4 @@
 
 ## Status and evidence
 
-**Pending independent teammate review and merge of the authorized Issue #4 documentation PR.** The actual university timezone identifier remains deployment configuration to be supplied; this decision does not select one. This is not instructor approval or implementation evidence.
+**Historical review completed:** PR #10 peer-APPROVED `671a98e`, merged as `a863246`, and Author-verified (Issue #4); its Reviewer expressly stated conditional F-02 scoped working acceptance, now evidenced. **The actual university timezone identifier remains an unselected configuration value**, not permission to guess it. F-03 must independently validate registration-time eligibility under its own Issue. No global/instructor approval or executable validation is implied. See [Issue #11's ledger](p1-ex01-working-acceptance-ledger.md).

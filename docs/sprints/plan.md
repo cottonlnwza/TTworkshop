@@ -1,8 +1,8 @@
 # TTworkshop — Three-Sprint Development Plan
 
-> **DRAFT v0.1.1 — NOT APPROVED — 2026-11-03 (Asia/Bangkok)**
+> **DRAFT full-product Sprint Plan v0.1.2 — NOT GLOBALLY APPROVED — 2026-11-05 (Asia/Bangkok)** · [Issue #11 reconciliation](https://github.com/cottonlnwza/TTworkshop/issues/11)
 > [P1-01 / Issue #1](https://github.com/cottonlnwza/TTworkshop/issues/1) · Deliverable 1 Part D (5 points).
-> Feature IDs and requirements refer to `docs/features.md`, `docs/srs.md`, and `docs/traceability.md` draft v0.1.1. Team assignment, estimates and technical choices remain proposals.
+> Feature IDs and requirements refer to the current `docs/features.md`, `docs/srs.md`, and `docs/traceability.md`; the historical planning table below records 2026-11-03 estimates, not live GitHub status. Team assignment, estimates and non-F-02 technical choices remain proposals.
 
 ## 1. Three-sprint outcomes
 
@@ -26,6 +26,20 @@ The **SKILL Period** grouping is an operational work calendar, not identical to 
 | 6 | [P1-06 / #6](https://github.com/cottonlnwza/TTworkshop/issues/6) F-04 | Own and owner-event registration retrieval, role/ownership tests, selected UI journey | Backlog |
 | 7 | Integration and release gate (not an added Feature ID) | **From Sprint 1:** applicable build/automated-test checks for relevant PRs, commands/results/commit SHA; failed required checks **block** staging integration and release, even before Lab 5 hosted CI enforcement; substantive teammate review, integrated tests, reviewed staging→main release PR and local setup evidence | **NOT STARTED** |
 | 8 | D1 self-contained PDF (separate assessment packaging) | Part A–F content and selected evidence directly embedded; page navigation, 2 students, repo/release, tests and process records | **NOT STARTED** |
+
+### Current Period 1 forward-only reconciliation — 2026-11-05
+
+The table above preserves the **original historical plan**; do not interpret its 2026-11-03 status column as today's actual GitHub state:
+
+- [Issue #1](https://github.com/cottonlnwza/TTworkshop/issues/1) / [PR #7](https://github.com/cottonlnwza/TTworkshop/pull/7): reviewed/merged **DRAFT baseline preparation**, not global specification sign-off.
+- [Issue #2](https://github.com/cottonlnwza/TTworkshop/issues/2) / [PR #8](https://github.com/cottonlnwza/TTworkshop/pull/8): reviewed/merged **DRAFT contracts**; planned STS are not the same as executed tests.
+- [Issue #3](https://github.com/cottonlnwza/TTworkshop/issues/3) / [PR #9](https://github.com/cottonlnwza/TTworkshop/pull/9): F-01 implementation reviewed/merged, with separately recorded local testing evidence.
+- [Issue #4](https://github.com/cottonlnwza/TTworkshop/issues/4) / [PR #10](https://github.com/cottonlnwza/TTworkshop/pull/10): **documentation-only** reviewed/merged/Author-verified; the F-02 feature itself remains incomplete. Do not open a second PR for #4.
+- **[Extra Issue #11](https://github.com/cottonlnwza/TTworkshop/issues/11):** verify scoped F-02 working decisions and reconcile document status, mapping and evidence, with its own single reviewable PR.
+- **[Extra Issue #12](https://github.com/cottonlnwza/TTworkshop/issues/12):** implement remaining F-02 Draft/Create/Update/Publish and execute AC/STS in its own PR after #11's scoped gate and separate authorization.
+- Original [Issue #5](https://github.com/cottonlnwza/TTworkshop/issues/5) F-03 and [Issue #6](https://github.com/cottonlnwza/TTworkshop/issues/6) F-04 remain in the original backlog. New work sequence: **#11 → #12 → #5 → #6**, then appropriate integration/release gates.
+
+**Acceptance boundary:** PR #10 explicitly accepted DEC-02/03/04/10-F02 as *scoped working choices* after peer merge and Author verification (both verified). This does not approve the whole SRS/System SDS or implement F-02. See [Issue #11 decision ledger](../decisions/p1-ex01-working-acceptance-ledger.md). Do not silently reset Kanban or edit historical Issues.
 
 **Feasible short-horizon targets (PROPOSED; not completed):**
 
@@ -97,7 +111,7 @@ This is a **high-risk compressed plan**, not a promise of completion. Delayed co
 | Baseline approval or technical-stack decision delayed | Blocks later feature contracts/implementation | Two-student review, list unresolved items, preserve signed-off revision |
 | Remote staging branch missing | PR cannot follow mandated staging route | Verify/create staging under separately authorized Git workflow; never feature PR directly to main |
 | Concurrency capacity bug | Overbooking in Sprint 1 | Real concurrent DB integration test (10 requests/one seat proposed) and atomic constraint/lock |
-| Unclear deadline/time zone/edit rules | Inconsistent eligibility, reporting or hidden scope creep | Resolve DEC-03/04/07/09 with team/TA before dependent contracts |
+| Unclear deadline/time zone/edit rules | Inconsistent eligibility, reporting or hidden scope creep | **F-02 scoped** DEC-03/04 decisions were accepted via PR #10; implement and verify them only in #12. Confirm the actual university timezone configuration and resolve **F-03 registration-specific, DEC-07 published-edit and DEC-09 reporting** decisions in their respective scopes before dependent work. Full-product SRS/SDS approval remains DRAFT / NOT APPROVED. |
 | Two-person reviews and exams | Schedule compression | Split bounded Issues, swap Author/Reviewer assignments, keep main workflows done by D2 |
 | Cloud access/instructions delayed | Lab 5/D2 deployment blocked | Keep Docker-compatible design, report BLOCKED until actual instructions/resources |
 | Evidence absent despite working UI | Assessment cannot verify claims | Save commands, actual output, screenshots, PR review, test IDs and release SHAs contemporaneously |
@@ -108,3 +122,4 @@ This is a **high-risk compressed plan**, not a promise of completion. Delayed co
 |---|---|---|---|
 | v0.1 | 2026-11-03 | Initial **DRAFT** three-sprint allocation and dependency plan | Pending both students |
 | v0.1.1 | 2026-11-03 | R-01: separate Sprint 1 PR build/automated-test release gate from Lab 5 hosted CI/CD, Docker and GCP | Pending re-review and both students |
+| v0.1.2 | 2026-11-05 | Issue #11 records verified post-2026-11-03 Issue/PR status and forward-only F-02 recovery #11 → #12 without rewriting historical plan or changing feature scope | Pending Issue #11 review; whole-product plan remains DRAFT |
