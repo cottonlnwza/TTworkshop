@@ -12,13 +12,13 @@ An authenticated Organizer creates and retrieves a workshop DRAFT owned by their
 ## 2. Feature SDS — workflow/invariants
 
 1. Organizer opens `/organizer/workshops`, views *own* drafts/published records and starts a new draft.
-2. Backend creates a DRAFT with `owner_user_id` from the authenticated Organizer; ignore/reject any client owner/status overrides. Under proposed DEC-03, any DEC-02 field may be omitted at Create. Validate the type/shape of supplied values. **F-02 owns BR-08 validation at Create**: if both `registration_deadline` and `starts_at` are supplied, a deadline later than start is rejected before persisting the Draft. An absent optional deadline is valid.
+2. Backend creates a DRAFT with `owner_user_id` from the authenticated Organizer; ignore/reject any client owner/status overrides. Under the **F-02 scoped working choice DEC-03 (accepted via PR #10)**, any DEC-02 field may be omitted at Create. Validate the type/shape of supplied values. **F-02 owns BR-08 validation at Create**: if both `registration_deadline` and `starts_at` are supplied, a deadline later than start is rejected before persisting the Draft. An absent optional deadline is valid.
 3. Owner may update an existing owned DRAFT through a partial update. Only DEC-02 fields are writable; server-managed ID, owner and status are immutable. Validate supplied values and the merged resulting record; reject foreign-owner/Participant updates and all updates after PUBLISHED without mutation.
 4. Owner retrieves own DRAFT and sends an explicit publish transition. Backend requires `title`, `description`, `location`, `starts_at`, `ends_at`, and positive integer `capacity`; checks `ends_at > starts_at` (BR-02), **`registration_deadline <= starts_at` if configured (BR-08)**, legal state transition and ownership (BR-01/04). **F-02 owns BR-08 re-validation at Publish** even if a pre-existing Draft contains invalid persisted data; block publication without modifying status.
 5. Successful publication persists `PUBLISHED`; only eligible published records become visible to F-03 discovery. Re-publish, publish of invalid draft, cross-owner read or publish, and Participant mutation are rejected without modifying DB.
 6. Ownership policy hides foreign private Drafts and avoids leaking foreign identifiers via distinguishable responses.
 
-**Cross-feature handoff:** F-02 is accountable for **write-side Create/Publish BR-08 validation**; F-03 must independently **fail closed at Registration** if it encounters a malformed persisted `PUBLISHED` workshop (defense in depth), and handles effective-deadline eligibility under BR-07/08. F-06 may introduce deadline editing in Sprint 2 with its own later contract. This allocates responsibility but **does not approve DEC-04**, the stack or product baseline.
+**Cross-feature handoff:** F-02 is accountable for **write-side Create/Publish BR-08 validation**; F-03 must independently **fail closed at Registration** if it encounters a malformed persisted `PUBLISHED` workshop (defense in depth), and handles effective-deadline eligibility under BR-07/08. F-06 may introduce deadline editing in Sprint 2 with its own later contract. **DEC-04 and DEC-10-F02 are accepted for F-02 scoped working use** (PR #10 peer approval, merge and Author verification), but **global product/architecture approval and F-03/F-06 decisions are not implied**.
 
 ## 3. UI contract (proposed)
 
@@ -53,18 +53,18 @@ Base `/api/v1`; `{"data": ...}` success, `{"error":{"code":"...","message":"..."
 
 | AC ID | Observable outcome / requirement |
 |---|---|
-| **AC-F02-01** | Authenticated Organizer creates and retrieves a persisted DRAFT with session-derived owner; the DRAFT may omit any DEC-02 publication field (DEC-03 proposal) (FR-03, BR-01/04, NFR-02). |
+| **AC-F02-01** | Authenticated Organizer creates and retrieves a persisted DRAFT with session-derived owner; the DRAFT may omit any DEC-02 publication field (DEC-03 accepted F-02 scoped working choice) (FR-03, BR-01/04, NFR-02). |
 | **AC-F02-02** | Organizer lists own DRAFT/PUBLISHED workshops; another Organizer's private DRAFT is absent and inaccessible (FR-05, BR-01/04). |
 | **AC-F02-03** | Eligible owner DRAFT with approved mandatory fields, ordered times and positive capacity publishes once; PUBLISHED state persists (FR-04, BR-02/03/04). |
 | **AC-F02-04** | Publish with end≤start fails with no persisted status change (BR-02). |
 | **AC-F02-05** | Publish with zero/negative/non-integer capacity fails with no persisted status change (BR-03). |
 | **AC-F02-06** | Participant/anonymous create or publish and foreign Organizer read/publish fail without disclosure or mutation (BR-01/04, NFR-01). |
 | **AC-F02-07** | Second publish of PUBLISHED is rejected without duplicate transition or records (BR-04). |
-| **AC-F02-08** | An incomplete DRAFT can be created/saved, but Publish with any missing required field (`title`, `description`, `location`, `starts_at`, `ends_at`, `capacity`) fails with a safe UI/API validation error and leaves status `DRAFT` (DEC-02/03 proposal, FR-04). |
+| **AC-F02-08** | An incomplete DRAFT can be created/saved, but Publish with any missing required field (`title`, `description`, `location`, `starts_at`, `ends_at`, `capacity`) fails with a safe UI/API validation error and leaves status `DRAFT` (DEC-02/03 accepted F-02 scoped working choices, FR-04). |
 | **AC-F02-09** | Restart of the application retains a created/published workshop and ownership from durable DB (NFR-02). |
-| **AC-F02-10** | **BR-08, Create owner:** when Organizer submits a DRAFT Create with `starts_at` and explicit `registration_deadline > starts_at`, the server rejects the configuration before writing a Draft (no invalid row), independently of Publish/Registration; valid absent/earlier configured deadline follows the agreed DRAFT policy (**DEC-03/04 pending**). |
-| **AC-F02-11** | **BR-08, Publish owner:** when an existing owned DRAFT has `registration_deadline > starts_at`, the Publish transition rejects it with unchanged DRAFT status and no PUBLISHED row, independently of Create rejection; no success message (**DEC-04 pending**). |
-| **AC-F02-12** | Organizer can complete a previously persisted partial DRAFT by updating the same owned record and then publishing it; updates accept only DEC-02 fields, preserve server-derived owner/status, reject Participant and foreign-Organizer updates, reject invalid merged field combinations without mutation, and reject updates after publication (DEC-03 proposal, FR-03/04, BR-01/04). |
+| **AC-F02-10** | **BR-08, Create owner:** when Organizer submits a DRAFT Create with `starts_at` and explicit `registration_deadline > starts_at`, the server rejects the configuration before writing a Draft (no invalid row), independently of Publish/Registration; valid absent/earlier configured deadline follows the agreed DRAFT policy (**DEC-03/04 accepted for F-02 scoped working use**). |
+| **AC-F02-11** | **BR-08, Publish owner:** when an existing owned DRAFT has `registration_deadline > starts_at`, the Publish transition rejects it with unchanged DRAFT status and no PUBLISHED row, independently of Create rejection; no success message (**DEC-04 accepted for F-02 scoped working use**). |
+| **AC-F02-12** | Organizer can complete a previously persisted partial DRAFT by updating the same owned record and then publishing it; updates accept only DEC-02 fields, preserve server-derived owner/status, reject Participant and foreign-Organizer updates, reject invalid merged field combinations without mutation, and reject updates after publication (DEC-03 accepted F-02 scoped working choice, FR-03/04, BR-01/04). |
 
 ## 7. Software Test Specification — PLANNED, NOT EXECUTED
 

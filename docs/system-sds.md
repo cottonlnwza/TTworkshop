@@ -71,7 +71,7 @@ User (1) --------- (many) Session  [if server-stored sessions adopted]
 |---|---|---|
 | **User** | `id`, `email` (unique), `password_hash`, `role` {PARTICIPANT, ORGANIZER}, `created_at` | Exactly one role/account in proposed initial model; no plaintext password |
 | **Session** | F-01 implementation: opaque random token in `ttw_session` HttpOnly cookie; PostgreSQL stores SHA-256 token digest, `user_id`, `expires_at`, `revoked_at`, `created_at` | F-02 reuses the existing F-01 session middleware under DEC-10-F02; broader session-policy changes remain out of this Issue |
-| **Workshop** | `id`, `owner_user_id`, nullable-during-DRAFT `title`, `description`, `location`, `starts_at`, `ends_at`, `capacity`, `status` {DRAFT, PUBLISHED}, optional `registration_deadline`, `registration_closed` (bool), timestamps | FK owner→User; Publish requires DEC-02 fields, positive integer capacity and end>start; configured deadline ≤ start. Partial-DRAFT policy proposed in DEC-03; post-publication edit policy remains OPEN |
+| **Workshop** | `id`, `owner_user_id`, nullable-during-DRAFT `title`, `description`, `location`, `starts_at`, `ends_at`, `capacity`, `status` {DRAFT, PUBLISHED}, optional `registration_deadline`, `registration_closed` (bool), timestamps | FK owner→User; Publish requires DEC-02 fields, positive integer capacity and end>start; configured deadline ≤ start. Partial-DRAFT policy is an **accepted F-02 scoped working choice (DEC-03, PR #10)**; later post-publication editing remains OPEN |
 | **Registration** | `id`, `workshop_id`, `participant_user_id`, `status` {ACTIVE, CANCELLED}, `registered_at`, `cancelled_at`, `checked_in_at` (nullable), timestamps | FKs to Workshop and User; one ACTIVE record per Participant/workshop; cancellation retained, check-in only for eligible ACTIVE row |
 
 **Important schema/DB constraints (candidate):**
@@ -162,7 +162,7 @@ With cookie auth, protect state-changing routes against CSRF using a suitable va
 | Item | Impact / alternative | Decision |
 |---|---|---|
 | `ARCH-01` Stack/ORM/DB selection | PostgreSQL locks/partial indexes vs ORM support; integration DB must match concurrency semantics | F-01 implemented React 19/TS/Vite 8, Express 5/Node TS, PostgreSQL 15+ and `pg` SQL with no ORM; F-02 scoped reuse accepted in PR #10; **global architecture not approved** |
-| `ARCH-02` Session approach | Cookie + CSRF vs bearer tokens; expiry/logout semantics | F-01 implements opaque server-side sessions and Origin validation; F-02 reuse proposed in DEC-10-F02; broader lifecycle/security policy remains open |
+| `ARCH-02` Session approach | Cookie + CSRF vs bearer tokens; expiry/logout semantics | F-01 implements opaque server-side sessions and Origin validation; **F-02 scoped reuse accepted in DEC-10-F02 (PR #10)**; broader lifecycle/security policy remains OPEN |
 | `ARCH-03` UTC/storage timezone | Accurate deadline/check-in windows; time-zone input and output | F-02 scoped DEC-04 accepted in PR #10; explicit-offset ISO API, UTC instants in `timestamptz`, configured university display timezone and closed-at-equality; **actual zone identifier remains config** |
 | `ARCH-04` DRAFT required fields/update | Nullability/migrations and create/update/publish screens | F-02 scoped DEC-03 accepted in PR #10; incomplete DRAFT allowed, owner-only partial updates while DRAFT, required fields at Publish, no edits after PUBLISHED; **code not implemented** |
 | `ARCH-05` Editing after publishing | Active registrations vs changed times/deadlines; transaction checks | **OPEN**, SRS DEC-07 |
@@ -170,7 +170,7 @@ With cookie auth, protect state-changing routes against CSRF using a suitable va
 | `ARCH-07` Runtime/test infrastructure | DB service on local and cloud, runner setup, role of staging branch | **OPEN**, Lab 5 guidance pending |
 | `ARCH-08` Team review / working acceptance | Historical PR #10 Author `thananun-7203` / Reviewer `cottonlnwza`; substantive peer review, actual staging merge and Author post-merge verification establish **scoped** working acceptance, not global or instructor approval | **F-02 docs PR #10 complete**, this Issue #11 reconciliation still awaits separate peer review/merge |
 
-**Design acceptance at draft stage only:** architecture, data ownership/constraints, API/UI conventions, permissions and delivery path are documented as proposals; they cannot be called implemented or approved.
+**Design acceptance boundary:** DEC-02/03/04/10-F02 are **accepted for F-02 scoped working use**, supported by PR #10 peer APPROVE, staging merge and Author verification. They are **not implemented** and do not approve the **full System SDS**, other features' decisions, CI/GCP architecture, or instructor sign-off. Remaining global architecture and later-sprint design choices are still DRAFT / NOT APPROVED.
 
 | Version | Date | Description | Approval |
 |---|---|---|---|

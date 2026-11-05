@@ -111,7 +111,7 @@ This is a **high-risk compressed plan**, not a promise of completion. Delayed co
 | Baseline approval or technical-stack decision delayed | Blocks later feature contracts/implementation | Two-student review, list unresolved items, preserve signed-off revision |
 | Remote staging branch missing | PR cannot follow mandated staging route | Verify/create staging under separately authorized Git workflow; never feature PR directly to main |
 | Concurrency capacity bug | Overbooking in Sprint 1 | Real concurrent DB integration test (10 requests/one seat proposed) and atomic constraint/lock |
-| Unclear deadline/time zone/edit rules | Inconsistent eligibility, reporting or hidden scope creep | Resolve DEC-03/04/07/09 with team/TA before dependent contracts |
+| Unclear deadline/time zone/edit rules | Inconsistent eligibility, reporting or hidden scope creep | **F-02 scoped** DEC-03/04 decisions were accepted via PR #10; implement and verify them only in #12. Confirm the actual university timezone configuration and resolve **F-03 registration-specific, DEC-07 published-edit and DEC-09 reporting** decisions in their respective scopes before dependent work. Full-product SRS/SDS approval remains DRAFT / NOT APPROVED. |
 | Two-person reviews and exams | Schedule compression | Split bounded Issues, swap Author/Reviewer assignments, keep main workflows done by D2 |
 | Cloud access/instructions delayed | Lab 5/D2 deployment blocked | Keep Docker-compatible design, report BLOCKED until actual instructions/resources |
 | Evidence absent despite working UI | Assessment cannot verify claims | Save commands, actual output, screenshots, PR review, test IDs and release SHAs contemporaneously |
