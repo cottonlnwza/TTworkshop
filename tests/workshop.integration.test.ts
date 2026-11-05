@@ -94,15 +94,28 @@ describe("F-02 Workshop Draft & Publish Integration", () => {
     expect(dbCheck.rows[0].n).toBe(0);
   });
 
-  it("STS-F02-05: Publish with zero/negative capacity fails; DB unchanged", async () => {
+  it("STS-F02-05: Rejects invalid capacities and blocks publication without capacity", async () => {
     const cookie = await login("organizer.a@example.test");
+    const base = {
+      title: "T", description: "D", location: "L",
+      starts_at: "2026-12-01T10:00:00Z", ends_at: "2026-12-01T12:00:00Z"
+    };
+    for (const capacity of [0, -1, 10.5, "abc"]) {
+      const invalid = await request(app).post("/api/v1/workshops").set("Origin", origin).set("Cookie", cookie)
+        .send({ ...base, capacity });
+      expect(invalid.status).toBe(400);
+      expect(invalid.body.error.code).toBe("VALIDATION");
+    }
+
     const create = await request(app).post("/api/v1/workshops").set("Origin", origin).set("Cookie", cookie)
-      .send({ title: "T", description: "D", location: "L", starts_at: "2026-12-01T10:00:00Z", ends_at: "2026-12-01T12:00:00Z", capacity: 0 });
-    const id = create.body.data.id;
-    
-    const pub = await request(app).post(`/api/v1/organizer/workshops/${id}/publish`).set("Origin", origin).set("Cookie", cookie);
-    expect(pub.status).toBe(400);
-    expect(pub.body.error.code).toBe("VALIDATION");
+      .send({ title: "Missing capacity", description: "D", location: "L", starts_at: base.starts_at, ends_at: base.ends_at });
+    expect(create.status).toBe(201);
+    const publish = await request(app).post(`/api/v1/organizer/workshops/${create.body.data.id}/publish`)
+      .set("Origin", origin).set("Cookie", cookie);
+    expect(publish.status).toBe(400);
+    expect(publish.body.error.code).toBe("VALIDATION");
+    const stored = await pool.query("SELECT status, capacity FROM workshops WHERE id=$1", [create.body.data.id]);
+    expect(stored.rows[0]).toMatchObject({ status: "DRAFT", capacity: null });
   });
 
   it("STS-F02-06: Participant/anonymous create or publish denied", async () => {
@@ -125,18 +138,68 @@ describe("F-02 Workshop Draft & Publish Integration", () => {
     expect(pub2.status).toBe(409);
   });
 
-  it("STS-F02-08: Publish with missing required field fails; status remains DRAFT", async () => {
+  it("STS-F02-08: Publish fails separately for each missing required field", async () => {
+    const cookie = await login("organizer.a@example.test");
+    const base: Record<string, unknown> = {
+      title: "T", description: "D", location: "L", capacity: 10,
+      starts_at: "2026-12-01T10:00:00Z", ends_at: "2026-12-01T12:00:00Z"
+    };
+    const requiredFields = ["title", "description", "location", "starts_at", "ends_at", "capacity"];
+    for (const field of requiredFields) {
+      const payload = { ...base };
+      delete payload[field];
+      const create = await request(app).post("/api/v1/workshops").set("Origin", origin).set("Cookie", cookie)
+        .send(payload);
+      expect(create.status).toBe(201);
+      const id = create.body.data.id;
+      const publish = await request(app).post(`/api/v1/organizer/workshops/${id}/publish`)
+        .set("Origin", origin).set("Cookie", cookie);
+      expect(publish.status).toBe(400);
+      expect(publish.body.error.code).toBe("VALIDATION");
+      const stored = await pool.query("SELECT status FROM workshops WHERE id=$1", [id]);
+      expect(stored.rows[0].status).toBe("DRAFT");
+    }
+  });
+
+  it("STS-F02-09: Persisted workshop remains retrievable from a new app instance", async () => {
     const cookie = await login("organizer.a@example.test");
     const create = await request(app).post("/api/v1/workshops").set("Origin", origin).set("Cookie", cookie)
-      .send({ title: "T" }); // missing description, location, starts_at, ends_at, capacity
+      .send({ title: "Persistent Draft" });
+    expect(create.status).toBe(201);
     const id = create.body.data.id;
-    
-    const pub = await request(app).post(`/api/v1/organizer/workshops/${id}/publish`).set("Origin", origin).set("Cookie", cookie);
-    expect(pub.status).toBe(400);
-    expect(pub.body.error.code).toBe("VALIDATION");
-    
-    const dbCheck = await pool.query("SELECT status FROM workshops WHERE id=$1", [id]);
-    expect(dbCheck.rows[0].status).toBe("DRAFT");
+    const restartedApp = createApp(pool, { appOrigin: origin, production: false, sessionHours: 8 });
+    const get = await request(restartedApp).get(`/api/v1/organizer/workshops/${id}`)
+      .set("Origin", origin).set("Cookie", cookie);
+    expect(get.status).toBe(200);
+    expect(get.body.data).toMatchObject({ id, title: "Persistent Draft", status: "DRAFT" });
+  });
+
+  it("Rejects date-times without an explicit ISO 8601 offset", async () => {
+    const cookie = await login("organizer.a@example.test");
+    const response = await request(app).post("/api/v1/workshops").set("Origin", origin).set("Cookie", cookie)
+      .send({ starts_at: "2026-12-01T10:00:00", ends_at: "2026-12-01T12:00:00" });
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION");
+    const count = await pool.query("SELECT count(*)::int AS n FROM workshops");
+    expect(count.rows[0].n).toBe(0);
+  });
+
+  it("Database constraints reject direct publication of incomplete or invalid-deadline drafts", async () => {
+    const cookie = await login("organizer.a@example.test");
+    const incomplete = await request(app).post("/api/v1/workshops").set("Origin", origin).set("Cookie", cookie)
+      .send({ title: "Incomplete" });
+    const incompleteId = incomplete.body.data.id;
+    await expect(pool.query("UPDATE workshops SET status='PUBLISHED' WHERE id=$1", [incompleteId]))
+      .rejects.toMatchObject({ code: "23514" });
+
+    const owner = await pool.query("SELECT id FROM users WHERE email='organizer.a@example.test'");
+    const invalidDeadline = await pool.query(
+      `INSERT INTO workshops (owner_user_id, title, description, location, starts_at, ends_at, capacity, registration_deadline, status)
+       VALUES ($1, 'T', 'D', 'L', '2026-12-01T10:00:00Z', '2026-12-01T12:00:00Z', 10, '2026-12-01T11:00:00Z', 'DRAFT') RETURNING id`,
+      [owner.rows[0].id]
+    );
+    await expect(pool.query("UPDATE workshops SET status='PUBLISHED' WHERE id=$1", [invalidDeadline.rows[0].id]))
+      .rejects.toMatchObject({ code: "23514" });
   });
 
   it("STS-F02-10: BR-08 Create rejects deadline > starts_at", async () => {
@@ -174,8 +237,16 @@ describe("F-02 Workshop Draft & Publish Integration", () => {
   it("STS-F02-12: Create partial -> Update same DRAFT -> Publish flow", async () => {
     const cookie = await login("organizer.a@example.test");
     const create = await request(app).post("/api/v1/workshops").set("Origin", origin).set("Cookie", cookie)
-      .send({ title: "Partial" });
+      .send({ title: "Partial", starts_at: "2026-12-01T10:00:00Z" });
     const id = create.body.data.id;
+
+    const invalidMerged = await request(app).patch(`/api/v1/organizer/workshops/${id}`)
+      .set("Origin", origin).set("Cookie", cookie)
+      .send({ registration_deadline: "2026-12-01T11:00:00Z" });
+    expect(invalidMerged.status).toBe(400);
+    expect(invalidMerged.body.error.code).toBe("VALIDATION");
+    const unchanged = await pool.query("SELECT registration_deadline, status FROM workshops WHERE id=$1", [id]);
+    expect(unchanged.rows[0]).toMatchObject({ registration_deadline: null, status: "DRAFT" });
     
     const update = await request(app).patch(`/api/v1/organizer/workshops/${id}`).set("Origin", origin).set("Cookie", cookie)
       .send({ description: "Desc", location: "Loc", starts_at: "2026-12-01T10:00:00Z", ends_at: "2026-12-01T12:00:00Z", capacity: 5 });
@@ -185,5 +256,32 @@ describe("F-02 Workshop Draft & Publish Integration", () => {
     const pub = await request(app).post(`/api/v1/organizer/workshops/${id}/publish`).set("Origin", origin).set("Cookie", cookie);
     expect(pub.status).toBe(200);
     expect(pub.body.data.status).toBe("PUBLISHED");
+  });
+
+  it("STS-F02-12: Foreign Organizer, Participant, and post-publish updates are denied", async () => {
+    const cookieA = await login("organizer.a@example.test");
+    const cookieB = await login("organizer.b@example.test");
+    const cookieP = await login("participant.a@example.test");
+    const create = await request(app).post("/api/v1/workshops").set("Origin", origin).set("Cookie", cookieA)
+      .send({ title: "T" });
+    const id = create.body.data.id;
+
+    const foreign = await request(app).patch(`/api/v1/organizer/workshops/${id}`)
+      .set("Origin", origin).set("Cookie", cookieB).send({ title: "Foreign update" });
+    expect(foreign.status).toBe(404);
+    const participant = await request(app).patch(`/api/v1/organizer/workshops/${id}`)
+      .set("Origin", origin).set("Cookie", cookieP).send({ title: "Participant update" });
+    expect(participant.status).toBe(403);
+
+    const complete = await request(app).patch(`/api/v1/organizer/workshops/${id}`)
+      .set("Origin", origin).set("Cookie", cookieA)
+      .send({ description: "D", location: "L", starts_at: "2026-12-01T10:00:00Z", ends_at: "2026-12-01T12:00:00Z", capacity: 5 });
+    expect(complete.status).toBe(200);
+    const publish = await request(app).post(`/api/v1/organizer/workshops/${id}/publish`)
+      .set("Origin", origin).set("Cookie", cookieA);
+    expect(publish.status).toBe(200);
+    const afterPublish = await request(app).patch(`/api/v1/organizer/workshops/${id}`)
+      .set("Origin", origin).set("Cookie", cookieA).send({ title: "Post-publish update" });
+    expect(afterPublish.status).toBe(409);
   });
 });

@@ -15,7 +15,15 @@ CREATE TABLE workshops (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT valid_capacity CHECK (capacity IS NULL OR capacity > 0),
-  CONSTRAINT valid_time_order CHECK (starts_at IS NULL OR ends_at IS NULL OR ends_at > starts_at)
+  CONSTRAINT valid_time_order CHECK (starts_at IS NULL OR ends_at IS NULL OR ends_at > starts_at),
+  CONSTRAINT published_required CHECK (
+    status = 'DRAFT' OR
+    (title IS NOT NULL AND description IS NOT NULL AND location IS NOT NULL AND
+     capacity IS NOT NULL AND starts_at IS NOT NULL AND ends_at IS NOT NULL)
+  ),
+  CONSTRAINT published_deadline CHECK (
+    status = 'DRAFT' OR registration_deadline IS NULL OR registration_deadline <= starts_at
+  )
 );
 
 CREATE INDEX workshops_owner_status_idx ON workshops(owner_user_id, status);

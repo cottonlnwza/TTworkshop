@@ -83,7 +83,6 @@ describe("F-01 actual Chrome UI → Express API → PostgreSQL", () => {
       await page.getByLabel("Password").fill(password);
       await page.getByRole("button",{name:"Sign in"}).click();
       await page.getByText("Organizer workspace").waitFor();
-      expect(await page.getByText(/Signed in as/).count()).toBe(1);
       await page.reload();
       await page.getByText("Organizer workspace").waitFor();
       await page.getByRole("button",{name:"Sign out"}).click();

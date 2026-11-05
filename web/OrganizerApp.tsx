@@ -18,6 +18,50 @@ type View = "list" | "new" | "detail";
 
 const apiUrl = "/api/v1";
 
+type WorkshopInput = Pick<Workshop,
+  "title" | "description" | "location" | "starts_at" | "ends_at" | "capacity" | "registration_deadline">;
+
+function dateTimeLocal(value: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
+function workshopPayload(form: HTMLFormElement): WorkshopInput {
+  const values = new FormData(form);
+  const text = (name: string): string | null => {
+    const value = values.get(name);
+    return typeof value === "string" && value.trim() ? value.trim() : null;
+  };
+  const date = (name: string): string | null => {
+    const value = values.get(name);
+    if (typeof value !== "string" || !value) return null;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+  };
+  const rawCapacity = values.get("capacity");
+  return {
+    title: text("title"),
+    description: text("description"),
+    location: text("location"),
+    starts_at: date("starts_at"),
+    ends_at: date("ends_at"),
+    capacity: typeof rawCapacity === "string" && rawCapacity.trim() ? Number(rawCapacity) : null,
+    registration_deadline: date("registration_deadline")
+  };
+}
+
+function responseError(body: unknown, fallback: string): string {
+  if (body && typeof body === "object" && "error" in body) {
+    const error = body.error;
+    if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+      return error.message;
+    }
+  }
+  return fallback;
+}
+
 export function OrganizerApp() {
   const [view, setView] = useState<View>("list");
   const [workshops, setWorkshops] = useState<Workshop[]>([]);
@@ -35,7 +79,10 @@ export function OrganizerApp() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${apiUrl}/organizer/workshops`, { credentials: "same-origin" });
+      const res = await fetch(`${apiUrl}/organizer/workshops`, {
+        credentials: "same-origin",
+        headers: { "Origin": window.location.origin }
+      });
       if (!res.ok) throw new Error("Failed to fetch workshops");
       const data = await res.json();
       setWorkshops(data.data || []);
@@ -68,22 +115,7 @@ export function OrganizerApp() {
     setLoading(true);
     setError("");
     const form = e.currentTarget;
-    const formData = new FormData(form);
-    const payload: any = {};
-    const title = formData.get("title");
-    if (title) payload.title = String(title);
-    const description = formData.get("description");
-    if (description) payload.description = String(description);
-    const location = formData.get("location");
-    if (location) payload.location = String(location);
-    const capacity = formData.get("capacity");
-    if (capacity) payload.capacity = parseInt(String(capacity), 10);
-    const starts_at = formData.get("starts_at");
-    if (starts_at) payload.starts_at = String(starts_at);
-    const ends_at = formData.get("ends_at");
-    if (ends_at) payload.ends_at = String(ends_at);
-    const registration_deadline = formData.get("registration_deadline");
-    if (registration_deadline) payload.registration_deadline = String(registration_deadline);
+    const payload = workshopPayload(form);
 
     try {
       const res = await fetch(`${apiUrl}/workshops`, {
@@ -92,13 +124,13 @@ export function OrganizerApp() {
         headers: { "Content-Type": "application/json", "Origin": window.location.origin },
         body: JSON.stringify(payload)
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error?.message || "Failed to create draft");
+      const data: unknown = await res.json();
+      if (!res.ok) throw new Error(responseError(data, "Failed to create draft"));
       setSuccess("Draft created successfully!");
       form.reset();
       setView("list");
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create draft");
     } finally {
       setLoading(false);
     }
@@ -113,12 +145,12 @@ export function OrganizerApp() {
         credentials: "same-origin",
         headers: { "Origin": window.location.origin }
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error?.message || "Failed to publish");
+      const data: unknown = await res.json();
+      if (!res.ok) throw new Error(responseError(data, "Failed to publish"));
       setSuccess("Workshop published successfully!");
       setView("list");
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to publish");
     } finally {
       setLoading(false);
     }
@@ -199,15 +231,61 @@ export function OrganizerApp() {
 function WorkshopDetail({ id, onPublish, onBack }: { id: string; onPublish: (id: string) => void; onBack: () => void }) {
   const [workshop, setWorkshop] = useState<Workshop | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  useEffect(() => {
-    fetch(`${apiUrl}/organizer/workshops/${id}`, { credentials: "same-origin" })
-      .then(res => res.ok ? res.json() : Promise.reject(new Error("Not found")))
-      .then(data => setWorkshop(data.data))
-      .catch(() => setError("Workshop not found"))
-      .finally(() => setLoading(false));
-  }, [id]);
+  async function fetchWorkshop() {
+    setLoading(true);
+    try {
+      const res = await fetch(`${apiUrl}/organizer/workshops/${id}`, {
+        credentials: "same-origin",
+        headers: { "Origin": window.location.origin }
+      });
+      const data: unknown = await res.json();
+      if (!res.ok) throw new Error(responseError(data, "Workshop not found"));
+      if (!data || typeof data !== "object" || !("data" in data)) {
+        throw new Error("Unexpected workshop response");
+      }
+      setWorkshop(data.data as Workshop);
+      setError("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Workshop not found");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { void fetchWorkshop(); }, [id]);
+
+  async function handleUpdate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!workshop || workshop.status !== "DRAFT" || saving) return;
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch(`${apiUrl}/organizer/workshops/${workshop.id}`, {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "Origin": window.location.origin
+        },
+        body: JSON.stringify(workshopPayload(event.currentTarget))
+      });
+      const data: unknown = await res.json();
+      if (!res.ok) throw new Error(responseError(data, "Update failed"));
+      setSuccess("Draft updated successfully");
+      setIsEditing(false);
+      await fetchWorkshop();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Update failed");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   if (loading) return <p>Loading...</p>;
   if (error || !workshop) return <p className="error">{error || "Not found"}</p>;
@@ -216,17 +294,45 @@ function WorkshopDetail({ id, onPublish, onBack }: { id: string; onPublish: (id:
     <section className="panel">
       <h2>{workshop.title || "Untitled Draft"}</h2>
       <p><strong>Status:</strong> {workshop.status}</p>
-      <p><strong>Description:</strong> {workshop.description || "N/A"}</p>
-      <p><strong>Location:</strong> {workshop.location || "N/A"}</p>
-      <p><strong>Start:</strong> {workshop.starts_at ? new Date(workshop.starts_at).toLocaleString() : "N/A"}</p>
-      <p><strong>End:</strong> {workshop.ends_at ? new Date(workshop.ends_at).toLocaleString() : "N/A"}</p>
-      <p><strong>Capacity:</strong> {workshop.capacity ?? "N/A"}</p>
-      <p><strong>Deadline:</strong> {workshop.registration_deadline ? new Date(workshop.registration_deadline).toLocaleString() : "N/A"}</p>
-      
-      {workshop.status === "DRAFT" && (
-        <button onClick={() => onPublish(id)} style={{ marginTop: "1rem", background: "#28a745", color: "white" }}>
-          Publish Workshop
-        </button>
+      {error && <p role="alert" className="error">{error}</p>}
+      {success && <p role="status" className="success">{success}</p>}
+
+      {workshop.status === "DRAFT" && isEditing ? (
+        <form onSubmit={handleUpdate} noValidate>
+          <label htmlFor="edit-title">Title (required to publish)</label>
+          <input id="edit-title" name="title" type="text" defaultValue={workshop.title ?? ""} />
+          <label htmlFor="edit-description">Description (required to publish)</label>
+          <textarea id="edit-description" name="description" rows={3} defaultValue={workshop.description ?? ""} />
+          <label htmlFor="edit-location">Location (required to publish)</label>
+          <input id="edit-location" name="location" type="text" defaultValue={workshop.location ?? ""} />
+          <label htmlFor="edit-starts-at">Start Time (required to publish)</label>
+          <input id="edit-starts-at" name="starts_at" type="datetime-local" defaultValue={dateTimeLocal(workshop.starts_at)} />
+          <label htmlFor="edit-ends-at">End Time (required to publish)</label>
+          <input id="edit-ends-at" name="ends_at" type="datetime-local" defaultValue={dateTimeLocal(workshop.ends_at)} />
+          <label htmlFor="edit-capacity">Capacity (required to publish, &gt; 0)</label>
+          <input id="edit-capacity" name="capacity" type="number" min="1" step="1" defaultValue={workshop.capacity ?? ""} />
+          <label htmlFor="edit-deadline">Registration Deadline (optional, must be &le; start time)</label>
+          <input id="edit-deadline" name="registration_deadline" type="datetime-local" defaultValue={dateTimeLocal(workshop.registration_deadline)} />
+          <button type="submit" disabled={saving}>{saving ? "Saving..." : "Save Changes"}</button>
+          <button type="button" disabled={saving} onClick={() => { setIsEditing(false); setError(""); }}>Cancel</button>
+        </form>
+      ) : (
+        <>
+          <p><strong>Description:</strong> {workshop.description || "N/A"}</p>
+          <p><strong>Location:</strong> {workshop.location || "N/A"}</p>
+          <p><strong>Start:</strong> {workshop.starts_at ? new Date(workshop.starts_at).toLocaleString() : "N/A"}</p>
+          <p><strong>End:</strong> {workshop.ends_at ? new Date(workshop.ends_at).toLocaleString() : "N/A"}</p>
+          <p><strong>Capacity:</strong> {workshop.capacity ?? "N/A"}</p>
+          <p><strong>Deadline:</strong> {workshop.registration_deadline ? new Date(workshop.registration_deadline).toLocaleString() : "N/A"}</p>
+          {workshop.status === "DRAFT" && (
+            <>
+              <button type="button" onClick={() => { setIsEditing(true); setError(""); }}>Edit Draft</button>
+              <button type="button" onClick={() => onPublish(id)} style={{ marginTop: "1rem", marginLeft: "0.5rem", background: "#28a745", color: "white" }}>
+                Publish Workshop
+              </button>
+            </>
+          )}
+        </>
       )}
       <button onClick={onBack} style={{ marginTop: "1rem", marginLeft: "1rem" }}>Back</button>
     </section>

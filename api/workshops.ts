@@ -6,8 +6,23 @@ const fail = (code: string, message: string) => ({ error: { code, message } });
 
 function parseDateTime(value: unknown): Date | null {
   if (typeof value !== "string") return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(Z|([+-])(\d{2}):(\d{2}))$/.exec(value);
+  if (!match) return null;
+  const [, yearText, monthText, dayText, hourText, minuteText, secondText, , , , offsetHourText, offsetMinuteText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  const second = Number(secondText);
+  const offsetHour = Number(offsetHourText ?? 0);
+  const offsetMinute = Number(offsetMinuteText ?? 0);
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] ?? 0;
+  if (year < 1 || day < 1 || day > daysInMonth || hour > 23 || minute > 59 || second > 59 ||
+      offsetHour > 14 || offsetMinute > 59 || (offsetHour === 14 && offsetMinute !== 0)) return null;
   const d = new Date(value);
-  return isNaN(d.getTime()) ? null : d;
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 export function createWorkshopRouter(
@@ -16,6 +31,15 @@ export function createWorkshopRouter(
   requireOrganizerWithIdentity: RequestHandler
 ) {
   const router = Router();
+  // Browsers control the Origin header and commonly omit it on same-origin GETs.
+  // Fetch Metadata safely identifies those requests without weakening write routes.
+  const requireReadOrigin: RequestHandler = (req, res, next) => {
+    if (req.headers.origin === undefined && req.headers["sec-fetch-site"] === "same-origin") {
+      next();
+      return;
+    }
+    requireOrigin(req, res, next);
+  };
 
   // POST /api/v1/workshops - Create partial DRAFT
   router.post("/workshops", requireOrigin, requireOrganizerWithIdentity, async (req: Request, res: Response) => {
@@ -23,10 +47,22 @@ export function createWorkshopRouter(
     const { title, description, location, starts_at, ends_at, capacity, registration_deadline } = req.body || {};
     
     // BR-08 Create validation
-    const start = starts_at ? parseDateTime(starts_at) : null;
-    const deadline = registration_deadline ? parseDateTime(registration_deadline) : null;
+    const start = starts_at == null ? null : parseDateTime(starts_at);
+    const end = ends_at == null ? null : parseDateTime(ends_at);
+    const deadline = registration_deadline == null ? null : parseDateTime(registration_deadline);
+    const cap = capacity == null ? null : Number(capacity);
+    if ((starts_at != null && !start) || (ends_at != null && !end) ||
+        (registration_deadline != null && !deadline)) {
+      return res.status(400).json(fail("VALIDATION", "Date-times must be valid ISO 8601 values with an explicit offset"));
+    }
+    if (cap !== null && (!Number.isInteger(cap) || cap <= 0)) {
+      return res.status(400).json(fail("VALIDATION", "Capacity must be a positive integer"));
+    }
     if (start && deadline && deadline > start) {
       return res.status(400).json(fail("VALIDATION", "Registration deadline cannot be later than start time"));
+    }
+    if (start && end && end <= start) {
+      return res.status(400).json(fail("VALIDATION", "End time must be after start time"));
     }
 
     try {
@@ -34,7 +70,7 @@ export function createWorkshopRouter(
         `INSERT INTO workshops (owner_user_id, title, description, location, starts_at, ends_at, capacity, registration_deadline, status)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'DRAFT')
          RETURNING id, owner_user_id, title, description, location, starts_at, ends_at, capacity, status, registration_deadline, created_at`,
-        [identity.id, title || null, description || null, location || null, start, start ? parseDateTime(ends_at as string) : null, capacity ? Number(capacity) : null, deadline]
+        [identity.id, title || null, description || null, location || null, start, end, cap, deadline]
       );
       res.status(201).json({ data: result.rows[0] });
     } catch (err) {
@@ -43,7 +79,7 @@ export function createWorkshopRouter(
   });
 
   // GET /api/v1/organizer/workshops - List own workshops
-  router.get("/organizer/workshops", requireOrigin, requireOrganizerWithIdentity, async (req: Request, res: Response) => {
+  router.get("/organizer/workshops", requireReadOrigin, requireOrganizerWithIdentity, async (req: Request, res: Response) => {
     const identity = (req as any).identity as Identity;
     const result = await pool.query(
       `SELECT id, owner_user_id, title, description, location, starts_at, ends_at, capacity, status, registration_deadline, created_at
@@ -54,7 +90,7 @@ export function createWorkshopRouter(
   });
 
   // GET /api/v1/organizer/workshops/:id - Get own workshop detail
-  router.get("/organizer/workshops/:id", requireOrigin, requireOrganizerWithIdentity, async (req: Request, res: Response) => {
+  router.get("/organizer/workshops/:id", requireReadOrigin, requireOrganizerWithIdentity, async (req: Request, res: Response) => {
     const identity = (req as any).identity as Identity;
     const { id } = req.params;
     const result = await pool.query(
@@ -73,15 +109,37 @@ export function createWorkshopRouter(
     const { title, description, location, starts_at, ends_at, capacity, registration_deadline } = req.body || {};
 
     // Check ownership and DRAFT status
-    const current = await pool.query("SELECT status FROM workshops WHERE id = $1 AND owner_user_id = $2", [id, identity.id]);
+    const current = await pool.query(
+      "SELECT status, starts_at, ends_at, registration_deadline FROM workshops WHERE id = $1 AND owner_user_id = $2",
+      [id, identity.id]
+    );
     if (!current.rowCount) return res.status(404).json(fail("NOT_FOUND", "Workshop not found or access denied"));
     if (current.rows[0].status !== "DRAFT") return res.status(409).json(fail("INVALID_STATE", "Cannot update a published workshop"));
 
     // BR-08 Update validation
-    const start = starts_at ? parseDateTime(starts_at) : null;
-    const deadline = registration_deadline ? parseDateTime(registration_deadline) : null;
-    if (start && deadline && deadline > start) {
+    const start = starts_at == null ? null : parseDateTime(starts_at);
+    const end = ends_at == null ? null : parseDateTime(ends_at);
+    const deadline = registration_deadline == null ? null : parseDateTime(registration_deadline);
+    const cap = capacity == null ? null : Number(capacity);
+    if ((starts_at != null && !start) || (ends_at != null && !end) ||
+        (registration_deadline != null && !deadline)) {
+      return res.status(400).json(fail("VALIDATION", "Date-times must be valid ISO 8601 values with an explicit offset"));
+    }
+    if (cap !== null && (!Number.isInteger(cap) || cap <= 0)) {
+      return res.status(400).json(fail("VALIDATION", "Capacity must be a positive integer"));
+    }
+    const mergedStart = starts_at == null
+      ? current.rows[0].starts_at as Date | null
+      : start;
+    const mergedDeadline = registration_deadline == null
+      ? current.rows[0].registration_deadline as Date | null
+      : deadline;
+    if (mergedStart && mergedDeadline && mergedDeadline > mergedStart) {
       return res.status(400).json(fail("VALIDATION", "Registration deadline cannot be later than start time"));
+    }
+    const mergedEnd = ends_at == null ? current.rows[0].ends_at as Date | null : end;
+    if (mergedStart && mergedEnd && mergedEnd <= mergedStart) {
+      return res.status(400).json(fail("VALIDATION", "End time must be after start time"));
     }
 
     try {
@@ -97,7 +155,7 @@ export function createWorkshopRouter(
           updated_at = now()
          WHERE id = $1 AND owner_user_id = $9 AND status = 'DRAFT'
          RETURNING id, owner_user_id, title, description, location, starts_at, ends_at, capacity, status, registration_deadline, updated_at`,
-        [id, title, description, location, start, start ? parseDateTime(ends_at as string) : null, capacity ? Number(capacity) : null, deadline, identity.id]
+        [id, title, description, location, start, end, cap, deadline, identity.id]
       );
       res.status(200).json({ data: result.rows[0] });
     } catch (err) {
