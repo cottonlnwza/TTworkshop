@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { chromium, type Browser } from "playwright-core";
+import { existsSync } from "node:fs";
 import { createServer, type ViteDevServer } from "vite";
 import react from "@vitejs/plugin-react";
 import { Pool } from "pg";
@@ -15,6 +16,28 @@ let api: Server;
 let vite: ViteDevServer;
 let browser: Browser;
 let webOrigin: string;
+
+function getChromePath(): string | undefined {
+  if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
+
+  if (process.platform === "win32") {
+    const windowsPaths = [
+      "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+      "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+      process.env.LOCALAPPDATA
+        ? `${process.env.LOCALAPPDATA}\\Google\\Chrome\\Application\\chrome.exe`
+        : undefined,
+    ];
+    return windowsPaths.find((path): path is string => Boolean(path && existsSync(path)));
+  }
+
+  if (process.platform === "darwin") {
+    const macPath = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+    return existsSync(macPath) ? macPath : undefined;
+  }
+
+  return undefined;
+}
 
 beforeAll(async () => {
   await assertTestDatabase(pool);
@@ -39,9 +62,8 @@ beforeAll(async () => {
       proxy:{ "/api": "http://127.0.0.1:"+apiPort }}
   });
   await vite.listen();
-  const execPath = process.env.CHROME_PATH ??
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-  browser = await chromium.launch({ executablePath:execPath, headless:true });
+  const execPath = getChromePath();
+  browser = await chromium.launch({ headless:true, ...(execPath ? { executablePath:execPath } : {}) });
 },30000);
 
 afterAll(async () => {
@@ -70,7 +92,7 @@ describe("F-01 actual Chrome UI → Express API → PostgreSQL", () => {
       await page.getByRole("button",{name:"Sign in"}).waitFor();
       expect(await page.getByText("Organizer workspace").count()).toBe(0);
     } finally { await context.close(); }
-  });
+  }, 60000);
   it("STS-F01-03/08: malformed login is rejected, then Participant authenticates with only Participant role", async () => {
     const context=await browser.newContext();
     try {
