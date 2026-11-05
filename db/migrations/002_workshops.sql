@@ -21,6 +21,10 @@ CREATE TABLE workshops (
     (title IS NOT NULL AND description IS NOT NULL AND location IS NOT NULL AND
      capacity IS NOT NULL AND starts_at IS NOT NULL AND ends_at IS NOT NULL)
   ),
+  CONSTRAINT published_non_empty CHECK (
+    status = 'DRAFT' OR
+    (btrim(title) <> '' AND btrim(description) <> '' AND btrim(location) <> '')
+  ),
   CONSTRAINT published_deadline CHECK (
     status = 'DRAFT' OR registration_deadline IS NULL OR registration_deadline <= starts_at
   )

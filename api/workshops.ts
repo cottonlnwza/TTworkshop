@@ -25,6 +25,25 @@ function parseDateTime(value: unknown): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+function invalidTextField(fields: {
+  title?: unknown;
+  description?: unknown;
+  location?: unknown;
+}): string | null {
+  const labels = [
+    ["title", "Title"],
+    ["description", "Description"],
+    ["location", "Location"]
+  ] as const;
+  for (const [field, label] of labels) {
+    const value = fields[field];
+    if (value !== undefined && value !== null && typeof value !== "string") {
+      return `${label} must be a string`;
+    }
+  }
+  return null;
+}
+
 export function createWorkshopRouter(
   pool: Pool,
   requireOrigin: RequestHandler,
@@ -50,7 +69,15 @@ export function createWorkshopRouter(
     const start = starts_at == null ? null : parseDateTime(starts_at);
     const end = ends_at == null ? null : parseDateTime(ends_at);
     const deadline = registration_deadline == null ? null : parseDateTime(registration_deadline);
-    const cap = capacity == null ? null : Number(capacity);
+    let cap: number | null = null;
+    if (capacity !== undefined && capacity !== null) {
+      if (typeof capacity !== "number" || !Number.isInteger(capacity) || capacity <= 0) {
+        return res.status(400).json(fail("VALIDATION", "Capacity must be a positive integer"));
+      }
+      cap = capacity;
+    }
+    const textFieldError = invalidTextField({ title, description, location });
+    if (textFieldError) return res.status(400).json(fail("VALIDATION", textFieldError));
     if ((starts_at != null && !start) || (ends_at != null && !end) ||
         (registration_deadline != null && !deadline)) {
       return res.status(400).json(fail("VALIDATION", "Date-times must be valid ISO 8601 values with an explicit offset"));
@@ -106,7 +133,9 @@ export function createWorkshopRouter(
   router.patch("/organizer/workshops/:id", requireOrigin, requireOrganizerWithIdentity, async (req: Request, res: Response) => {
     const identity = (req as any).identity as Identity;
     const { id } = req.params;
-    const { title, description, location, starts_at, ends_at, capacity, registration_deadline } = req.body || {};
+    const body = req.body || {};
+    const { title, description, location, starts_at, ends_at, capacity, registration_deadline } = body;
+    const hasRegistrationDeadline = Object.prototype.hasOwnProperty.call(body, "registration_deadline");
 
     // Check ownership and DRAFT status
     const current = await pool.query(
@@ -120,7 +149,15 @@ export function createWorkshopRouter(
     const start = starts_at == null ? null : parseDateTime(starts_at);
     const end = ends_at == null ? null : parseDateTime(ends_at);
     const deadline = registration_deadline == null ? null : parseDateTime(registration_deadline);
-    const cap = capacity == null ? null : Number(capacity);
+    let cap: number | null = null;
+    if (capacity !== undefined && capacity !== null) {
+      if (typeof capacity !== "number" || !Number.isInteger(capacity) || capacity <= 0) {
+        return res.status(400).json(fail("VALIDATION", "Capacity must be a positive integer"));
+      }
+      cap = capacity;
+    }
+    const textFieldError = invalidTextField({ title, description, location });
+    if (textFieldError) return res.status(400).json(fail("VALIDATION", textFieldError));
     if ((starts_at != null && !start) || (ends_at != null && !end) ||
         (registration_deadline != null && !deadline)) {
       return res.status(400).json(fail("VALIDATION", "Date-times must be valid ISO 8601 values with an explicit offset"));
@@ -131,9 +168,9 @@ export function createWorkshopRouter(
     const mergedStart = starts_at == null
       ? current.rows[0].starts_at as Date | null
       : start;
-    const mergedDeadline = registration_deadline == null
-      ? current.rows[0].registration_deadline as Date | null
-      : deadline;
+    const mergedDeadline = hasRegistrationDeadline
+      ? deadline
+      : current.rows[0].registration_deadline as Date | null;
     if (mergedStart && mergedDeadline && mergedDeadline > mergedStart) {
       return res.status(400).json(fail("VALIDATION", "Registration deadline cannot be later than start time"));
     }
@@ -151,11 +188,11 @@ export function createWorkshopRouter(
           starts_at = COALESCE($5, starts_at),
           ends_at = COALESCE($6, ends_at),
           capacity = COALESCE($7, capacity),
-          registration_deadline = COALESCE($8, registration_deadline),
+          registration_deadline = CASE WHEN $9 THEN $8 ELSE registration_deadline END,
           updated_at = now()
-         WHERE id = $1 AND owner_user_id = $9 AND status = 'DRAFT'
+         WHERE id = $1 AND owner_user_id = $10 AND status = 'DRAFT'
          RETURNING id, owner_user_id, title, description, location, starts_at, ends_at, capacity, status, registration_deadline, updated_at`,
-        [id, title, description, location, start, end, cap, deadline, identity.id]
+        [id, title, description, location, start, end, cap, deadline, hasRegistrationDeadline, identity.id]
       );
       res.status(200).json({ data: result.rows[0] });
     } catch (err) {
@@ -168,39 +205,59 @@ export function createWorkshopRouter(
     const identity = (req as any).identity as Identity;
     const { id } = req.params;
 
-    const current = await pool.query(
-      `SELECT id, owner_user_id, title, description, location, starts_at, ends_at, capacity, status, registration_deadline
-       FROM workshops WHERE id = $1 AND owner_user_id = $2`,
-      [id, identity.id]
-    );
-    if (!current.rowCount) return res.status(404).json(fail("NOT_FOUND", "Workshop not found or access denied"));
-    const w = current.rows[0];
-    if (w.status === "PUBLISHED") return res.status(409).json(fail("INVALID_STATE", "Workshop is already published"));
-
-    // Publish validation (BR-02, BR-03, BR-08)
-    if (!w.title || !w.description || !w.location || !w.starts_at || !w.ends_at || w.capacity == null) {
-      return res.status(400).json(fail("VALIDATION", "Missing required fields for publication"));
-    }
-    if (w.ends_at <= w.starts_at) {
-      return res.status(400).json(fail("VALIDATION", "End time must be after start time"));
-    }
-    if (w.capacity <= 0 || !Number.isInteger(w.capacity)) {
-      return res.status(400).json(fail("VALIDATION", "Capacity must be a positive integer"));
-    }
-    if (w.registration_deadline && w.registration_deadline > w.starts_at) {
-      return res.status(400).json(fail("VALIDATION", "Registration deadline cannot be later than start time"));
-    }
-
+    const client = await pool.connect();
     try {
-      const result = await pool.query(
+      await client.query("BEGIN");
+      const current = await client.query(
+        `SELECT id, owner_user_id, title, description, location, starts_at, ends_at, capacity, status, registration_deadline
+         FROM workshops WHERE id = $1 AND owner_user_id = $2 FOR UPDATE`,
+        [id, identity.id]
+      );
+      if (!current.rowCount) {
+        await client.query("ROLLBACK");
+        return res.status(404).json(fail("NOT_FOUND", "Workshop not found or access denied"));
+      }
+      const w = current.rows[0];
+      if (w.status === "PUBLISHED") {
+        await client.query("ROLLBACK");
+        return res.status(409).json(fail("INVALID_STATE", "Workshop is already published"));
+      }
+
+      // Publish validation (BR-02, BR-03, BR-08)
+      if (!w.title?.trim() || !w.description?.trim() || !w.location?.trim() || !w.starts_at || !w.ends_at || w.capacity == null) {
+        await client.query("ROLLBACK");
+        return res.status(400).json(fail("VALIDATION", "Missing required fields for publication"));
+      }
+      if (w.ends_at <= w.starts_at) {
+        await client.query("ROLLBACK");
+        return res.status(400).json(fail("VALIDATION", "End time must be after start time"));
+      }
+      if (w.capacity <= 0 || !Number.isInteger(w.capacity)) {
+        await client.query("ROLLBACK");
+        return res.status(400).json(fail("VALIDATION", "Capacity must be a positive integer"));
+      }
+      if (w.registration_deadline && w.registration_deadline > w.starts_at) {
+        await client.query("ROLLBACK");
+        return res.status(400).json(fail("VALIDATION", "Registration deadline cannot be later than start time"));
+      }
+
+      const result = await client.query(
         `UPDATE workshops SET status = 'PUBLISHED', updated_at = now()
          WHERE id = $1 AND owner_user_id = $2 AND status = 'DRAFT'
          RETURNING id, owner_user_id, title, description, location, starts_at, ends_at, capacity, status, registration_deadline, updated_at`,
         [id, identity.id]
       );
-      res.status(200).json({ data: result.rows[0] });
+      if (!result.rowCount) {
+        await client.query("ROLLBACK");
+        return res.status(409).json(fail("CONFLICT", "Workshop was already published or modified"));
+      }
+      await client.query("COMMIT");
+      return res.status(200).json({ data: result.rows[0] });
     } catch (err) {
-      res.status(500).json(fail("INTERNAL", "Failed to publish workshop"));
+      await client.query("ROLLBACK").catch(() => undefined);
+      return res.status(500).json(fail("INTERNAL", "Failed to publish workshop"));
+    } finally {
+      client.release();
     }
   });
 

@@ -73,6 +73,73 @@ afterAll(async () => {
   await pool.end();
 });
 
+describe("F-02 actual Chrome UI to Express API to PostgreSQL", () => {
+  it("STS-F02-08 Browser: Publish with missing fields shows validation error", async () => {
+    const context = await browser.newContext();
+    const title = `E2E-08-${Date.now()}`;
+    try {
+      const page = await context.newPage();
+      await page.goto(webOrigin);
+      await page.getByLabel("Email").fill("organizer.a@example.test");
+      await page.getByLabel("Password").fill(password);
+      await page.getByRole("button", { name: "Sign in" }).click();
+      await page.getByText("Organizer workspace").waitFor();
+
+      await page.getByRole("button", { name: "Create New Draft" }).click();
+      await page.locator('input[name="title"]').fill(title);
+      await page.getByRole("button", { name: "Save Draft" }).click();
+
+      const draft = page.getByRole("listitem").filter({ hasText: title });
+      await draft.waitFor();
+      await draft.getByRole("button", { name: "Edit / Publish" }).click();
+      await page.getByRole("button", { name: "Publish Workshop" }).click();
+      await page.getByRole("alert")
+        .getByText(/Missing required fields for publication/i)
+        .waitFor({ timeout: 5000 });
+      expect(await page.getByText("Status:").locator("..").innerText()).toContain("DRAFT");
+    } finally {
+      await context.close();
+    }
+  }, 60000);
+
+  it("STS-F02-12 Browser: Create partial Draft, edit the same Draft, then publish", async () => {
+    const context = await browser.newContext();
+    const title = `E2E-12-${Date.now()}`;
+    try {
+      const page = await context.newPage();
+      await page.goto(webOrigin);
+      await page.getByLabel("Email").fill("organizer.a@example.test");
+      await page.getByLabel("Password").fill(password);
+      await page.getByRole("button", { name: "Sign in" }).click();
+      await page.getByText("Organizer workspace").waitFor();
+
+      await page.getByRole("button", { name: "Create New Draft" }).click();
+      await page.locator('input[name="title"]').fill(title);
+      await page.locator('textarea[name="description"]').fill("Browser E2E description");
+      await page.getByRole("button", { name: "Save Draft" }).click();
+
+      const draft = page.getByRole("listitem").filter({ hasText: title });
+      await draft.waitFor();
+      await draft.getByRole("button", { name: "Edit / Publish" }).click();
+      await page.getByRole("button", { name: "Edit Draft" }).click();
+      await page.locator('input[name="location"]').fill("E2E Test Location");
+      await page.locator('input[name="starts_at"]').fill("2026-12-01T10:00");
+      await page.locator('input[name="ends_at"]').fill("2026-12-01T12:00");
+      await page.locator('input[name="capacity"]').fill("10");
+      await page.getByRole("button", { name: "Save Changes" }).click();
+      await page.getByRole("status").getByText(/Draft updated successfully/i)
+        .waitFor({ timeout: 5000 });
+
+      await page.getByRole("button", { name: "Publish Workshop" }).click();
+      const published = page.getByRole("listitem").filter({ hasText: title });
+      await published.getByText("PUBLISHED", { exact: true }).waitFor({ timeout: 5000 });
+      expect(await published.getByRole("button", { name: "Edit / Publish" }).count()).toBe(0);
+    } finally {
+      await context.close();
+    }
+  }, 60000);
+});
+
 describe("F-01 actual Chrome UI → Express API → PostgreSQL", () => {
   it("STS-F01-01/02/06: Organizer signs in, sees private role, signs out, cannot see private state after reload", async () => {
     const context = await browser.newContext();

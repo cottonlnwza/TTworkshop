@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import React, { useEffect, useState, type FormEvent } from "react";
 
 type Workshop = {
@@ -17,6 +18,17 @@ type Workshop = {
 type View = "list" | "new" | "detail";
 
 const apiUrl = "/api/v1";
+// Read from Vite environment variable, falling back to the configured university timezone example.
+const UNIVERSITY_TZ = import.meta.env.VITE_UNIVERSITY_TIMEZONE || "Asia/Bangkok";
+const universityDateParts = new Intl.DateTimeFormat("en-CA", {
+  timeZone: UNIVERSITY_TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23"
+});
 
 type WorkshopInput = Pick<Workshop,
   "title" | "description" | "location" | "starts_at" | "ends_at" | "capacity" | "registration_deadline">;
@@ -25,7 +37,40 @@ function dateTimeLocal(value: string | null): string {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+  const parts = universityDateParts.formatToParts(date);
+  const get = (type: string) => parts.find(part => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+}
+
+function localDateTimeToIso(value: string): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return null;
+  const [, yearText, monthText, dayText, hourText, minuteText] = match;
+  const [year, month, day, hour, minute] = [yearText, monthText, dayText, hourText, minuteText].map(Number);
+  const targetAsUtc = Date.UTC(year, month - 1, day, hour, minute);
+  const check = new Date(targetAsUtc);
+  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 ||
+      check.getUTCDate() !== day || check.getUTCHours() !== hour || check.getUTCMinutes() !== minute) return null;
+
+  let timestamp = targetAsUtc;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const parts = universityDateParts.formatToParts(new Date(timestamp));
+    const get = (type: string) => Number(parts.find(part => part.type === type)?.value);
+    const representedAsUtc = Date.UTC(
+      get("year"), get("month") - 1, get("day"), get("hour"), get("minute")
+    );
+    timestamp += targetAsUtc - representedAsUtc;
+  }
+  const result = new Date(timestamp).toISOString();
+  return dateTimeLocal(result) === value ? result : null;
+}
+
+function formatDisplay(value: string): string {
+  return new Date(value).toLocaleString("th-TH", {
+    timeZone: UNIVERSITY_TZ,
+    dateStyle: "medium",
+    timeStyle: "short"
+  });
 }
 
 function workshopPayload(form: HTMLFormElement): WorkshopInput {
@@ -37,8 +82,7 @@ function workshopPayload(form: HTMLFormElement): WorkshopInput {
   const date = (name: string): string | null => {
     const value = values.get(name);
     if (typeof value !== "string" || !value) return null;
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+    return localDateTimeToIso(value);
   };
   const rawCapacity = values.get("capacity");
   return {
@@ -184,7 +228,7 @@ export function OrganizerApp() {
                   <span style={{ marginLeft: "0.5rem", padding: "0.2rem 0.5rem", background: w.status === "PUBLISHED" ? "#d4edda" : "#fff3cd", borderRadius: "4px" }}>
                     {w.status}
                   </span>
-                  <p className="muted">{w.location || "No location"} · {w.starts_at ? new Date(w.starts_at).toLocaleString() : "No date"}</p>
+                  <p className="muted">{w.location || "No location"} · {w.starts_at ? formatDisplay(w.starts_at) : "No date"}</p>
                   {w.status === "DRAFT" && (
                     <button onClick={() => { setSelectedId(w.id); setView("detail"); }}>Edit / Publish</button>
                   )}
@@ -261,9 +305,9 @@ function WorkshopDetail({ id, onPublish, onBack }: { id: string; onPublish: (id:
 
   async function handleUpdate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError("");
     if (!workshop || workshop.status !== "DRAFT" || saving) return;
     setSaving(true);
-    setError("");
     setSuccess("");
     try {
       const res = await fetch(`${apiUrl}/organizer/workshops/${workshop.id}`, {
@@ -288,17 +332,17 @@ function WorkshopDetail({ id, onPublish, onBack }: { id: string; onPublish: (id:
   }
 
   if (loading) return <p>Loading...</p>;
-  if (error || !workshop) return <p className="error">{error || "Not found"}</p>;
+  if (!workshop) return <p className="error">{error || "Not found"}</p>;
 
   return (
     <section className="panel">
       <h2>{workshop.title || "Untitled Draft"}</h2>
       <p><strong>Status:</strong> {workshop.status}</p>
-      {error && <p role="alert" className="error">{error}</p>}
       {success && <p role="status" className="success">{success}</p>}
 
       {workshop.status === "DRAFT" && isEditing ? (
-        <form onSubmit={handleUpdate} noValidate>
+        <form onSubmit={handleUpdate} onChange={() => { if (error) setError(""); }} noValidate>
+          {error && <p role="alert" className="error" style={{ color: "red" }}>{error}</p>}
           <label htmlFor="edit-title">Title (required to publish)</label>
           <input id="edit-title" name="title" type="text" defaultValue={workshop.title ?? ""} />
           <label htmlFor="edit-description">Description (required to publish)</label>
@@ -320,10 +364,10 @@ function WorkshopDetail({ id, onPublish, onBack }: { id: string; onPublish: (id:
         <>
           <p><strong>Description:</strong> {workshop.description || "N/A"}</p>
           <p><strong>Location:</strong> {workshop.location || "N/A"}</p>
-          <p><strong>Start:</strong> {workshop.starts_at ? new Date(workshop.starts_at).toLocaleString() : "N/A"}</p>
-          <p><strong>End:</strong> {workshop.ends_at ? new Date(workshop.ends_at).toLocaleString() : "N/A"}</p>
+          <p><strong>Start:</strong> {workshop.starts_at ? formatDisplay(workshop.starts_at) : "N/A"}</p>
+          <p><strong>End:</strong> {workshop.ends_at ? formatDisplay(workshop.ends_at) : "N/A"}</p>
           <p><strong>Capacity:</strong> {workshop.capacity ?? "N/A"}</p>
-          <p><strong>Deadline:</strong> {workshop.registration_deadline ? new Date(workshop.registration_deadline).toLocaleString() : "N/A"}</p>
+          <p><strong>Deadline:</strong> {workshop.registration_deadline ? formatDisplay(workshop.registration_deadline) : "N/A"}</p>
           {workshop.status === "DRAFT" && (
             <>
               <button type="button" onClick={() => { setIsEditing(true); setError(""); }}>Edit Draft</button>

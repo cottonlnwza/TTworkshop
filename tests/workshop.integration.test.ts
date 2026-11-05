@@ -83,6 +83,34 @@ describe("F-02 Workshop Draft & Publish Integration", () => {
     expect(dbCheck.rows[0].status).toBe("PUBLISHED");
   });
 
+  it("STS-F02-03b: Edit form remains usable after validation error (API integration)", async () => {
+    const cookie = await login("organizer.a@example.test");
+    const create = await request(app).post("/api/v1/workshops")
+      .set("Origin", origin).set("Cookie", cookie)
+      .send({
+        title: "Editable Draft", description: "D", location: "L", capacity: 10,
+        starts_at: "2026-12-01T10:00:00Z", ends_at: "2026-12-01T12:00:00Z"
+      });
+    expect(create.status).toBe(201);
+    const id = create.body.data.id;
+
+    const invalidPatch = await request(app).patch(`/api/v1/organizer/workshops/${id}`)
+      .set("Origin", origin).set("Cookie", cookie)
+      .send({ capacity: -1 });
+    expect(invalidPatch.status).toBe(400);
+
+    const unchanged = await request(app).get(`/api/v1/organizer/workshops/${id}`)
+      .set("Origin", origin).set("Cookie", cookie);
+    expect(unchanged.status).toBe(200);
+    expect(unchanged.body.data.status).toBe("DRAFT");
+    expect(unchanged.body.data.capacity).toBe(10);
+
+    const validPatch = await request(app).patch(`/api/v1/organizer/workshops/${id}`)
+      .set("Origin", origin).set("Cookie", cookie)
+      .send({ capacity: 20 });
+    expect(validPatch.status).toBe(200);
+    expect(validPatch.body.data.capacity).toBe(20);
+  });
   it("STS-F02-04: Create rejects end<=start; invalid workshop is not persisted", async () => {
     const cookie = await login("organizer.a@example.test");
     const create = await request(app).post("/api/v1/workshops").set("Origin", origin).set("Cookie", cookie)
@@ -118,6 +146,96 @@ describe("F-02 Workshop Draft & Publish Integration", () => {
     expect(stored.rows[0]).toMatchObject({ status: "DRAFT", capacity: null });
   });
 
+  it("STS-F02-05b: Rejects numeric-string, boolean, and fractional capacities", async () => {
+    const cookie = await login("organizer.a@example.test");
+    const base = {
+      title: "T", description: "D", location: "L",
+      starts_at: "2026-12-01T10:00:00Z", ends_at: "2026-12-01T12:00:00Z"
+    };
+    for (const capacity of ["5", true, 10.5]) {
+      const response = await request(app).post("/api/v1/workshops")
+        .set("Origin", origin).set("Cookie", cookie)
+        .send({ ...base, capacity });
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe("VALIDATION");
+    }
+    const stored = await pool.query("SELECT count(*)::int AS n FROM workshops");
+    expect(stored.rows[0].n).toBe(0);
+  });
+
+  it("STS-F02-04c: PATCH deadline-only that violates BR-08 is rejected", async () => {
+    const cookie = await login("organizer.a@example.test");
+    const create = await request(app).post("/api/v1/workshops")
+      .set("Origin", origin).set("Cookie", cookie)
+      .send({
+        title: "T", description: "D", location: "L", capacity: 10,
+        starts_at: "2026-12-01T10:00:00Z", ends_at: "2026-12-01T12:00:00Z"
+      });
+    expect(create.status).toBe(201);
+    const id = create.body.data.id;
+
+    const patch = await request(app).patch(`/api/v1/organizer/workshops/${id}`)
+      .set("Origin", origin).set("Cookie", cookie)
+      .send({ registration_deadline: "2026-12-02T10:00:00Z" });
+    expect(patch.status).toBe(400);
+    expect(patch.body.error.code).toBe("VALIDATION");
+
+    const unchanged = await request(app).get(`/api/v1/organizer/workshops/${id}`)
+      .set("Origin", origin).set("Cookie", cookie);
+    expect(unchanged.status).toBe(200);
+    expect(unchanged.body.data.registration_deadline).toBeNull();
+  });
+  it("STS-F02-04b: PATCH registration_deadline null clears the field", async () => {
+    const cookie = await login("organizer.a@example.test");
+    const create = await request(app).post("/api/v1/workshops")
+      .set("Origin", origin).set("Cookie", cookie)
+      .send({
+        title: "T", description: "D", location: "L", capacity: 10,
+        starts_at: "2026-12-01T10:00:00Z", ends_at: "2026-12-01T12:00:00Z",
+        registration_deadline: "2026-11-30T10:00:00Z"
+      });
+    expect(create.status).toBe(201);
+    const id = create.body.data.id;
+
+    const patch = await request(app).patch(`/api/v1/organizer/workshops/${id}`)
+      .set("Origin", origin).set("Cookie", cookie)
+      .send({ registration_deadline: null });
+    expect(patch.status).toBe(200);
+    expect(patch.body.data.registration_deadline).toBeNull();
+
+    const get = await request(app).get(`/api/v1/organizer/workshops/${id}`)
+      .set("Origin", origin).set("Cookie", cookie);
+    expect(get.status).toBe(200);
+    expect(get.body.data.registration_deadline).toBeNull();
+  });
+
+  it("R-04: POST and PATCH reject non-string text fields", async () => {
+    const cookie = await login("organizer.a@example.test");
+    const validDraft = await request(app).post("/api/v1/workshops")
+      .set("Origin", origin).set("Cookie", cookie)
+      .send({ title: "Valid", description: "Valid", location: "Valid" });
+    expect(validDraft.status).toBe(201);
+    const id = validDraft.body.data.id;
+
+    const invalidValues: Array<["title" | "description" | "location", unknown]> = [
+      ["title", 42], ["description", true], ["location", { room: "A" }]
+    ];
+    for (const [field, value] of invalidValues) {
+      const post = await request(app).post("/api/v1/workshops")
+        .set("Origin", origin).set("Cookie", cookie).send({ [field]: value });
+      expect(post.status).toBe(400);
+      expect(post.body.error.code).toBe("VALIDATION");
+
+      const patch = await request(app).patch(`/api/v1/organizer/workshops/${id}`)
+        .set("Origin", origin).set("Cookie", cookie).send({ [field]: value });
+      expect(patch.status).toBe(400);
+      expect(patch.body.error.code).toBe("VALIDATION");
+    }
+
+    const unchanged = await pool.query("SELECT title, description, location FROM workshops WHERE id=$1", [id]);
+    expect(unchanged.rows[0]).toMatchObject({ title: "Valid", description: "Valid", location: "Valid" });
+  });
+
   it("STS-F02-06: Participant/anonymous create or publish denied", async () => {
     const partCookie = await login("participant.a@example.test");
     const create = await request(app).post("/api/v1/workshops").set("Origin", origin).set("Cookie", partCookie).send({ title: "T" });
@@ -138,6 +256,30 @@ describe("F-02 Workshop Draft & Publish Integration", () => {
     expect(pub2.status).toBe(409);
   });
 
+  it("STS-F02-07b: Concurrent publish requests result in exactly one success", async () => {
+    const cookie = await login("organizer.a@example.test");
+    const create = await request(app).post("/api/v1/workshops")
+      .set("Origin", origin).set("Cookie", cookie)
+      .send({
+        title: "Concurrent Publish", description: "D", location: "L", capacity: 10,
+        starts_at: "2026-12-01T10:00:00Z", ends_at: "2026-12-01T12:00:00Z"
+      });
+    expect(create.status).toBe(201);
+    const id = create.body.data.id;
+    const publishUrl = `/api/v1/organizer/workshops/${id}/publish`;
+
+    const [first, second] = await Promise.all([
+      request(app).post(publishUrl).set("Origin", origin).set("Cookie", cookie),
+      request(app).post(publishUrl).set("Origin", origin).set("Cookie", cookie)
+    ]);
+
+    expect([first.status, second.status].sort((a, b) => a - b)).toEqual([200, 409]);
+
+    const finalState = await request(app).get(`/api/v1/organizer/workshops/${id}`)
+      .set("Origin", origin).set("Cookie", cookie);
+    expect(finalState.status).toBe(200);
+    expect(finalState.body.data.status).toBe("PUBLISHED");
+  });
   it("STS-F02-08: Publish fails separately for each missing required field", async () => {
     const cookie = await login("organizer.a@example.test");
     const base: Record<string, unknown> = {
@@ -161,17 +303,23 @@ describe("F-02 Workshop Draft & Publish Integration", () => {
     }
   });
 
-  it("STS-F02-09: Persisted workshop remains retrievable from a new app instance", async () => {
+  it("STS-F02-09: Persistence after app instance recreation (simulates restart)", async () => {
+    // NOTE: This test simulates app restart by creating a new Express app instance
+    // with the same PostgreSQL pool. It does NOT restart the actual Node.js process.
+    // True process-restart testing requires separate E2E infrastructure.
+    // This verifies that data persists in PostgreSQL across app instances.
     const cookie = await login("organizer.a@example.test");
     const create = await request(app).post("/api/v1/workshops").set("Origin", origin).set("Cookie", cookie)
-      .send({ title: "Persistent Draft" });
+      .send({ title: "Persistent Draft", description: "D", location: "L", starts_at: "2026-12-01T10:00:00Z", ends_at: "2026-12-01T12:00:00Z", capacity: 10 });
     expect(create.status).toBe(201);
     const id = create.body.data.id;
-    const restartedApp = createApp(pool, { appOrigin: origin, production: false, sessionHours: 8 });
-    const get = await request(restartedApp).get(`/api/v1/organizer/workshops/${id}`)
+    // Recreate the Express app while retaining the same persistent database pool.
+    const newApp = createApp(pool, { appOrigin: origin, production: false, sessionHours: 8 });
+    const get = await request(newApp).get(`/api/v1/organizer/workshops/${id}`)
       .set("Origin", origin).set("Cookie", cookie);
     expect(get.status).toBe(200);
-    expect(get.body.data).toMatchObject({ id, title: "Persistent Draft", status: "DRAFT" });
+    expect(get.body.data.title).toBe("Persistent Draft");
+    expect(get.body.data.status).toBe("DRAFT");
   });
 
   it("Rejects date-times without an explicit ISO 8601 offset", async () => {
