@@ -280,6 +280,30 @@ describe("F-02 Workshop Draft & Publish Integration", () => {
     expect(finalState.status).toBe(200);
     expect(finalState.body.data.status).toBe("PUBLISHED");
   });
+
+  it("STS-F02-12c: PATCH returns 409 when workshop is no longer DRAFT", async () => {
+    const cookie = await login("organizer.a@example.test");
+    const create = await request(app).post("/api/v1/workshops")
+      .set("Origin", origin).set("Cookie", cookie)
+      .send({
+        title: "T", description: "D", location: "L", capacity: 10,
+        starts_at: "2026-12-01T10:00:00Z", ends_at: "2026-12-01T12:00:00Z"
+      });
+    expect(create.status).toBe(201);
+    const id = create.body.data.id;
+
+    const publish = await request(app).post(`/api/v1/organizer/workshops/${id}/publish`)
+      .set("Origin", origin).set("Cookie", cookie);
+    expect(publish.status).toBe(200);
+
+    const patch = await request(app).patch(`/api/v1/organizer/workshops/${id}`)
+      .set("Origin", origin).set("Cookie", cookie)
+      .send({ title: "Updated" });
+    expect(patch.status).toBe(409);
+    expect(patch.body.error.code).toBe("INVALID_STATE");
+    expect(patch.body.error.message).toBe("Cannot update a published workshop");
+  });
+
   it("STS-F02-08: Publish fails separately for each missing required field", async () => {
     const cookie = await login("organizer.a@example.test");
     const base: Record<string, unknown> = {

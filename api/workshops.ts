@@ -143,7 +143,9 @@ export function createWorkshopRouter(
       [id, identity.id]
     );
     if (!current.rowCount) return res.status(404).json(fail("NOT_FOUND", "Workshop not found or access denied"));
-    if (current.rows[0].status !== "DRAFT") return res.status(409).json(fail("INVALID_STATE", "Cannot update a published workshop"));
+    if (current.rows[0].status !== "DRAFT") {
+      return res.status(409).json(fail("INVALID_STATE", "Cannot update a published workshop"));
+    }
 
     // BR-08 Update validation
     const start = starts_at == null ? null : parseDateTime(starts_at);
@@ -194,6 +196,9 @@ export function createWorkshopRouter(
          RETURNING id, owner_user_id, title, description, location, starts_at, ends_at, capacity, status, registration_deadline, updated_at`,
         [id, title, description, location, start, end, cap, deadline, hasRegistrationDeadline, identity.id]
       );
+      if (result.rowCount === 0) {
+        return res.status(409).json(fail("INVALID_STATE", "Workshop no longer in DRAFT status or not found"));
+      }
       res.status(200).json({ data: result.rows[0] });
     } catch (err) {
       res.status(400).json(fail("VALIDATION", "Invalid workshop data"));
