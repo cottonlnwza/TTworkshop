@@ -90,7 +90,7 @@ describe("F-01 acceptance / actual real PostgreSQL API", () => {
       .set("Origin", origin).set("Cookie", organizer).send({});
     expect(organizerCreate.status).toBe(201);
     expect(organizerCreate.body.data.status).toBe("DRAFT");
-    expect((await request(app).post("/api/v1/workshops/test/registrations").set("Origin",origin).set("Cookie", participant).send({})).status).toBe(501);
+    expect((await request(app).post("/api/v1/workshops/test/registrations").set("Origin",origin).set("Cookie", participant).send({})).status).toBe(404);
   });
   it("STS-F01-06: logout revokes server session and old cookie fails /me", async () => {
     const cookie = sessionCookie(await login("participant.a@example.test"));

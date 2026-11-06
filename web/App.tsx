@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { AuthApp } from "./AuthApp.js";
 import { OrganizerApp } from "./OrganizerApp.js";
+import { ParticipantApp } from "./ParticipantApp.js";
 
 type User = { id: string; email: string; role: "PARTICIPANT" | "ORGANIZER" } | null;
 
@@ -43,5 +44,5 @@ export function App() {
   if (loading) return <p className="page">Loading...</p>;
   if (!user) return <AuthApp onLoginSuccess={checkAuth} />;
   if (user.role === "ORGANIZER") return <OrganizerApp />;
-  return <main className="page"><h1>Participant Workspace</h1><p>F-03/F-04 coming soon.</p></main>;
+  return <ParticipantApp />;
 }

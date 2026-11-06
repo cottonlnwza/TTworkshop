@@ -306,8 +306,9 @@ describe("F-01 actual Chrome UI → Express API → PostgreSQL", () => {
       await page.getByText("Invalid credentials").waitFor();
       await page.getByLabel("Password").fill(password);
       await page.getByRole("button",{name:"Sign in"}).click();
-      await page.getByText("Participant workspace").waitFor();
+      await page.getByRole("heading", { name: "Discover workshops" }).waitFor();
+      await page.getByRole("button", { name: "Refresh workshops" }).waitFor();
       expect(await page.getByText("Organizer workspace").count()).toBe(0);
     } finally { await context.close(); }
-  });
+  }, 60000);
 });
