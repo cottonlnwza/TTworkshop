@@ -1,6 +1,6 @@
 # TTworkshop — Software Requirements Specification (SRS)
 
-> **DRAFT full-product SRS v0.1.6 — NOT GLOBALLY APPROVED — 2026-11-05 (Asia/Bangkok)** · [Issue #11 reconciliation](https://github.com/cottonlnwza/TTworkshop/issues/11)
+> **DRAFT full-product SRS v0.1.7 — NOT GLOBALLY APPROVED — 2026-11-06 (Asia/Bangkok)** · [Issue #11 reconciliation](https://github.com/cottonlnwza/TTworkshop/issues/11) · F-03 proposal [Issue #5](https://github.com/cottonlnwza/TTworkshop/issues/5)
 > Issue: [P1-01 / #1](https://github.com/cottonlnwza/TTworkshop/issues/1) · Theme 3: Event Registration and Attendance System
 > **Purpose:** Engineering baseline for the full product (Deliverable 1, Part A). Status statements below distinguish implemented feature evidence from proposed/unimplemented scope; this draft does not assert full-product completion or release.
 > **Working-document acceptance:** A scoped document change is accepted as the team's working version after substantive independent teammate **APPROVE** and actual merge into the relevant sprint staging branch, followed by the Author's post-merge verification. No additional bilateral formal approval ceremony is required for that scoped working acceptance. This does **not** constitute instructor approval, approval of every unresolved product decision, or full-product sign-off; unresolved decisions remain explicitly OPEN/PROPOSED.
@@ -22,7 +22,7 @@ University activity organizers need to publish workshops with limited seats and 
 |---|---|---|
 | **Participant** (student) | Authenticate; view published workshops; create, view and later cancel **own** registrations | Own private registration details only |
 | **Organizer** (university activity organizer) | Authenticate; create/publish/manage **own** workshops; inspect registrations; later check in attendance and view summaries | Only workshops they own and their authorized registration lists |
-| Anonymous visitor | No protected mutation or private information; public browsing policy remains an open decision | No privileged data |
+| Anonymous visitor | No protected operations or private information; DEC-11 proposes denying F-03 published-workshop browse until authenticated as Participant | No privileged data |
 | Course assessor / UAT tester | Verify a reproducible synthetic-data release; not an application role | Test/demo access only |
 
 **Role model proposed by team:** exactly one meaningful role per seeded account for initial scope. Distinct Participant and Organizer roles are COURSE-mandated for Sprint 1.
@@ -116,8 +116,8 @@ These narratives are **not themselves acceptance criteria**. Historical P1-02 [P
 | **DEC-08** | Event capacity may not fall below ACTIVE; should increasing or reducing capacity require other guardrails? | TEAM-REPORTED + **OPEN** extra policy |
 | **DEC-09** | Check-in once, during workshop; reporting metrics and no-show timing as in BR-14/15. | TEAM-REPORTED; confirm numerator/denominator |
 | **DEC-10** | F-02 reuses the F-01 React/TypeScript/Vite, Express/Node/TypeScript, PostgreSQL and `pg` SQL approach; no ORM; reuse F-01 server session. Deployment/CI/CD remains open. | **F-02 scoped working choice accepted** after PR #10 review/merge/Author verification; global architecture/GCP still open |
-| **DEC-11** | Anonymous access to published workshop list and exact organizer/participant search/filter breadth. | **OPEN**; do not imply public API access yet |
-| **DEC-12** | NFR-03/04/05 numeric targets and test environment. | TEAM-REPORTED provisional; approve/revise |
+| **DEC-11** | F-03 proposes Participant-only published list/detail access; Anonymous `401`, Organizer `403`; no public browse or Organizer browse. Search/filter breadth remains separately open. | **PROPOSED / NOT APPROVED**; see [decision record](decisions/dec-11-published-workshop-discovery-access.md); pending independent Reviewer consideration |
+| **DEC-12** | F-03 proposes retaining 10 concurrent Participants / one remaining seat as the NFR-03 test profile; NFR-04/05 targets remain separate. | **PROVISIONAL / NOT APPROVED**; see [decision record](decisions/dec-12-registration-concurrency-target.md); course-level no-overbooking invariant remains required |
 | **DEC-13** | Scoped document changes use independent teammate substantive review and actual merge into sprint staging, followed by Author post-merge verification, as working-document acceptance. Author/reviewer assignments are recorded on the relevant Issue/PR. This does not establish instructor approval, full-product sign-off, or approval of unrelated/open decisions. | **WORKING-ACCEPTANCE PROCESS RECORDED; each scoped change still requires its own review/merge and Author verification** |
 
 **Rule for open decisions:** document competing options and impact; do not silently implement a policy or call an unapproved decision final. Ask course instructor/TA when the official brief cannot be resolved at team level.
@@ -133,6 +133,7 @@ These narratives are **not themselves acceptance criteria**. Historical P1-02 [P
 | v0.1.4 | 2026-11-04 | Add scoped proposed DEC-02/03/04/10 records for F-02 and align the decision register; requirement IDs and normative FR/BR/NFR text unchanged | **PENDING PEER REVIEW; NOT APPROVED** |
 | v0.1.5 | 2026-11-04 | Address PR #10 R-02/R-03: distinguish merged/tested F-01 evidence from unimplemented F-02–F-04 plans; align scoped working-document acceptance with SDS ARCH-08; retain full-product/instructor approval as separate and unclaimed | **PENDING PEER REVIEW; full SRS remains DRAFT / NOT APPROVED** |
 | v0.1.6 | 2026-11-05 | Issue #11: record PR #10's subsequent APPROVE/MERGE/Author check for DEC-02/03/04/10-F02; leave all global requirements and unrelated decisions unchanged | Pending Issue #11 peer review; full SRS remains DRAFT/not globally approved |
+| v0.1.7 | 2026-11-06 | Issue #5 Specification-first: record Participant-only browse as a DEC-11 proposal and retain the 10-request NFR-03 profile as provisional DEC-12; no FR/BR/NFR IDs or normative requirements changed | Pending independent Reviewer consideration; full SRS remains DRAFT/not globally approved |
 
 **Current implementation and evidence state (2026-11-04):** F-01 Authentication was independently approved and merged through [PR #9](https://github.com/cottonlnwza/TTworkshop/pull/9) into `sprint_1_staging` at merge commit `21e9d9de83ccef24214484ab159a83d398f544b3`; the reviewed feature HEAD was `f0d6d54ef53dedacf9bfa9dd0639d7c0e604aa0d`. Author post-merge verification on the exact staging merge SHA recorded **21/21 local tests passing** (11 PostgreSQL/API, 5 React UI, 2 Chrome E2E, 3 DB guard), and `npm run build` PASS. These are local results, not hosted CI. F-02 currently has documentation proposals only in [PR #10](https://github.com/cottonlnwza/TTworkshop/pull/10); no F-02 source code, migration, executable STS, or application test has been implemented/executed. F-03/F-04 domain implementation is likewise not asserted here. No `main` release, production deployment, or instructor/full-product approval is claimed.
 
