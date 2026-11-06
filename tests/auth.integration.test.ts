@@ -86,7 +86,10 @@ describe("F-01 acceptance / actual real PostgreSQL API", () => {
     expect(pa.status).toBe(403);
     expect(org.status).toBe(403);
     expect((await pool.query("SELECT count(*)::int AS n FROM sessions")).rows[0].n).toBe(2);
-    expect((await request(app).post("/api/v1/workshops").set("Origin",origin).set("Cookie", organizer).send({})).status).toBe(501);
+    const organizerCreate = await request(app).post("/api/v1/workshops")
+      .set("Origin", origin).set("Cookie", organizer).send({});
+    expect(organizerCreate.status).toBe(201);
+    expect(organizerCreate.body.data.status).toBe("DRAFT");
     expect((await request(app).post("/api/v1/workshops/test/registrations").set("Origin",origin).set("Cookie", participant).send({})).status).toBe(501);
   });
   it("STS-F01-06: logout revokes server session and old cookie fails /me", async () => {

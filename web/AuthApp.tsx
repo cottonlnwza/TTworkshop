@@ -12,7 +12,7 @@ function userFromReply(body: unknown): User | null {
   return user as User;
 }
 
-export function AuthApp() {
+export function AuthApp({ onLoginSuccess }: { onLoginSuccess?: () => void | Promise<void> }) {
   const [mode,setMode] = useState<Mode>("loading");
   const [user,setUser] = useState<User | null>(null);
   const [email,setEmail] = useState("");
@@ -64,6 +64,7 @@ export function AuthApp() {
       const found = userFromReply(await response.json());
       if (!found) { setError("Unexpected server response"); return; }
       setUser(found);setMode("authenticated");setPassword("");setEmail("");
+      void onLoginSuccess?.();
     } catch { setError("Unable to contact server"); }
     finally { setBusy(false); }
   }

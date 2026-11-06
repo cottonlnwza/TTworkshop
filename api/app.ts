@@ -2,6 +2,7 @@ import express, { type Request, type Response, type NextFunction } from "express
 import { randomBytes, createHash } from "node:crypto";
 import type { Pool } from "pg";
 import { DUMMY_HASH, verifyPassword } from "./password.js";
+import { createWorkshopRouter } from "./workshops.js";
 type Role = "PARTICIPANT" | "ORGANIZER";
 type Identity = { id: string; email: string; role: Role };
 type Options = { appOrigin: string; production: boolean; sessionHours: number };
@@ -93,11 +94,21 @@ export function createApp(pool: Pool, options: Options) {
     if (current.identity.role !== role) { res.status(403).json(fail("FORBIDDEN", "Forbidden")); return; }
     next();
   };
-  const notImplemented = (_req: Request, res: Response) => {
-    res.status(501).json(fail("NOT_IMPLEMENTED", "Feature not implemented in F-01"));
+  
+  const requireOrganizerWithIdentity = async (req: Request, res: Response, next: NextFunction) => {
+    const current = await readSession(req);
+    if (!current) { res.status(401).json(fail("UNAUTHENTICATED", "Sign in required")); return; }
+    if (current.identity.role !== "ORGANIZER") { res.status(403).json(fail("FORBIDDEN", "Forbidden")); return; }
+    (req as any).identity = current.identity;
+    next();
   };
-  app.post("/api/v1/workshops", requireOrigin, requireRole("ORGANIZER"), notImplemented);
-  app.post("/api/v1/workshops/:id/registrations", requireOrigin, requireRole("PARTICIPANT"), notImplemented);
+  
+  const workshopRouter = createWorkshopRouter(pool, requireOrigin, requireOrganizerWithIdentity);
+  app.use("/api/v1", workshopRouter);
+  
+  app.post("/api/v1/workshops/:id/registrations", requireOrigin, requireRole("PARTICIPANT"), (_req: Request, res: Response) => {
+    res.status(501).json(fail("NOT_IMPLEMENTED", "Feature not implemented in F-01"));
+  });
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (err && typeof err === "object" && "type" in err && err.type === "entity.parse.failed") {
       res.status(400).json(fail("VALIDATION", "Invalid JSON payload"));
