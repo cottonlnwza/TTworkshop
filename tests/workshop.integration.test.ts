@@ -1,4 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { spawn, type ChildProcess } from "node:child_process";
+import { createServer as createNetServer } from "node:net";
+import { resolve } from "node:path";
 import request from "supertest";
 import { Pool } from "pg";
 import { createApp } from "../api/app.js";
@@ -22,6 +25,72 @@ async function login(email: string) {
       ? [setCookieHeader]
       : undefined;
   return cookies ? cookies[0].split(";")[0] : "";
+}
+
+async function reserveLocalPort(): Promise<number> {
+  const server = createNetServer();
+  await new Promise<void>((resolvePromise, rejectPromise) => {
+    server.once("error", rejectPromise);
+    server.listen(0, "127.0.0.1", resolvePromise);
+  });
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("Unable to reserve a local API port");
+  const port = address.port;
+  await new Promise<void>((resolvePromise, rejectPromise) => {
+    server.close(error => error ? rejectPromise(error) : resolvePromise());
+  });
+  return port;
+}
+
+function startApiProcess(port: number, appOrigin: string): Promise<ChildProcess> {
+  const child = spawn(process.execPath, [
+    resolve(process.cwd(), "node_modules/tsx/dist/cli.mjs"),
+    resolve(process.cwd(), "api/server.ts")
+  ], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      DATABASE_URL: testDatabaseUrl,
+      APP_ORIGIN: appOrigin,
+      PORT: String(port),
+      NODE_ENV: "test"
+    },
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+
+  return new Promise<ChildProcess>((resolvePromise, rejectPromise) => {
+    let output = "";
+    let settled = false;
+    const fail = async (reason: string) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      await stopApiProcess(child);
+      rejectPromise(new Error(`${reason}\n${output}`));
+    };
+    const timeout = setTimeout(() => { void fail("Timed out waiting for API process startup"); }, 15000);
+    child.stdout?.setEncoding("utf8").on("data", (chunk: string) => {
+      output += chunk;
+      if (!settled && output.includes(`localhost:${port}`)) {
+        settled = true;
+        clearTimeout(timeout);
+        resolvePromise(child);
+      }
+    });
+    child.stderr?.setEncoding("utf8").on("data", (chunk: string) => { output += chunk; });
+    child.once("error", error => { void fail(`API process failed to spawn: ${error.message}`); });
+    child.once("exit", (code, signal) => {
+      if (!settled) void fail(`API process exited before startup (code=${code}, signal=${signal})`);
+    });
+  });
+}
+
+async function stopApiProcess(child: ChildProcess | undefined): Promise<void> {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return;
+  await new Promise<void>(resolvePromise => {
+    child.once("close", () => resolvePromise());
+    if (!child.kill("SIGTERM")) resolvePromise();
+  });
 }
 
 beforeAll(async () => {
@@ -327,24 +396,91 @@ describe("F-02 Workshop Draft & Publish Integration", () => {
     }
   });
 
-  it("STS-F02-09: Persistence after app instance recreation (simulates restart)", async () => {
-    // NOTE: This test simulates app restart by creating a new Express app instance
-    // with the same PostgreSQL pool. It does NOT restart the actual Node.js process.
-    // True process-restart testing requires separate E2E infrastructure.
-    // This verifies that data persists in PostgreSQL across app instances.
-    const cookie = await login("organizer.a@example.test");
-    const create = await request(app).post("/api/v1/workshops").set("Origin", origin).set("Cookie", cookie)
-      .send({ title: "Persistent Draft", description: "D", location: "L", starts_at: "2026-12-01T10:00:00Z", ends_at: "2026-12-01T12:00:00Z", capacity: 10 });
-    expect(create.status).toBe(201);
-    const id = create.body.data.id;
-    // Recreate the Express app while retaining the same persistent database pool.
-    const newApp = createApp(pool, { appOrigin: origin, production: false, sessionHours: 8 });
-    const get = await request(newApp).get(`/api/v1/organizer/workshops/${id}`)
-      .set("Origin", origin).set("Cookie", cookie);
-    expect(get.status).toBe(200);
-    expect(get.body.data.title).toBe("Persistent Draft");
-    expect(get.body.data.status).toBe("DRAFT");
-  });
+  it("STS-F02-09: Workshop and owner session persist across a real API process restart", async () => {
+    const port = await reserveLocalPort();
+    const appOrigin = `http://127.0.0.1:${port}`;
+    const title = `Persistent Draft ${Date.now()}`;
+    let child: ChildProcess | undefined;
+    let workshopId: string | undefined;
+    let processAExited = false;
+    try {
+      const procA = await startApiProcess(port, appOrigin);
+      child = procA;
+      const pidA = procA.pid;
+      expect(pidA).toBeTypeOf("number");
+      procA.once("exit", () => { processAExited = true; });
+
+      const loginResponse = await fetch(`${appOrigin}/api/v1/auth/login`, {
+        method: "POST",
+        headers: { Origin: appOrigin, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "organizer.a@example.test", password: credentials })
+      });
+      expect(loginResponse.status).toBe(200);
+      const cookie = loginResponse.headers.get("set-cookie")?.split(";")[0];
+      expect(cookie).toMatch(/^ttw_session=/);
+
+      const createResponse = await fetch(`${appOrigin}/api/v1/workshops`, {
+        method: "POST",
+        headers: { Origin: appOrigin, Cookie: cookie!, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title, description: "Process restart persistence", location: "Restart Test Room",
+          starts_at: "2026-12-01T10:00:00Z", ends_at: "2026-12-01T12:00:00Z", capacity: 10
+        })
+      });
+      expect(createResponse.status).toBe(201);
+      const created = await createResponse.json() as { data: { id: string; owner_user_id: string; status: string } };
+      workshopId = created.data.id;
+      expect(created.data.status).toBe("DRAFT");
+
+      const owner = await pool.query("SELECT id FROM users WHERE email=$1", ["organizer.a@example.test"]);
+      expect(created.data.owner_user_id).toBe(String(owner.rows[0].id));
+
+      const publishResponse = await fetch(`${appOrigin}/api/v1/organizer/workshops/${workshopId}/publish`, {
+        method: "POST",
+        headers: { Origin: appOrigin, Cookie: cookie! }
+      });
+      expect(publishResponse.status).toBe(200);
+      const published = await publishResponse.json() as { data: { id: string; status: string } };
+      expect(published.data).toMatchObject({ id: workshopId, status: "PUBLISHED" });
+
+      await stopApiProcess(procA);
+      child = undefined;
+      expect(processAExited).toBe(true);
+
+      const procB = await startApiProcess(port, appOrigin);
+      child = procB;
+      const pidB = procB.pid;
+      expect(pidB).toBeTypeOf("number");
+      expect(pidB).not.toBe(pidA);
+      console.log(`[STS-F02-09] restarted API process: pid ${pidA} -> ${pidB}`);
+
+      const getResponse = await fetch(`${appOrigin}/api/v1/organizer/workshops/${workshopId}`, {
+        headers: { Origin: appOrigin, Cookie: cookie! }
+      });
+      expect(getResponse.status).toBe(200);
+      const retrieved = await getResponse.json() as { data: {
+        id: string; owner_user_id: string; title: string; status: string
+      } };
+      expect(retrieved.data).toMatchObject({
+        id: workshopId,
+        owner_user_id: created.data.owner_user_id,
+        title,
+        status: "PUBLISHED"
+      });
+
+      const persisted = await pool.query(
+        "SELECT id, owner_user_id, title, status FROM workshops WHERE id=$1",
+        [workshopId]
+      );
+      expect(persisted.rowCount).toBe(1);
+      expect(String(persisted.rows[0].id)).toBe(workshopId);
+      expect(String(persisted.rows[0].owner_user_id)).toBe(created.data.owner_user_id);
+      expect(persisted.rows[0].status).toBe("PUBLISHED");
+    } finally {
+      await stopApiProcess(child);
+      if (workshopId) await pool.query("DELETE FROM workshops WHERE id=$1", [workshopId]);
+    }
+  }, 60000);
 
   it("Rejects date-times without an explicit ISO 8601 offset", async () => {
     const cookie = await login("organizer.a@example.test");
