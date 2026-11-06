@@ -1,7 +1,7 @@
 # F-03 — Published Workshop Discovery and Capacity-Safe Registration
 
-> **DRAFT v0.1.3 — NOT APPROVED — 2026-11-06** · P1-02 [Issue #2](https://github.com/cottonlnwza/TTworkshop/issues/2) · Implementation [Issue #5](https://github.com/cottonlnwza/TTworkshop/issues/5) · Sprint 1
-> Source: `docs/srs.md` DRAFT v0.1.7 (FR-06/07, BR-01/04/05/06/07/08, NFR-01/02/03 unchanged); `docs/features.md` F-03; `docs/system-sds.md` sections 3–7. **PROPOSED API and data contract, NOT APPROVED or implemented.**
+> **DRAFT v0.1.4 — NOT APPROVED — 2026-11-06** · P1-02 [Issue #2](https://github.com/cottonlnwza/TTworkshop/issues/2) · Implementation [Issue #5](https://github.com/cottonlnwza/TTworkshop/issues/5) · Sprint 1
+> Source: `docs/srs.md` DRAFT v0.1.8 (FR-06/07, BR-01/04/05/06/07/08, NFR-01/02/03 unchanged); `docs/features.md` F-03; `docs/system-sds.md` sections 3–7. **PROPOSED API and data contract, NOT APPROVED or implemented.**
 
 ## 1. Purpose, upstream decisions and excluded scope
 
@@ -10,6 +10,15 @@ Participant discovers published workshops, sees approved fields/availability, re
 **Depends:** F-01 backend identity and **F-02's owned Workshop creation/publication with BR-08 write-side deadline validation**; PostgreSQL transaction/lock support; and F-03-specific peer review of DEC-11/DEC-12 plus the proposed atomicity design. DEC-02/03/04/10-F02 are accepted **only as F-02 scoped working choices**; that evidence does not approve F-03 implementation. **DEC-11 PROPOSAL:** only an authenticated `PARTICIPANT` may browse published workshop lists/details; Anonymous receives `401`, and `ORGANIZER` receives `403`. This is a proposed F-03 access policy, not a course-mandated public-access rule or an accepted team decision. **OPEN:** actual university timezone configuration, F-03 acceptance of the deadline semantics, exact location/time/availability visibility, and final error/status vocabulary. **PROPOSED F-03 application of DEC-04:** absent configured deadline defaults to `starts_at`; configured deadline must not exceed `starts_at`; registration closes at `now >= effective_deadline`. DEC-04's historical acceptance is F-02-scoped, so Reviewer acceptance of its F-03 application is still required. **F-02 owns rejection of invalid Create/Publish input; F-03 owns fail-closed Registration if invalid persisted data nevertheless exists.** DEC-12's 10-request concurrency profile remains provisional pending review; the course-level invariant is that capacity must never be exceeded, including competing requests for the final seat.
 
 **Sprint 2 boundary:** manual registration closure/reopen and its cancellation interaction are **BR-10 / F-05–F-06 (Sprint 2)**, not an F-03 Sprint 1 acceptance condition. No cancellation, historical re-registration, manual closure management, checkout or attendance in F-03. Future F-06 integration must add the BR-10 closure guard and its independent tests; this does not waive the Sprint 1 BR-07/08 time/status guards.
+
+### 1.1 Two-stage specification authorization and final acceptance
+
+F-03 uses the team-approved **single Draft PR #15** lifecycle. Do not merge a documentation-only subset or open another PR for Issue #5.
+
+1. **Pre-implementation authorization:** before TDD, the independent Reviewer must review the exact current PR #15 HEAD and resolve the F-03-specific choices that implementation depends on: DEC-11 Participant-only discovery access; DEC-12 numeric concurrency test profile (or a Reviewer-directed replacement); F-03 application of DEC-04 (`effective_deadline = COALESCE(registration_deadline, starts_at)` and closed boundary `now >= effective_deadline`); and the proposed atomic capacity/ACTIVE-uniqueness strategy. If accepted, Reviewer `cottonlnwza` records the exact PR conversation phrase `Approved for Implementation Only — Not Approved for Merge` plus the full reviewed HEAD SHA. The Author verifies Reviewer identity and SHA equality with current PR head before starting TDD. A new commit invalidates the prior SHA milestone until re-reviewed.
+2. **Final acceptance:** PR #15 remains Draft throughout TDD and implementation. Only after accepted AC, tests, build and evidence pass on its final HEAD may it become Ready for Review. A separate substantive code/test review and GitHub Formal APPROVE, teammate merge into `sprint_1_staging`, and Author post-merge verification are still required before this F-03 working contract and its scoped choices become finally accepted for the staging baseline.
+
+The pre-implementation milestone is **not** a GitHub Formal APPROVE, merge permission, approval of the full SRS/System SDS, or instructor approval. Between the two stages, a choice may be authorized for F-03 implementation only while remaining not finally accepted. The course-level no-overbooking invariant is mandatory regardless of whether the optional 10-request numeric profile is accepted.
 
 ## 2. Feature SDS: sequence, atomicity and boundary rejection
 
@@ -113,3 +122,5 @@ On constraint conflict rollback and return safe 409; never promise a seat based 
 **v0.1.2 (2026-11-03), Reviewer R-03 correction:** keep AC/STS-F03-13 but scope **only** to Registration fail-closed for malformed persisted data, independently of F-02 Create/Publish AC/STS-F02-10/11. **NOT APPROVED / NOT EXECUTED**.
 
 **v0.1.3 (2026-11-06), Issue #5 Specification-first proposal:** make Participant-only published browsing explicit as the DEC-11 proposal (401 Anonymous / 403 Organizer); reconcile F-02-scoped DEC-04 acceptance with its proposed F-03 application; clarify that DEC-12's 10-request profile is provisional while the no-overbooking invariant remains mandatory. AC/STS IDs and total counts remain unchanged. **PENDING independent Reviewer consideration; NOT APPROVED / NOT EXECUTED.**
+
+**v0.1.4 (2026-11-06), PR #15 Reviewer R-01 correction:** define the exact-HEAD pre-implementation authorization milestone separately from final Formal APPROVE/merge/Author verification; keep the single Draft PR #15 lifecycle and clarify that no implementation starts before the scoped milestone. AC/STS IDs and total counts remain unchanged. **PENDING independent Reviewer re-review; NOT AUTHORIZED FOR IMPLEMENTATION / NOT EXECUTED.**

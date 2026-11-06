@@ -1,6 +1,6 @@
 # DEC-11 — Published workshop discovery access
 
-> **PROPOSED F-03 scoped decision — PENDING independent Reviewer consideration — 2026-11-06**
+> **PROPOSED F-03 scoped decision — two-stage Reviewer gate — 2026-11-06**
 > Owner scope: [Issue #5](https://github.com/cottonlnwza/TTworkshop/issues/5) · Feature: F-03 · Related: FR-06, BR-01, BR-04, AC/STS-F03-01/02
 
 ## Decision proposal
@@ -31,12 +31,18 @@ Organizer workshop management remains in the separate F-02 Organizer endpoints. 
 - Registration remains Participant-only as already specified by FR-07 and AC-F03-09.
 - No search/filter, public catalog, or new role is introduced.
 
-## Status and approval gate
+## Two-stage decision authorization and acceptance gate
 
-**Status: PROPOSED / NOT APPROVED.** The user authorized this as the proposal to send for independent Reviewer consideration. It must not be treated as an accepted team decision until the Reviewer explicitly considers it and the applicable scoped document change is approved, merged into `sprint_1_staging`, and independently verified by the Author. This record does not approve the full SRS, System SDS, or instructor baseline.
+This record separates permission to begin implementation from final acceptance of the delivered work. The two stages use the **same Issue #5 / PR #15**; no documentation-only merge or second PR is required.
 
-| Review item | Status |
+1. **Pre-implementation scoped authorization (before TDD):** the independent Reviewer must review the exact current PR #15 HEAD, including this access proposal and the related F-03 contract. If accepted, `cottonlnwza` must add a PR conversation comment containing the exact phrase `Approved for Implementation Only — Not Approved for Merge` and `Reviewed Commit SHA: <full exact HEAD SHA>`. The Author must verify the account identity and exact SHA match before starting TDD. This authorizes this Participant-only access choice **only as an F-03 working choice for TDD/implementation**. It is not a GitHub Formal APPROVE, does not authorize merge, does not approve the global SRS/System SDS, and does not constitute instructor approval.
+2. **Final working-document acceptance (after implementation):** the same PR #15 must remain Draft through TDD and implementation, then receive a separate substantive final code/test review and GitHub Formal APPROVE, be merged into `sprint_1_staging` by the teammate, and be independently verified by the Author on the merge commit. Only after that sequence is this scoped decision part of the accepted staging working baseline.
+
+Until stage 1 is recorded and verified, this decision is **PROPOSED / NOT AUTHORIZED FOR IMPLEMENTATION**. After stage 1 but before stage 2, its status is **AUTHORIZED FOR F-03 IMPLEMENTATION ONLY / NOT FINALLY ACCEPTED**. Neither stage approves the full SRS, System SDS, unrelated decisions, or the instructor baseline.
+
+| Review item | Status at this revision |
 |---|---|
 | User authorized Participant-only as the F-03 proposal | Confirmed 2026-11-06 |
-| Independent teammate Reviewer decision | Pending |
-| Staging merge and Author verification | Pending |
+| Exact-HEAD pre-implementation Reviewer milestone | Pending; no qualifying comment recorded |
+| Author verification of Reviewer identity and exact HEAD SHA | Pending |
+| Final Formal APPROVE, staging merge and Author verification | Pending after implementation |
