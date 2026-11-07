@@ -29,12 +29,12 @@ describe("F-03 Participant UI states", () => {
   });
 
   it("STS-F03-11: preserves a capacity conflict and refreshes stale availability", async () => {
-    const fullWorkshop = { ...workshop, capacity: 1, remaining_seats: 0, registration_open: true };
+    const fullWorkshop = { ...workshop, capacity: 1, remaining_seats: 0, registration_open: false };
     const summary = {
       id: workshop.id, title: workshop.title, location: workshop.location, starts_at: workshop.starts_at,
       capacity: workshop.capacity, remaining_seats: workshop.remaining_seats, registration_open: true
     };
-    const fullSummary = { ...summary, capacity: 1, remaining_seats: 0 };
+    const fullSummary = { ...summary, capacity: 1, remaining_seats: 0, registration_open: false };
     const fetcher = vi.fn()
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: [summary] }) })
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: workshop }) })
@@ -50,6 +50,47 @@ describe("F-03 Participant UI states", () => {
       element?.tagName === "P" && element.textContent?.includes("Seats remaining: 0 / 1") === true
     )).toBeTruthy();
     expect(screen.queryByText(/Registration confirmed/)).toBeNull();
+    expect(fetcher).toHaveBeenCalledTimes(5);
+  });
+
+  it("AC-F03-02/05: labels a full workshop Full and keeps registration disabled", async () => {
+    const fullWorkshop = { ...workshop, capacity: 1, remaining_seats: 0, registration_open: false };
+    const fullSummary = {
+      id: workshop.id, title: workshop.title, location: workshop.location, starts_at: workshop.starts_at,
+      capacity: 1, remaining_seats: 0, registration_open: false
+    };
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: [fullSummary] }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: fullWorkshop }) }));
+    render(<ParticipantApp />);
+    fireEvent.click(await screen.findByRole("button", { name: "View details" }));
+    expect(await screen.findByText((_, element) =>
+      element?.tagName === "P" && element.textContent === "Registration: Full"
+    )).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Register for workshop" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByText("Registration: Open")).toBeNull();
+  });
+
+  it("AC-F03-03/11: preserves confirmed registration when the post-success detail refresh fails", async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: [{
+        id: workshop.id, title: workshop.title, location: workshop.location, starts_at: workshop.starts_at,
+        capacity: workshop.capacity, remaining_seats: workshop.remaining_seats, registration_open: true
+      }] }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: workshop }) })
+      .mockResolvedValueOnce({ ok: true, status: 201, json: async () => ({ data: {
+        id: "reg-501", workshop_id: workshop.id, status: "ACTIVE", registered_at: "2026-11-07T00:00:00Z"
+      } }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: [] }) })
+      .mockRejectedValueOnce(new Error("detail refresh network failure"));
+    vi.stubGlobal("fetch", fetcher);
+    render(<ParticipantApp />);
+    fireEvent.click(await screen.findByRole("button", { name: "View details" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Register for workshop" }));
+
+    expect((await screen.findByRole("status")).textContent).toContain("Registration confirmed · reg-501 · ACTIVE");
+    expect((await screen.findByRole("alert")).textContent).toContain("Registration succeeded, but availability could not be refreshed");
+    expect((screen.getByRole("button", { name: "Already registered" }) as HTMLButtonElement).disabled).toBe(true);
     expect(fetcher).toHaveBeenCalledTimes(5);
   });
 });

@@ -22,7 +22,7 @@ export function createRegistrationRouter(
       `SELECT w.id,w.title,w.location,w.starts_at,w.capacity,
               GREATEST(w.capacity-COUNT(r.id)::int,0)::int AS remaining_seats,
               CASE WHEN (w.starts_at IS NULL OR w.registration_deadline>w.starts_at) THEN false
-                   ELSE now()<COALESCE(w.registration_deadline,w.starts_at) END AS registration_open
+                   ELSE COUNT(r.id)<w.capacity AND now()<COALESCE(w.registration_deadline,w.starts_at) END AS registration_open
        FROM workshops w
        LEFT JOIN registrations r ON r.workshop_id=w.id AND r.status='ACTIVE'
        WHERE w.status='PUBLISHED'
@@ -40,7 +40,7 @@ export function createRegistrationRouter(
               w.registration_deadline,w.status,
               GREATEST(w.capacity-COUNT(r.id)::int,0)::int AS remaining_seats,
               CASE WHEN (w.starts_at IS NULL OR w.registration_deadline>w.starts_at) THEN false
-                   ELSE now()<COALESCE(w.registration_deadline,w.starts_at) END AS registration_open
+                   ELSE COUNT(r.id)<w.capacity AND now()<COALESCE(w.registration_deadline,w.starts_at) END AS registration_open
        FROM workshops w
        LEFT JOIN registrations r ON r.workshop_id=w.id AND r.status='ACTIVE'
        WHERE w.id=$1 AND w.status='PUBLISHED'

@@ -7,7 +7,6 @@ type WorkshopSummary = {
 type Workshop = WorkshopSummary & {
   description: string; ends_at: string; registration_deadline: string | null; status: "PUBLISHED";
 };
-type Registration = { id: string; workshop_id: string; status: "ACTIVE"; registered_at: string };
 const api = "/api/v1";
 
 function errorMessage(body: unknown, fallback: string): string {
@@ -64,6 +63,24 @@ export function ParticipantApp() {
     } finally { setLoadingDetails(false); }
   }
 
+  async function refreshAvailability(workshopId: string): Promise<boolean> {
+    try {
+      const listResponse = await fetch(`${api}/workshops`, { credentials: "same-origin" });
+      const listBody: unknown = await listResponse.json();
+      if (!listResponse.ok || !listBody || typeof listBody !== "object" ||
+          !("data" in listBody) || !Array.isArray(listBody.data)) return false;
+      setWorkshops(listBody.data as WorkshopSummary[]);
+
+      const detailResponse = await fetch(`${api}/workshops/${workshopId}`, { credentials: "same-origin" });
+      const detailBody: unknown = await detailResponse.json();
+      if (!detailResponse.ok || !detailBody || typeof detailBody !== "object" || !("data" in detailBody)) return false;
+      setSelected((detailBody as { data: Workshop }).data);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async function register() {
     if (!selected || registering || registeredWorkshopIds.has(selected.id) ||
         selected.remaining_seats <= 0 || !selected.registration_open) return;
@@ -73,20 +90,25 @@ export function ParticipantApp() {
         method: "POST", credentials: "same-origin",
         headers: { "Content-Type": "application/json", Origin: window.location.origin }, body: "{}"
       });
-      const body: unknown = await response.json();
-      if (!response.ok) throw new Error(errorMessage(body, "Registration could not be completed."));
-      const registration = (body as { data: Registration }).data;
+      if (response.status !== 201) {
+        const body: unknown = await response.json().catch(() => null);
+        throw new Error(errorMessage(body, "Registration could not be completed."));
+      }
       setRegisteredWorkshopIds(previous => new Set(previous).add(selected.id));
-      setSuccess(`Registration confirmed · ${registration.id} · ACTIVE`);
-      await loadWorkshops();
-      const refreshed = await fetch(`${api}/workshops/${selected.id}`, { credentials: "same-origin" });
-      if (refreshed.ok) setSelected((await refreshed.json() as { data: Workshop }).data);
+      setSuccess("Registration confirmed · ACTIVE");
+      const body: unknown = await response.json().catch(() => null);
+      if (body && typeof body === "object" && "data" in body && body.data &&
+          typeof body.data === "object" && "id" in body.data && typeof body.data.id === "string") {
+        setSuccess(`Registration confirmed · ${body.data.id} · ACTIVE`);
+      }
+      const refreshed = await refreshAvailability(selected.id);
+      if (!refreshed) {
+        setError("Registration succeeded, but availability could not be refreshed. Use Refresh workshops to retry.");
+      }
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Registration could not be completed.";
-      await loadWorkshops();
       setError(message);
-      const refreshed = await fetch(`${api}/workshops/${selected.id}`, { credentials: "same-origin" });
-      if (refreshed.ok) setSelected((await refreshed.json() as { data: Workshop }).data);
+      await refreshAvailability(selected.id);
     } finally { setRegistering(false); }
   }
 
@@ -123,7 +145,7 @@ export function ParticipantApp() {
         <p><strong>Starts:</strong> {displayTime(selected.starts_at)}</p>
         <p><strong>Ends:</strong> {displayTime(selected.ends_at)}</p>
         <p><strong>Seats remaining:</strong> {selected.remaining_seats} / {selected.capacity}</p>
-        <p><strong>Registration:</strong> {selected.registration_open ? "Open" : "Closed"}</p>
+        <p><strong>Registration:</strong> {selected.remaining_seats <= 0 ? "Full" : selected.registration_open ? "Open" : "Closed"}</p>
         <button type="button" disabled={registering || registeredWorkshopIds.has(selected.id) ||
           selected.remaining_seats <= 0 || !selected.registration_open} onClick={register}>
           {registering ? "Registering…" : registeredWorkshopIds.has(selected.id) ? "Already registered" : "Register for workshop"}

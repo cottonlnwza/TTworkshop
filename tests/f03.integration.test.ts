@@ -158,6 +158,22 @@ describe("F-03 published discovery and capacity-safe registration", () => {
     expect((await request(app).get("/api/v1/workshops/999999").set("Cookie", participant)).status).toBe(404);
   });
 
+  it("AC-F03-02/05: full published workshops report no registration eligibility in list and detail", async () => {
+    const workshopId = await seedWorkshop({ capacity: 1 });
+    const participant = await login(participantEmails[0]!);
+    const secondParticipant = await login(participantEmails[1]!);
+    const registered = await request(app).post(`/api/v1/workshops/${workshopId}/registrations`)
+      .set("Origin", origin).set("Cookie", participant).send({});
+    expect(registered.status).toBe(201);
+
+    const list = await request(app).get("/api/v1/workshops").set("Cookie", secondParticipant);
+    const summary = list.body.data.find((row: { id: string }) => String(row.id) === workshopId);
+    expect(summary).toMatchObject({ remaining_seats: 0, registration_open: false });
+
+    const detail = await request(app).get(`/api/v1/workshops/${workshopId}`).set("Cookie", secondParticipant);
+    expect(detail.body.data).toMatchObject({ remaining_seats: 0, registration_open: false });
+  });
+
   it("STS-F03-03: Registration persists ACTIVE and derives Participant identity from the session", async () => {
     const workshopId = await seedWorkshop();
     const participant = await login(participantEmails[0]!);
