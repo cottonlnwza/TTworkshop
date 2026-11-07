@@ -5,5 +5,5 @@ if (!url) throw new Error("DATABASE_URL required");
 const pool = new Pool({ connectionString: url });
 try {
   await migrate(pool);
-  process.stdout.write("F-01 migration applied\n");
+  process.stdout.write("Database migrations applied\n");
 } finally { await pool.end(); }

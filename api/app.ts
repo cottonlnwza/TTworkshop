@@ -3,9 +3,10 @@ import { randomBytes, createHash } from "node:crypto";
 import type { Pool } from "pg";
 import { DUMMY_HASH, verifyPassword } from "./password.js";
 import { createWorkshopRouter } from "./workshops.js";
+import { createRegistrationRouter } from "./registrations.js";
 type Role = "PARTICIPANT" | "ORGANIZER";
 type Identity = { id: string; email: string; role: Role };
-type Options = { appOrigin: string; production: boolean; sessionHours: number };
+type Options = { appOrigin: string; production: boolean; sessionHours: number; now?: () => Date };
 const COOKIE = "ttw_session";
 const fail = (code: string, message: string) => ({ error: { code, message } });
 function emailFrom(value: unknown): string | null {
@@ -92,6 +93,7 @@ export function createApp(pool: Pool, options: Options) {
     const current = await readSession(req);
     if (!current) { res.status(401).json(fail("UNAUTHENTICATED", "Sign in required")); return; }
     if (current.identity.role !== role) { res.status(403).json(fail("FORBIDDEN", "Forbidden")); return; }
+    (req as any).identity = current.identity;
     next();
   };
   
@@ -105,10 +107,8 @@ export function createApp(pool: Pool, options: Options) {
   
   const workshopRouter = createWorkshopRouter(pool, requireOrigin, requireOrganizerWithIdentity);
   app.use("/api/v1", workshopRouter);
-  
-  app.post("/api/v1/workshops/:id/registrations", requireOrigin, requireRole("PARTICIPANT"), (_req: Request, res: Response) => {
-    res.status(501).json(fail("NOT_IMPLEMENTED", "Feature not implemented in F-01"));
-  });
+  const registrationRouter = createRegistrationRouter(pool, requireRole("PARTICIPANT"), requireOrigin, options.now);
+  app.use("/api/v1", registrationRouter);
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (err && typeof err === "object" && "type" in err && err.type === "entity.parse.failed") {
       res.status(400).json(fail("VALIDATION", "Invalid JSON payload"));
