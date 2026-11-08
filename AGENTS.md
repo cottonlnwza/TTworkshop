@@ -1,7 +1,7 @@
 # TTworkshop — Shared AI Working Instructions
 
-**Applies to:** `cottonlnwza/TTworkshop` (Developer, Reviewer, Release Auditor, documentation tasks).  
-**Policy revision:** 1.0.0 (proposed; becomes the team's active repository policy only after peer-reviewed merge to the agreed policy branch).  
+**Applies to:** `cottonlnwza/TTworkshop` (Developer, Reviewer, Release Auditor, documentation tasks).
+**Policy revision:** 1.0.0 (proposed; becomes the team's active repository policy only after peer-reviewed merge to the agreed policy branch).
 **Priority:** System/platform and official course requirements > approved SRS/SDS and scoped decisions > these project working rules > individual AI suggestions. Do not claim global SRS/SDS or instructor approval without evidence.
 
 ## Mandatory initialization — EVERY task, review, and resumed work
