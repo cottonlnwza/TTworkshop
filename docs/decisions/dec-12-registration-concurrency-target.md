@@ -19,9 +19,9 @@ Use the team-reported **10 concurrent registration attempts for one remaining se
 - **Team test target:** the number `10` is a team-reported test/load profile authorized for this F-03 implementation. The course material does not prescribe ten concurrent requests or require exactly nine rejections as an instructor-mandated numeric threshold.
 - If the Reviewer changes the numeric profile, retain a real concurrent last-seat test that proves the no-overbooking invariant and update AC/STS consistently. Do not weaken or remove the mandatory invariant.
 
-## Proposed technical verification
+## Implemented strategy and executed verification
 
-Use distinct Participant identities and a synchronized start barrier so requests genuinely overlap. Assert both response outcomes and the database postcondition after all transactions settle. The implementation uses PostgreSQL row locking (`SELECT ... FOR UPDATE`) to serialize registrations per Workshop, checks PUBLISHED/deadline/ACTIVE count and inserts within one transaction, with a database-enforced partial unique index for ACTIVE `(workshop_id, participant_user_id)`. The exact-HEAD Reviewer milestone authorizes this strategy for implementation; execution evidence is recorded in `docs/evidence/p1-05-f03.md`.
+Use distinct Participant identities and a synchronized start barrier so requests genuinely overlap. Assert both response outcomes and the database postcondition after all transactions settle. The implementation uses PostgreSQL row locking (`SELECT ... FOR UPDATE`) to serialize registrations per Workshop, checks PUBLISHED/deadline/ACTIVE count and inserts within one transaction, with a database-enforced partial unique index for ACTIVE `(workshop_id, participant_user_id)`. The earlier exact-HEAD Reviewer milestone authorized this strategy for implementation; subsequent execution evidence is recorded in `docs/evidence/p1-05-f03.md`.
 
 ## Deferred boundaries
 
@@ -39,7 +39,7 @@ The mandatory no-overbooking invariant remains required independently of the num
 
 | Review item | Status at this revision |
 |---|---|
-| Existing 10-request profile retained as a proposal | Authorized for F-03 implementation, 2026-11-07 |
+| 10-request profile used for F-03 verification | Executed against real PostgreSQL; accepted for the scoped F-03 staging delivery |
 | Exact-HEAD pre-implementation Reviewer milestone | Recorded by `cottonlnwza`; reviewed SHA `b81280e9bfbc15a4ba1b7cd4cf19e02499622b71` ([comment](https://github.com/cottonlnwza/TTworkshop/pull/15#issuecomment-6690830963)) |
 | Author verification of Reviewer identity and exact HEAD SHA | Verified before implementation; local branch and live remote HEAD matched at start |
 | Final Formal APPROVE, staging merge and Author verification | **Complete** — [Formal APPROVE](https://github.com/cottonlnwza/TTworkshop/pull/15#pullrequestreview-5814213834) on `7ca586b218136a6f3f29c3652aa94541ad77a1f6`; merged to staging at `c6d87c80b8a0887591e80f93f6cbe24897cc07b9`; [Author post-merge verification](https://github.com/cottonlnwza/TTworkshop/issues/5#issuecomment-6724013761) |

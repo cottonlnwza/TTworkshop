@@ -34,7 +34,7 @@ The pre-implementation milestone was **not** a GitHub Formal APPROVE, merge perm
 
 | Screen/state | Behavior |
 |---|---|
-| `/workshops` | Published-only list for an authenticated `PARTICIPANT`: ID, title, start time, location, capacity, remaining seats and registration-open indicator; loading, empty and error states. Anonymous → `401`; `ORGANIZER` → `403` (DEC-11 implementation-only authorization) |
+| `/workshops` | Published-only list for an authenticated `PARTICIPANT`: ID, title, start time, location, capacity, remaining seats and registration-open indicator; loading, empty and error states. Anonymous → `401`; `ORGANIZER` → `403` (DEC-11 accepted for the F-03 staging scope) |
 | `/workshops/:id` | Published detail for an authenticated `PARTICIPANT`, including description, location, start/end, capacity, remaining seats and eligibility indicator; do not display private DRAFT. Anonymous → `401`; `ORGANIZER` → `403`; missing/unpublished ID → safe `404` for an authorized Participant |
 | Register action | Participant only; pending indicator and duplicate-submit guard; API must still reject repeat/concurrent submissions |
 | Success / failure | Show persisted registration ID/ACTIVE; for `CAPACITY_FULL`, `DUPLICATE_ACTIVE`, `INVALID_DEADLINE`, `DEADLINE_PASSED` display safe non-leaking feedback and refresh availability; manual closure feedback belongs to F-06 |
@@ -74,8 +74,8 @@ On constraint conflict rollback and return safe 409; never promise a seat based 
 
 | AC ID | Outcome / source |
 |---|---|
-| **AC-F03-01** | Only an authenticated `PARTICIPANT` can list workshops; the list contains only PUBLISHED workshops and approved summary fields. Anonymous receives `401`, Organizer receives `403`, and foreign DRAFT cannot appear (FR-06, BR-04/01; DEC-11 implementation-only authorization). |
-| **AC-F03-02** | An authenticated `PARTICIPANT` reads published detail including eligible seat information and safe empty/loading/error states. Anonymous receives `401`, Organizer receives `403`, and a missing/unpublished ID returns a safe `404` to the Participant (FR-06; DEC-11 implementation-only authorization). |
+| **AC-F03-01** | Only an authenticated `PARTICIPANT` can list workshops; the list contains only PUBLISHED workshops and approved summary fields. Anonymous receives `401`, Organizer receives `403`, and foreign DRAFT cannot appear (FR-06, BR-04/01; DEC-11 accepted for the F-03 staging scope). |
+| **AC-F03-02** | An authenticated `PARTICIPANT` reads published detail including eligible seat information and safe empty/loading/error states. Anonymous receives `401`, Organizer receives `403`, and a missing/unpublished ID returns a safe `404` to the Participant (FR-06; DEC-11 accepted for the F-03 staging scope). |
 | **AC-F03-03** | Eligible Participant registers once to published workshop below capacity; committed ACTIVE row links to session Participant, persists and returns ID/status (FR-07, NFR-02). |
 | **AC-F03-04** | Duplicate ACTIVE registration for same Participant+Workshop is rejected even for simultaneous attempts; one ACTIVE DB row remains (BR-05). |
 | **AC-F03-05** | Full capacity rejects additional registration with no row added (BR-06). |
