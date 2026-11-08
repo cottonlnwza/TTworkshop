@@ -6,11 +6,11 @@
 - Exactly one execution Issue owns one work PR, and one work PR owns one execution Issue. Search open, closed and merged PR history before creating any PR. A closed/unmerged/merged PR does **not** free the Issue to take another PR.
 - A feature Issue promising code must deliver code and required documentation in its **one PR**, not a docs-only PR followed by a separate code PR. If a genuinely separate specification approval task is necessary, propose its own bounded Issue/PR **before** beginning, with user authorization and explicit dependencies.
 - All changes need bounded Issue scope and authorization. Period backlog creation is not permission to execute its Issues. Execution authorization allows normal scoped branch/commit/push/PR readiness work but not self-review, self-merge, release or deployment.
-- Preserve completed Issue/PR/SHA/review/evidence as historical milestones. Never rewrite merged PR history or move \`Done\` / \`PR Review\` back to \`Started\` just to do new work.
+- Preserve completed Issue/PR/SHA/review/evidence as historical milestones. Never rewrite merged PR history or move `Done` / `PR Review` back to `Started` just to do new work.
 
 ## Pre-merge completion gate — prevention, not follow-up cleanup
 
-Developer must inventory every in-scope current-status surface: root README, feature contract, DoD, \`docs/evidence\`, \`docs/contracts/README.md\`, relevant SRS/traceability/DEC records, Issue acceptance checklist and review findings. Classify each as \`current\`, \`dated historical\` or \`post-merge only\`.
+Developer must inventory every in-scope current-status surface: root README, feature contract, DoD, `docs/evidence`, `docs/contracts/README.md`, relevant SRS/traceability/DEC records, Issue acceptance checklist and review findings. Classify each as `current`, `dated historical` or `post-merge only`.
 
 Before requesting Formal APPROVE, update all in-scope **current** files on the **same PR** to report already-known pre-merge facts, tested exact HEAD, commands, results and limitations. Preserve dated revision records, past RED/GREEN logs, decisions and review milestones. Do not pretend the PR is merged or the post-merge run has happened.
 
@@ -38,4 +38,4 @@ Do not hide legitimate defects or required approval/documentation to avoid a new
 
 ## Project board
 
-Project #4 fields \`Status\` and \`Period\` must match actual verified workflow stages. Typical progression: Backlog → Specified → Started → PR Review ↔ Fixing → Done. Do not fabricate skipped history or rewind completed work. Every authorized stage change requires read-back and explicit reporting. If unavailable: \`KANBAN NOT VERIFIED / BLOCKED\`.
+Project #4 fields `Status` and `Period` must match actual verified workflow stages. Typical progression: Backlog → Specified → Started → PR Review ↔ Fixing → Done. Do not fabricate skipped history or rewind completed work. Every authorized stage change requires read-back and explicit reporting. If unavailable: `KANBAN NOT VERIFIED / BLOCKED`.
