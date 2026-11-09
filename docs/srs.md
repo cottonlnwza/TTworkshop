@@ -22,7 +22,7 @@ University activity organizers need to publish workshops with limited seats and 
 |---|---|---|
 | **Participant** (student) | Authenticate; view published workshops; create, view and later cancel **own** registrations | Own private registration details only |
 | **Organizer** (university activity organizer) | Authenticate; create/publish/manage **own** workshops; inspect registrations; later check in attendance and view summaries | Only workshops they own and their authorized registration lists |
-| Anonymous visitor | No protected operations or private information; DEC-11 proposes denying F-03 published-workshop browse until authenticated as Participant | No privileged data |
+| Anonymous visitor | No protected operations or private information; under the accepted F-03 staging scope (DEC-11), published-workshop browse requires authentication as a Participant | No privileged data |
 | Course assessor / UAT tester | Verify a reproducible synthetic-data release; not an application role | Test/demo access only |
 
 **Role model proposed by team:** exactly one meaningful role per seeded account for initial scope. Distinct Participant and Organizer roles are COURSE-mandated for Sprint 1.
