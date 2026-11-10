@@ -15,7 +15,7 @@ Organizer-only Draft creation, owner-scoped Draft listing/detail/update, and tra
 
 Authenticated Participants can browse only PUBLISHED workshops and view current availability. Registration creates a persistent ACTIVE row using the session identity. PostgreSQL serializes competing registrations for a Workshop row and enforces one ACTIVE registration per Participant/Workshop with a partial unique index. Deadline checks use `COALESCE(registration_deadline, starts_at)` and reject at `now >= effective_deadline`. Manual closure, cancellation, registration history and attendance remain outside F-03.
 
-**F-04 Registration Views / Ownership (Issue #6) is not implemented yet.**
+**F-04 Registration Views / Ownership (Issue #6):** specification-first update is in progress on `feature/p1-06-f04-registration-views`. The requester-authorized privacy, pagination, API/DTO and HTTP error defaults are documented in the F-04 contract; an Independent Reviewer must approve the exact specification HEAD for implementation only before TDD/code begins. F-04 implementation and tests have not started.
 
 ### Requirements
 
