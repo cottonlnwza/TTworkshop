@@ -107,7 +107,9 @@ export function createApp(pool: Pool, options: Options) {
   
   const workshopRouter = createWorkshopRouter(pool, requireOrigin, requireOrganizerWithIdentity);
   app.use("/api/v1", workshopRouter);
-  const registrationRouter = createRegistrationRouter(pool, requireRole("PARTICIPANT"), requireOrigin, options.now);
+  const registrationRouter = createRegistrationRouter(
+    pool, requireRole("PARTICIPANT"), requireOrigin, requireRole("ORGANIZER"), options.now
+  );
   app.use("/api/v1", registrationRouter);
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (err && typeof err === "object" && "type" in err && err.type === "entity.parse.failed") {

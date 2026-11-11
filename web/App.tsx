@@ -2,12 +2,14 @@ import React, { useCallback, useEffect, useState } from "react";
 import { AuthApp } from "./AuthApp.js";
 import { OrganizerApp } from "./OrganizerApp.js";
 import { ParticipantApp } from "./ParticipantApp.js";
+import { OrganizerRegistrationRoster, ParticipantRegistrationViews } from "./RegistrationViews.js";
 
 type User = { id: string; email: string; role: "PARTICIPANT" | "ORGANIZER" } | null;
 
 export function App() {
   const [user, setUser] = useState<User>(null);
   const [loading, setLoading] = useState(true);
+  const path = window.location.pathname;
 
   const checkAuth = useCallback(async () => {
     setLoading(true);
@@ -43,6 +45,15 @@ export function App() {
 
   if (loading) return <p className="page">Loading...</p>;
   if (!user) return <AuthApp onLoginSuccess={checkAuth} />;
+  const rosterMatch = /^\/organizer\/workshops\/([^/]+)\/registrations$/.exec(path);
+  if (rosterMatch) {
+    return <OrganizerRegistrationRoster workshopId={rosterMatch[1]!} />;
+  }
+  const detailMatch = /^\/my-registrations\/([^/]+)$/.exec(path);
+  if (detailMatch) {
+    return <ParticipantRegistrationViews registrationId={detailMatch[1]!} />;
+  }
+  if (path === "/my-registrations") return <ParticipantRegistrationViews />;
   if (user.role === "ORGANIZER") return <OrganizerApp />;
   return <ParticipantApp />;
 }

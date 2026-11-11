@@ -232,6 +232,11 @@ export function OrganizerApp() {
                   {w.status === "DRAFT" && (
                     <button onClick={() => { setSelectedId(w.id); setView("detail"); }}>Edit / Publish</button>
                   )}
+                  {w.status === "PUBLISHED" && (
+                    <a href={"/organizer/workshops/" + encodeURIComponent(w.id) + "/registrations"}>
+                      View registrations
+                    </a>
+                  )}
                 </li>
               ))}
             </ul>
