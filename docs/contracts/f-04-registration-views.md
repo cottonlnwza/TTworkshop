@@ -1,6 +1,6 @@
 # F-04 — Participant Registration Views and Organizer Ownership
 
-> **DRAFT v0.2.2 — ISSUE #6 IMPLEMENTED LOCALLY — FINAL REVIEW / MERGE PENDING — 2026-11-11** · P1-02 [Issue #2](https://github.com/cottonlnwza/TTworkshop/issues/2) · Execution [Issue #6](https://github.com/cottonlnwza/TTworkshop/issues/6) · [PR #20](https://github.com/cottonlnwza/TTworkshop/pull/20) · Sprint 1
+> **DRAFT v0.2.3 — ISSUE #6 IMPLEMENTED LOCALLY — FINAL REVIEW / MERGE PENDING — 2026-11-11** · P1-02 [Issue #2](https://github.com/cottonlnwza/TTworkshop/issues/2) · Execution [Issue #6](https://github.com/cottonlnwza/TTworkshop/issues/6) · [PR #20](https://github.com/cottonlnwza/TTworkshop/pull/20) · Sprint 1
 > Source: `docs/srs.md` DRAFT v0.1.9 FR-08/09, BR-01/05, NFR-01/02; `docs/features.md` F-04; `docs/system-sds.md` sections 3–7. The Issue requester authorized Working Decisions WD-F04-01–04. Independent Reviewer `cottonlnwza` recorded **Approved for Implementation Only — Not Approved for Merge** on exact specification PR HEAD `6c6b0275585c6bc3f44dfbcc37b9bb6c99318316`; the Author verified the distinct reviewer identity and exact SHA. This gate authorized dependent TDD/implementation on the same PR, not Formal APPROVE or Merge. Implementation commit: `24707ab05399536fd0e34c222a026be209683325`. No global SRS/SDS or instructor approval is implied.
 
 ## 1. Purpose, dependencies, boundaries
@@ -100,7 +100,7 @@ Read existing `Registration(id,workshop_id,participant_user_id,status,registered
 - STS-F04-08: `tests/f04.browser.test.ts` — real Chrome Organizer → Participant → Organizer journey and API process restart with persisted registration/session.
 - STS-F04-10: `tests/f04.integration.test.ts` and `tests/f04.pagination.unit.test.ts` — default 20, max 50, stable tied-timestamp traversal, invalid limit/cursor, no total and principal isolation.
 - TDD RED: test-only commit `8025663eb673b0bf4b06d1e85d42c02a0f0bc515` in a detached baseline worktree produced 6 expected route/authorization failures (404 because F-04 routes did not exist) and 2 passes. GREEN: implementation commit `24707ab05399536fd0e34c222a026be209683325` passed the F-04 targeted suite **34/34** across four files.
-- Full regression on `24707ab05399536fd0e34c222a026be209683325`: **13 files / 103 tests PASS**. `npm run build` PASS. `git diff --check HEAD^ HEAD` PASS. These are Author-local results, not hosted CI or independent Reviewer reruns.
+- Full regression on exact pre-documentation PR HEAD `a31edc0579f254a6bb1b9ebbe10b7b4875a7d2fb`: **13 files / 103 tests PASS**. `npm run build` PASS and `git diff --check HEAD^ HEAD` PASS on the same SHA. These are Author-local results, not hosted CI or independent Reviewer reruns. The targeted F-04 suite was run on implementation commit `24707ab05399536fd0e34c222a026be209683325`.
 
 ## 8. Feature Definition of Done — PARTIALLY MET; final integration gates pending
 
@@ -110,6 +110,8 @@ Read existing `Registration(id,workshop_id,participant_user_id,status,registered
 - [x] AC-F04-01–10 / STS-F04-01–10 tested, including negative owner/role/anonymous cases, pagination boundaries, empty/error UI, JOIN cardinality and restart persistence against isolated PostgreSQL test DBs.
 - [x] Complete Organizer publish → Participant discover/register/view-own → owning Organizer view-roster E2E journey passes with synthetic data.
 - [x] No schema migration; no Development DB used for destructive tests.
-- [ ] Actual execution evidence, commit, staging PR teammate approval/merge, integration read-back recorded; no secret/private leaks.
+- [x] Actual execution evidence and implementation/test commits are recorded in the same Issue #6 / PR #20.
+- [ ] Independent final code review and Formal APPROVE; teammate merge into `sprint_1_staging`.
+- [ ] Author verifies the actual staging merge SHA/tree, reruns applicable build/tests, records post-merge integration evidence and reads back Issue/Project status.
 
-**Change record:** v0.1, 2026-11-03, initial P1-02 pre-implementation draft. v0.2.0, 2026-11-11, Issue #6 specification-first update: requester-authorized WD-F04-01–04; explicit minimal DTO/privacy, cursor pagination, API envelopes/routes, HTTP error semantics, AC/STS-10 and implementation DoD. v0.2.1, 2026-11-11, reconcile Reviewer Round 2 and exact-head gate. v0.2.2, 2026-11-11, record Round 3 implementation-only gate on `6c6b0275585c6bc3f44dfbcc37b9bb6c99318316`, TDD RED/GREEN, API/UI/DB implementation, 10/10 STS execution, 34 F-04 tests, 103/103 full regression and build; Formal APPROVE, staging merge and post-merge verification remain pending.
+**Change record:** v0.1, 2026-11-03, initial P1-02 pre-implementation draft. v0.2.0, 2026-11-11, Issue #6 specification-first update: requester-authorized WD-F04-01–04; explicit minimal DTO/privacy, cursor pagination, API envelopes/routes, HTTP error semantics, AC/STS-10 and implementation DoD. v0.2.1, 2026-11-11, reconcile Reviewer Round 2 and exact-head gate. v0.2.2, 2026-11-11, record Round 3 implementation-only gate on `6c6b0275585c6bc3f44dfbcc37b9bb6c99318316`, TDD RED/GREEN, API/UI/DB implementation, 10/10 STS execution and F-04 targeted 34/34. v0.2.3, 2026-11-11, correct exact tested-SHA provenance for full regression/build, split DoD into completed pre-merge work and remaining review/merge/post-merge gates, and add the pre-merge Completion Matrix.
