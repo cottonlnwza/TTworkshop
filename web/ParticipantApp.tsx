@@ -129,7 +129,8 @@ export function ParticipantApp() {
   return <main className="page">
     <header>
       <span className="brand">TT / WORKSHOP</span><span className="tag">Participant · Sprint 1</span>
-      <button type="button" onClick={signOut} disabled={signingOut} style={{ marginLeft: "auto", width: "auto" }}>
+      <a href="/my-registrations" style={{ marginLeft: "auto" }}>My registrations</a>
+      <button type="button" onClick={signOut} disabled={signingOut} style={{ width: "auto" }}>
         {signingOut ? "Signing out…" : "Sign out"}
       </button>
     </header>
