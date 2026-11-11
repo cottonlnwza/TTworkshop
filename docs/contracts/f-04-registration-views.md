@@ -1,7 +1,7 @@
 # F-04 — Participant Registration Views and Organizer Ownership
 
-> **DRAFT v0.2.0 — ISSUE #6 WORKING SPECIFICATION — NOT IMPLEMENTED — 2026-11-11** · P1-02 [Issue #2](https://github.com/cottonlnwza/TTworkshop/issues/2) · Execution [Issue #6](https://github.com/cottonlnwza/TTworkshop/issues/6) · Sprint 1
-> Source: `docs/srs.md` DRAFT v0.1.9 FR-08/09, BR-01/05, NFR-01/02; `docs/features.md` F-04; `docs/system-sds.md` sections 3–7. The Issue requester authorized Working Decisions WD-F04-01–04 as specification-first defaults. They remain a scoped proposal pending Independent Reviewer review and exact-HEAD **Approved for Implementation Only**. No global SRS/SDS or instructor approval is implied.
+> **DRAFT v0.2.1 — ISSUE #6 WORKING SPECIFICATION — NOT IMPLEMENTED — 2026-11-11** · P1-02 [Issue #2](https://github.com/cottonlnwza/TTworkshop/issues/2) · Execution [Issue #6](https://github.com/cottonlnwza/TTworkshop/issues/6) · Sprint 1
+> Source: `docs/srs.md` DRAFT v0.1.9 FR-08/09, BR-01/05, NFR-01/02; `docs/features.md` F-04; `docs/system-sds.md` sections 3–7. The Issue requester authorized Working Decisions WD-F04-01–04 as specification-first defaults. The Independent Reviewer recorded **Approved for Implementation Only — Not Approved for Merge** on prior exact PR HEAD `8789d2dbeda3b5c0b090aa1d4c9454162da5ab53`. This status-only documentation reconciliation creates a new PR HEAD; refreshed exact-HEAD confirmation is required before TDD/implementation. No global SRS/SDS or instructor approval is implied.
 
 ## 1. Purpose, dependencies, boundaries
 
@@ -41,7 +41,7 @@ The authenticated server session is the only source of user identity and role. N
 
 No cancel button that actually mutates status in Sprint 1 (F-05 later). Do not display F-08 check-in status as implemented before it exists.
 
-## 4. Issue #6 Working API specification — pending exact-HEAD Reviewer gate
+## 4. Issue #6 Working API specification — implementation-only review recorded on prior HEAD; refresh required for new HEAD
 
 Base `/api/v1`. All requests require the F-01 session and backend record-level permissions. Success envelope: `{"data":...}`; list responses also include `"pagination":{"next_cursor":...}`. Error envelope: `{"error":{"code":"...","message":"..."}}`.
 
@@ -105,4 +105,4 @@ Read existing `Registration(id,workshop_id,participant_user_id,status,registered
 - [ ] No schema migration unless a newly discovered requirement makes one necessary and it is separately approved; no Development DB used for destructive tests.
 - [ ] Actual execution evidence, commit, staging PR teammate approval/merge, integration read-back recorded; no secret/private leaks.
 
-**Change record:** v0.1, 2026-11-03, initial P1-02 pre-implementation draft. v0.2.0, 2026-11-11, Issue #6 specification-first update: requester-authorized WD-F04-01–04; explicit minimal DTO/privacy, cursor pagination, API envelopes/routes, HTTP error semantics, AC/STS-10 and implementation DoD. **Pending Independent Reviewer exact-HEAD implementation-only authorization; no F-04 code or tests executed.**
+**Change record:** v0.1, 2026-11-03, initial P1-02 pre-implementation draft. v0.2.0, 2026-11-11, Issue #6 specification-first update: requester-authorized WD-F04-01–04; explicit minimal DTO/privacy, cursor pagination, API envelopes/routes, HTTP error semantics, AC/STS-10 and implementation DoD. v0.2.1, 2026-11-11, reconcile Reviewer Round 2 implementation-only approval on exact HEAD `8789d2dbeda3b5c0b090aa1d4c9454162da5ab53`; require refreshed exact-HEAD confirmation after this documentation-only update. No F-04 code or tests executed.
