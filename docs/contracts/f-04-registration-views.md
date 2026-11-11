@@ -1,7 +1,7 @@
 # F-04 — Participant Registration Views and Organizer Ownership
 
-> **DRAFT v0.2.1 — ISSUE #6 WORKING SPECIFICATION — NOT IMPLEMENTED — 2026-11-11** · P1-02 [Issue #2](https://github.com/cottonlnwza/TTworkshop/issues/2) · Execution [Issue #6](https://github.com/cottonlnwza/TTworkshop/issues/6) · Sprint 1
-> Source: `docs/srs.md` DRAFT v0.1.9 FR-08/09, BR-01/05, NFR-01/02; `docs/features.md` F-04; `docs/system-sds.md` sections 3–7. The Issue requester authorized Working Decisions WD-F04-01–04 as specification-first defaults. The Independent Reviewer recorded **Approved for Implementation Only — Not Approved for Merge** on prior exact PR HEAD `8789d2dbeda3b5c0b090aa1d4c9454162da5ab53`. This status-only documentation reconciliation creates a new PR HEAD; refreshed exact-HEAD confirmation is required before TDD/implementation. No global SRS/SDS or instructor approval is implied.
+> **DRAFT v0.2.2 — ISSUE #6 IMPLEMENTED LOCALLY — FINAL REVIEW / MERGE PENDING — 2026-11-11** · P1-02 [Issue #2](https://github.com/cottonlnwza/TTworkshop/issues/2) · Execution [Issue #6](https://github.com/cottonlnwza/TTworkshop/issues/6) · [PR #20](https://github.com/cottonlnwza/TTworkshop/pull/20) · Sprint 1
+> Source: `docs/srs.md` DRAFT v0.1.9 FR-08/09, BR-01/05, NFR-01/02; `docs/features.md` F-04; `docs/system-sds.md` sections 3–7. The Issue requester authorized Working Decisions WD-F04-01–04. Independent Reviewer `cottonlnwza` recorded **Approved for Implementation Only — Not Approved for Merge** on exact specification PR HEAD `6c6b0275585c6bc3f44dfbcc37b9bb6c99318316`; the Author verified the distinct reviewer identity and exact SHA. This gate authorized dependent TDD/implementation on the same PR, not Formal APPROVE or Merge. Implementation commit: `24707ab05399536fd0e34c222a026be209683325`. No global SRS/SDS or instructor approval is implied.
 
 ## 1. Purpose, dependencies, boundaries
 
@@ -30,7 +30,7 @@ These four defaults are authorized by the Issue requester for this bounded Issue
 
 The authenticated server session is the only source of user identity and role. No client-supplied participant/owner ID, role, header, query or body field can broaden access. These decisions apply only to the F-04 read surface; they do not authorize new requirements or unrelated feature changes.
 
-## 3. UI contract (proposed)
+## 3. UI contract (implemented locally; final review pending)
 
 | Screen/state | Expected behavior |
 |---|---|
@@ -41,7 +41,7 @@ The authenticated server session is the only source of user identity and role. N
 
 No cancel button that actually mutates status in Sprint 1 (F-05 later). Do not display F-08 check-in status as implemented before it exists.
 
-## 4. Issue #6 Working API specification — implementation-only review recorded on prior HEAD; refresh required for new HEAD
+## 4. Issue #6 API implementation — same PR #20; final review pending
 
 Base `/api/v1`. All requests require the F-01 session and backend record-level permissions. Success envelope: `{"data":...}`; list responses also include `"pagination":{"next_cursor":...}`. Error envelope: `{"error":{"code":"...","message":"..."}}`.
 
@@ -78,7 +78,7 @@ Read existing `Registration(id,workshop_id,participant_user_id,status,registered
 | **AC-F04-09** | View displays one ACTIVE record per Participant+Workshop as persisted by F-03 and does not duplicate rows due to the join (BR-05). |
 | **AC-F04-10** | Both list endpoints enforce WD-F04-02: default 20 rows, maximum 50, stable `registered_at DESC, id DESC` ordering, correct opaque continuation without duplicates/skips, and no total count or cross-principal cursor access (FR-08/09, NFR-01/02). |
 
-## 7. Software Test Specification (STS): PLANNED / NOT EXECUTED
+## 7. Software Test Specification (STS): EXECUTED LOCALLY
 
 | TEST ID | AC | Level | Preconditions/input → action → expected |
 |---|---|---|---|
@@ -93,16 +93,23 @@ Read existing `Registration(id,workshop_id,participant_user_id,status,registered
 | **STS-F04-09** | AC-F04-09 | API+DB | One ACTIVE row in W1 for A → both views return exactly one corresponding row, not multiplied by JOIN |
 | **STS-F04-10** | AC-F04-10 | API+DB boundary/security | Seed >50 authorized rows with tied timestamps and another principal's rows → verify default 20, max 50, reject invalid limit/cursor, traverse all pages in stable order exactly once, no total count, and cursor cannot expose another principal's rows |
 
-**Implementation evidence (later Issue #6):** actual DB/seed and tested SHA, test file+assertion, RED→GREEN where meaningful, API/permission results and test counts, reviewer/merge/integration. No tests claimed by these drafts.
+**Author-local execution on implementation commit `24707ab05399536fd0e34c222a026be209683325`:**
 
-## 8. Feature Definition of Done — NOT MET
+- STS-F04-01–06 and STS-F04-09: `tests/f04.integration.test.ts` — participant ownership, own detail, foreign/missing 404 equivalence, organizer-owned PUBLISHED roster, hidden foreign/DRAFT/missing Workshop, 401/403, minimized DTO and JOIN cardinality.
+- STS-F04-07: `tests/f04.ui.test.tsx` and `tests/f04.browser.test.ts` — loading/empty/error/expired/forbidden/unavailable states, stale-data clearing after later-page authorization failure, and direct wrong-role URL attempts.
+- STS-F04-08: `tests/f04.browser.test.ts` — real Chrome Organizer → Participant → Organizer journey and API process restart with persisted registration/session.
+- STS-F04-10: `tests/f04.integration.test.ts` and `tests/f04.pagination.unit.test.ts` — default 20, max 50, stable tied-timestamp traversal, invalid limit/cursor, no total and principal isolation.
+- TDD RED: test-only commit `8025663eb673b0bf4b06d1e85d42c02a0f0bc515` in a detached baseline worktree produced 6 expected route/authorization failures (404 because F-04 routes did not exist) and 2 passes. GREEN: implementation commit `24707ab05399536fd0e34c222a026be209683325` passed the F-04 targeted suite **34/34** across four files.
+- Full regression on `24707ab05399536fd0e34c222a026be209683325`: **13 files / 103 tests PASS**. `npm run build` PASS. `git diff --check HEAD^ HEAD` PASS. These are Author-local results, not hosted CI or independent Reviewer reruns.
 
-- [ ] Independent Reviewer records `Approved for Implementation Only — Not Approved for Merge` against the exact Draft PR HEAD after the six-axis specification review; Author verifies Reviewer identity and exact SHA before dependent TDD/implementation. No repeat bilateral confirmation is required for WD-F04-01–04 unless requirements materially change.
-- [ ] UI/API/DB reads work for Participant self and Organizer owner with no foreign disclosure; no mutation, check-in or cancellation.
-- [ ] WD-F04-01–04 DTO/privacy/pagination/error behavior implemented as reviewed; server-side session identity and record ownership enforced on every read.
-- [ ] AC-F04-01–10 / STS-F04-01–10 tested, including negative owner/role/anonymous cases, pagination boundaries, empty/error UI, JOIN cardinality and restart persistence against isolated PostgreSQL test DBs.
-- [ ] Complete Organizer publish → Participant discover/register/view-own → owning Organizer view-roster E2E journey passes with synthetic data.
-- [ ] No schema migration unless a newly discovered requirement makes one necessary and it is separately approved; no Development DB used for destructive tests.
+## 8. Feature Definition of Done — PARTIALLY MET; final integration gates pending
+
+- [x] Independent Reviewer records `Approved for Implementation Only — Not Approved for Merge` against exact specification PR HEAD `6c6b0275585c6bc3f44dfbcc37b9bb6c99318316`; Author verifies Reviewer `cottonlnwza` is distinct from Author `thananun-7203` and exact SHA before TDD/implementation.
+- [x] UI/API/DB reads work for Participant self and Organizer owner with no foreign disclosure; no mutation, check-in or cancellation.
+- [x] WD-F04-01–04 DTO/privacy/pagination/error behavior implemented as reviewed; server-side session identity and record ownership enforced on every read.
+- [x] AC-F04-01–10 / STS-F04-01–10 tested, including negative owner/role/anonymous cases, pagination boundaries, empty/error UI, JOIN cardinality and restart persistence against isolated PostgreSQL test DBs.
+- [x] Complete Organizer publish → Participant discover/register/view-own → owning Organizer view-roster E2E journey passes with synthetic data.
+- [x] No schema migration; no Development DB used for destructive tests.
 - [ ] Actual execution evidence, commit, staging PR teammate approval/merge, integration read-back recorded; no secret/private leaks.
 
-**Change record:** v0.1, 2026-11-03, initial P1-02 pre-implementation draft. v0.2.0, 2026-11-11, Issue #6 specification-first update: requester-authorized WD-F04-01–04; explicit minimal DTO/privacy, cursor pagination, API envelopes/routes, HTTP error semantics, AC/STS-10 and implementation DoD. v0.2.1, 2026-11-11, reconcile Reviewer Round 2 implementation-only approval on exact HEAD `8789d2dbeda3b5c0b090aa1d4c9454162da5ab53`; require refreshed exact-HEAD confirmation after this documentation-only update. No F-04 code or tests executed.
+**Change record:** v0.1, 2026-11-03, initial P1-02 pre-implementation draft. v0.2.0, 2026-11-11, Issue #6 specification-first update: requester-authorized WD-F04-01–04; explicit minimal DTO/privacy, cursor pagination, API envelopes/routes, HTTP error semantics, AC/STS-10 and implementation DoD. v0.2.1, 2026-11-11, reconcile Reviewer Round 2 and exact-head gate. v0.2.2, 2026-11-11, record Round 3 implementation-only gate on `6c6b0275585c6bc3f44dfbcc37b9bb6c99318316`, TDD RED/GREEN, API/UI/DB implementation, 10/10 STS execution, 34 F-04 tests, 103/103 full regression and build; Formal APPROVE, staging merge and post-merge verification remain pending.
