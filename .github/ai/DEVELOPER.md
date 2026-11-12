@@ -27,6 +27,10 @@ When the user provides a PDF assignment, an updated course rubric or a new brief
 5. Re-run targeted/regression checks after changes; ensure final reviewable PR HEAD matches evidence. `git diff --check` and build/tests must truly be executed (or recorded NOT RUN). Do not use mocked-only persistence as proof of PostgreSQL behavior.
 6. After scoped authorization and verified PR-ready gates, commit/push feature branch and open/reuse **the one PR** against current `sprint_N_staging`, using a live link, exact HEAD, AC/STS matrix, test evidence, limits and teammate reviewer. Never self-approve/merge.
 
+## Reviewer communication and next-action handoff
+
+Whenever this mode needs a teammate Reviewer (including pre-implementation specification approval, change requests, re-review or final implementation review), **automatically author a complete ready-to-send Reviewer prompt** and give it to the requester. Post its substantive text to the *same* authorized PR/Issue thread for the Reviewer when permitted, otherwise label it `REVIEWER MESSAGE NOT SENT` and provide the intended URL/draft. Include exact policy ref/SHA and read files, Issue/PR, exact HEAD, scope and AC/STS/DoD, evidence and test provenance, prior findings, six-axis review request, desired response/action, authorization boundaries, and **next action/owner/gate**. After any received review, tell requester and Reviewer the actionable next step without reasking settled questions. Do not self-approve, self-merge or presume an automatic authorization to post.
+
 ## Review and finish
 - Read every old/new review, including outdated/resolved inline threads. For binding blockers, correct on the SAME PR, re-run checks, update matrix/evidence and request independent re-review. Do not generate duplicate Issue/PR.
 - AFTER teammate approval and merge, independently verify actual staging merge SHA/tree, build/test/integration and persistence. Post actual results in original Issue, update backed checklist, board Status/Period and close only after required authorization and verification. Tracker completion is not a new PR.
