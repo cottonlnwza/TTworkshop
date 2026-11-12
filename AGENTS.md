@@ -1,8 +1,27 @@
 # TTworkshop — Shared AI Working Instructions
 
 **Applies to:** `cottonlnwza/TTworkshop` (Developer, Reviewer, Release Auditor, documentation tasks).
-**Policy revision:** 1.1.0 (proposed; becomes the team's active repository policy only after peer-reviewed merge to the agreed policy branch).
+**Policy revision:** 1.2.0. **Activation rule:** the revision actually merged into the agreed common policy ref (`sprint_1_staging`) is ACTIVE; a changed revision on an unmerged branch/PR is PROPOSED until independent peer review and merge. Historical v1.1.0 was activated via merged governance PR #18; this v1.2.0 revision requires its own reviewed governance PR.
 **Priority:** System/platform and official course requirements > approved SRS/SDS and scoped decisions > these project working rules > individual AI suggestions. Do not claim global SRS/SDS or instructor approval without evidence.
+
+## Standing team objective — maximize verified CPE334 rubric coverage
+
+**Requester's exact working preference (Thai, 2026-11-12; applies to both teammates and AI assistants):**
+
+> ฉันต้องการทำโปรเจกต์ CPE334 ให้ได้คะแนนสูงที่สุดตามเกณฑ์ของรายวิชา โดยให้ความสำคัญกับความถูกต้องของโปรแกรม ผลการทดสอบ หลักฐานการทำงาน กระบวนการพัฒนา และการส่งงานครบตามกำหนด
+>
+> ให้ดำเนินงาน **Issue #6 ให้เสร็จสมบูรณ์ตาม Completion-first** พร้อมตรวจหาจุดที่สามารถปรับปรุงเพื่อรักษาหรือเพิ่มคะแนนตาม Rubric จริง
+>
+> ทำงานอย่างต่อเนื่องจนจบขอบเขตที่ได้รับอนุญาต โดยไม่ต้องถามยืนยันทุกขั้นตอน เมื่อดำเนินการเสร็จแล้วจึงรายงานผลรวมในครั้งเดียว
+>
+> **ห้ามอ้างว่าได้คะแนนเพิ่มแน่นอน** ให้แยกข้อกำหนดที่มีคะแนนจริงออกจากข้อเสนอแนะด้านคุณภาพ และใช้หลักฐานจากเอกสารรายวิชาเป็นหลัก
+
+**Operational interpretation — binding working preference, not a new course requirement:**
+
+1. **Either teammate, every session, every mode — mandatory fresh read.** For *every* request concerning `cottonlnwza/TTworkshop` or its CPE334 deliverables, whether sent by `cottonlnwza` or `thananun-7203`, the responding AI must retrieve the **current root `AGENTS.md` from the real GitHub repository** on the agreed policy ref, then read all applicable linked policies and capture the exact policy SHA **before any substantive task**. This includes quick status questions, new chats, resumed work, Developer, Reviewer, re-review, Issue verification, post-merge completion and Release Audit. Do not infer an exemption from the requester's identity, a cached chat summary, a previous run, local files, or a claim that the file was already read. If a live read fails, say `BLOCKED — PROJECT INSTRUCTIONS NOT VERIFIED` and do not mutate or claim formal approval. The rule instructs compliant AI tooling; `AGENTS.md` alone does **not** technically guarantee that every external client loads it.
+2. **Real rubric evidence, not invented scores.** For material feature, test, review, release, deliverable and assignment-planning work, identify relevant authoritative course PDF/rubric version, page, stated point weight, deadline and proof required; compare to current repo and submission evidence. Explicitly classify `RUBRIC REQUIREMENT / POINTS VERIFIED`, `POTENTIAL SCORE RISK`, `OPTIONAL QUALITY IMPROVEMENT`, `NOT VERIFIED`, and `OUT OF SCOPE`. Prioritize correctness, automated/manual tests, traceable evidence, engineering process, reproducibility and on-time submission. Do not promise higher grades, invent points/deadlines, assume a GitHub merge equals course submission, or turn suggestions into mandatory requirements without source authority. Report actionable high-value gaps with exact sources and evidence.
+3. **Completion-first; finish authorized scope with minimal interruptions.** Within a *clearly authorized, bounded* Issue/task, carry all safe dependent steps through completion without repeatedly asking the same question; prefer one consolidated final report with evidence, actual actions, results and remaining gates. Mandatory initialization/preflight reporting still applies. If multiple distinct actions need approvals, invite **one explicit, itemized batch authorization** where the policy permits, while preserving the separate meaning of each authorization. Never infer permission for new Issues/source edits, formal review submission, teammate merge, release/deploy or Issue/Project closure from a general goal or earlier unrelated approval. Stop only blocked portions; continue safe authorized work.
+4. **Current Issue #6 priority is not a new execution Issue.** Complete post-merge verification, tested exact staging merge SHA, original-Issue evidence, Acceptance Criteria/DoD and separately authorized Project/Issue closure for [Issue #6](https://github.com/cottonlnwza/TTworkshop/issues/6) according to existing policy. When #6 is verified and closed, treat that milestone as historical; do not keep reopening/reimplementing it, rewrite merged PR #20 or invent a second work PR for #6. Broader score-improvement work needs separate approved scope, and new governance policy work uses its own governance Issue/PR.
 
 ## Mandatory initialization — EVERY task, review, and resumed work
 
