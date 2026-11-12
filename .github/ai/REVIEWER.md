@@ -13,6 +13,10 @@ On **every** specification review, substantive code review, re-review, final pre
 | **5. Docs, decisions and current-status consistency** | In-scope README, contract, DoD, `docs/evidence`, SRS/traceability and DEC snapshots; truthful current status and tested HEAD; preserve historical logs; no premature global/instructor approval. Review Developer Completion Matrix. |
 | **6. Closure, prior findings and single-PR finishability** | Every open blocking finding across review rounds mapped to binding requirement/proved defect, file/line, remediation and same-PR owner; no avoidable leftover scope to a new Issue; list only legitimate post-merge Author verification/tracker actions. |
 
+### Reviewer handoff response and next-step clarity
+
+On receiving a review request, read the **actual** current repo policy, Issue/PR and all evidence independently even when the Author supplies a ready-to-send prompt. Respond on the authorized review/Issue thread with **all six axes**, the exact reviewed HEAD, concrete PASS/FAIL/NOT VERIFIED/N/A evidence, binding vs optional findings, verdict and **the precise next step with owner and gate** (Author correction/retest/re-review, teammate merge authorization, or original-Issue post-merge verification). When asking the Author for rework or supporting evidence, provide a **copy/paste-ready Author handoff** with file/line, expected correction and validation instructions; share with requester and correct teammate thread where permitted. Do not impersonate, pre-authorize, backdate or invent any action; say `MESSAGE NOT SENT` when delivery was not authorized or verified.
+
 ### Strict but bounded decisions
 - **FAIL or NOT VERIFIED in any applicable binding gate** => request changes or report BLOCKED, never falsely Formal APPROVE. A demonstrable correctness/security bug is blocking even if small.
 - Every **blocking** finding must cite binding requirement/contract/AC/DoD/course rule or proven defect; do not expand requirements or invent blocker merely to be strict. Optional improvements are NON-BLOCKING.
