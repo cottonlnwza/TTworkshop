@@ -1,0 +1,39 @@
+# Deliverable 1 — Sprint 1 integrated release candidate / evidence manifest
+
+**Status: PRE-MERGE CANDIDATE, NOT A RELEASE** (Author record, 2026-11-12). This is the **only** release candidate for [original Release Issue #25](https://github.com/cottonlnwza/TTworkshop/issues/25), targeting `main` through one independent-review release PR. Source baseline **`sprint_1_staging@f5938c7dc8836cbce3616e9d48ec4a9b0c273fe4`**; at preparation `main@9b27a176d3a2cbeed957fdbe194d88b57b3a11f8`. A release commit/tag does **not** exist yet. This release branch adds only documentation/current-status repair and whitespace normalization; no feature behavior is intentionally changed. The exact tested/reviewed release candidate HEAD belongs in its PR evidence and must be rechecked after every edit.
+
+## Official scope and date limits
+
+CPE334 Project Deliverable 1 (`project_deliverable_1_v1.pdf`, §2 and §3.6–4.4, pp. 1–8) requires a reviewed release on `main`, real UI→API→PostgreSQL path with F-01–F-04 rules/persistence/access, real build/test results on **actual released main SHA**, two completed feature Issues/PRs, contributions, embedded PDF evidence and release reference. Original course deadline **2026-11-08 23:59**; this candidate is from Nov 12 and **does not prove on-time delivery or LEB2 acceptance**. Docker/GCP and completed hosted CI belong to Lab 5, not Deliverable 1. The full-product SRS/SDS remains separately marked DRAFT in its historical source revisions; the Sprint 1 implementation is independently tested, but instructor/global design approval is **not** implied.
+
+## Reproduction (candidate/pre-merge only)
+
+- Prerequisites: Node.js 22.12+, npm, PostgreSQL 15+, Chrome/Chromium. The repo `README.md` and `.env.example` document local configurations, migrations and synthetic seed accounts. Never use real passwords or a development DB for destructive tests.
+- `npm ci`; `npm run build` — TypeScript validation and Vite bundle.
+- Isolated local PostgreSQL: two dedicated loopback databases **exactly** `ttworkshop_test` and `ttworkshop_seed_test`. Pass their URLs through `PG_TEST_URL` / `PG_SEED_TEST_URL` and `CHROME_PATH` then run `npm test -- --reporter=verbose`. The test guard verifies both selected DB names and loopback host before destructive fixtures; browser E2E uses Chrome.
+- Initial exact staging baseline on 2026-11-12: `npm run build` **PASS**, `npm test -- --reporter=verbose` **13/13 files, 103/103 PASS**, isolated PostgreSQL 15.15 and real Chrome. Author-local, **NOT hosted CI**, **NOT tested-on-main**. Release candidate HEAD must be retested separately after whitespace/doc edits (PR body records its output).
+- Significant checks exercised by the suites: valid/invalid login, session logout/expiry, safe 401/403 and private record ownership, Organizer Draft→Publish, Participant published discovery and ACTIVE registration, duplicate/full/deadline rejection, ten overlapping claims for one seat (1 success/9 rejected), saved registration retrieval after API restart, owner roster and pagination.
+- A local **PDF pre-release v2** and six real browser screenshots/logs exist outside this repository for course submission packaging; their existence is not LEB2 submission proof. No real student identifiers or secrets are included here.
+
+## Current versus historical versus post-merge-only Completion Matrix
+
+| Item/path | Current vs historical vs post-merge only | Evidence/ref | Remaining gate | Owner |
+|---|---|---|---|---|
+| `README.md`, `.env.example` | **Current** reproducible local setup and current F-04 staging state, repaired in this release PR; Docker/GCP not claimed | README, [PR #20](https://github.com/cottonlnwza/TTworkshop/pull/20), original [Issue #6](https://github.com/cottonlnwza/TTworkshop/issues/6) | Reviewer verify; post-main setup retest | Author / Reviewer |
+| `api/`, `web/`, `db/migrations/`, `tests/`, `scripts/`, package | **Current** F-01..04 implemented staged behavior; the candidate normalizes whitespace only in five existing source/test paths | exact candidate Git diff; 103/103 baseline staging regression + newly run PR candidate results (PR) | Six-axis independent exact-HEAD review, authorized release merge, post-main rerun | Author / independent Reviewer |
+| `docs/contracts/f-01..04`, `docs/evidence/p1-*` | **Historical versioned specifications/reviews**, including accurately dated pending statuses, not a new feature implementation | [PR #9](https://github.com/cottonlnwza/TTworkshop/pull/9), [PR #14](https://github.com/cottonlnwza/TTworkshop/pull/14), [PR #15](https://github.com/cottonlnwza/TTworkshop/pull/15), [PR #20](https://github.com/cottonlnwza/TTworkshop/pull/20) | Reviewer inspect for any genuinely current contradiction | Reviewer |
+| `docs/srs.md`, `docs/system-sds.md`, `docs/traceability.md`, `docs/sprints/plan.md` | **Historical whole-product DRAFT design / dated planning snapshots**; current executable Sprint 1 scope is F-01..04; global approvals NOT VERIFIED | original dated revisions, contracts, staging implementation | Reviewer check scope and conflicts; course grading remains instructor decision | Reviewer |
+| `AGENTS.md`, `.github/ai/*` | **Current** v1.2.1 policy active because merged staging; historical pre-merge proposal wording remains provenance, not an instruction to rewind governance | actual [merged PR #24](https://github.com/cottonlnwza/TTworkshop/pull/24) on staging SHA | Enforce review/merge gates; do not alter policy during release | Reviewer |
+| This release Issue #25, this manifest, one release PR | **Current pre-merge only**, no release tag or accepted main SHA | PR exact HEAD/merge-base, real build/test output | Independent 6-axis Review + separate explicitly authorized teammate merge | `thananun-7203` / Author |
+| Actual `main` merge commit, its tests, release tag, PDF release reference, final tracker closure | **POST-MERGE ONLY** — none may be filled in as success before the actual event | actual GitHub commit/tag and post-release rerun after authorized merge | Separate merge/record/closure authorizations, exact-main test, PDF rebuild | Independent teammate / Author / requester |
+
+## Current risk register / non-claims
+
+1. Work is after the original D1 deadline. LEB2 submission, accepted lateness and course score are **NOT VERIFIED**.
+2. Main release, actual release commit and tag are **NOT YET CREATED**. Staging build/tests cannot be represented as main release results.
+3. Root SRS and System SDS remain DRAFT globally; do not invent approval. Specific feature-level decisions have documented peer merges.
+4. Runtime behavior was not intentionally edited; whitespace-only code/test normalization still requires a fresh full regression against the exact final candidate HEAD.
+5. Full hosted CI/CD, GCP deploy and Docker are assessed separately in Lab 5. No hosted CI PASS is claimed.
+6. Student legal names and student IDs are not in the public repository; add them only to the private PDF once supplied and verify privacy before LEB2 submission.
+
+**Next step / Owner / Gate:** Author verifies and documents exact release PR HEAD, full tests, diff and this matrix. Independent Reviewer `thananun-7203` performs strict six-axis review, then **only after separate explicit merge authorization** an independent teammate merges to `main`; Author verifies the actual main commit, reruns build/integration/Chrome, updates the original Issue #25 and PDF, and requests tracker completion separately. No self-review, self-merge, speculative tag, deploy or fake grade.

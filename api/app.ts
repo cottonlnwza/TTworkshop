@@ -96,7 +96,7 @@ export function createApp(pool: Pool, options: Options) {
     (req as any).identity = current.identity;
     next();
   };
-  
+
   const requireOrganizerWithIdentity = async (req: Request, res: Response, next: NextFunction) => {
     const current = await readSession(req);
     if (!current) { res.status(401).json(fail("UNAUTHENTICATED", "Sign in required")); return; }
@@ -104,7 +104,7 @@ export function createApp(pool: Pool, options: Options) {
     (req as any).identity = current.identity;
     next();
   };
-  
+
   const workshopRouter = createWorkshopRouter(pool, requireOrigin, requireOrganizerWithIdentity);
   app.use("/api/v1", workshopRouter);
   const registrationRouter = createRegistrationRouter(

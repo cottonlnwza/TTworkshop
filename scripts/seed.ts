@@ -21,13 +21,13 @@ try {
     await pool.query("INSERT INTO users(email,password_hash,role) VALUES($1,$2,$3) " +
       "ON CONFLICT(email) DO UPDATE SET password_hash=EXCLUDED.password_hash, role=EXCLUDED.role", [email,hash,role]);
   }
-  
+
   // F-02 Synthetic Workshop Seeds
   const orgARes = await pool.query("SELECT id FROM users WHERE email='organizer.a@example.test'");
   const orgAId = orgARes.rows[0].id;
   const orgBRes = await pool.query("SELECT id FROM users WHERE email='organizer.b@example.test'");
   const orgBId = orgBRes.rows[0].id;
-  
+
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -89,6 +89,6 @@ try {
   } finally {
     client.release();
   }
-  
+
   process.stdout.write("Seeded four synthetic F-01 users (.test email domain).\n");
 } finally { await pool.end(); }
