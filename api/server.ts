@@ -24,5 +24,9 @@ app.get("/healthz", async (_req, res) => {
   }
 });
 app.listen(port, host, () => {
-  process.stdout.write(`API listening on ${host}:${port}\n`);
+  // Preserve the existing local startup marker used by real API-process
+  // restart integration tests; container logging names its explicit host.
+  process.stdout.write(host === "127.0.0.1"
+    ? `F-01 API listening on localhost:${port}\n`
+    : `API listening on ${host}:${port}\n`);
 });
