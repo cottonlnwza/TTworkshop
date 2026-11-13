@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 20
     env:
       # Dedicated, disposable service database; helper rejects any other name.
-      PG_TEST_URL: postgresql://ttworkshop_ci:ci-only-synthetic-password@127.0.0.1:5432/ttworkshop_invalid_for_protected_gate
+      PG_TEST_URL: postgresql://ttworkshop_ci:ci-only-synthetic-password@127.0.0.1:5432/ttworkshop_test
       PG_SEED_TEST_URL: postgresql://ttworkshop_ci:ci-only-synthetic-password@127.0.0.1:5432/ttworkshop_seed_test
       APP_ORIGIN: http://127.0.0.1:5173
       VITE_UNIVERSITY_TIMEZONE: Asia/Bangkok
