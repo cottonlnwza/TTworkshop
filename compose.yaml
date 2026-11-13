@@ -1,0 +1,57 @@
+name: ttworkshop-l5
+services:
+  db:
+    image: postgres:15-bookworm@sha256:72ccb1ad4dc9d5813ea40a8c1c87af746f16658fb029c17fe570ea9b881f68b3
+    environment:
+      POSTGRES_DB: ttworkshop_demo
+      POSTGRES_USER: ttworkshop_demo
+      POSTGRES_PASSWORD: ${TTW_DB_PASSWORD:?Set a synthetic TTW_DB_PASSWORD in your shell or untracked .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ttworkshop_demo -d ttworkshop_demo"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    build: .
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://ttworkshop_demo:${TTW_DB_PASSWORD:?Set TTW_DB_PASSWORD}@db:5432/ttworkshop_demo
+      APP_ORIGIN: http://localhost:${TTW_WEB_PORT:-5173}
+      APP_HOST: 0.0.0.0
+      PORT: 3000
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  web:
+    build: .
+    command: ["node", "./node_modules/vite/bin/vite.js", "--host", "0.0.0.0", "--port", "5173", "--strictPort"]
+    environment:
+      API_PROXY_TARGET: http://api:3000
+      VITE_UNIVERSITY_TIMEZONE: Asia/Bangkok
+    ports:
+      - "127.0.0.1:${TTW_WEB_PORT:-5173}:5173"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  pgdata:
