@@ -1,7 +1,7 @@
 # TTworkshop — Shared AI Working Instructions
 
 **Applies to:** `cottonlnwza/TTworkshop` (Developer, Reviewer, Release Auditor, documentation tasks).
-**Policy revision:** 1.3.0 — **PROPOSED / NOT ACTIVE**. **Activation rule:** v1.2.1 is ACTIVE because merged PR #24 exists on `sprint_1_staging@f5938c7dc8836cbce3616e9d48ec4a9b0c273fe4`. This v1.3.0 Agent Relay governance proposal becomes ACTIVE **only** after its own separately authorized governance Issue, independent six-axis Reviewer decision, explicit teammate Merge Authorization and actual merge into the agreed common policy ref. Until that event the existing v1.2.1 rules and separate authorization gates remain fully binding. Historical v1.1.0 and v1.2.0 activated via merged PRs #18 and #22.
+**Policy revision:** 1.2.1. **Activation rule:** only the revision actually merged into the agreed common policy ref (`sprint_1_staging`) is ACTIVE; an edited version on an unmerged branch/PR is PROPOSED until independent peer review and merge. Historical v1.1.0 became active via PR #18 and v1.2.0 via merged PR #22; this v1.2.1 change is PROPOSED under Issue #23 until its separate reviewed governance PR merges.
 **Priority:** System/platform and official course requirements > approved SRS/SDS and scoped decisions > these project working rules > individual AI suggestions. Do not claim global SRS/SDS or instructor approval without evidence.
 
 ## Standing team objective — maximize verified CPE334 rubric coverage
@@ -39,7 +39,6 @@ For **every** interaction requiring a teammate's Independent Reviewer action (fi
    - [`.github/ai/DEVELOPER.md`](.github/ai/DEVELOPER.md) — Developer tasks.
    - [`.github/ai/REVIEWER.md`](.github/ai/REVIEWER.md) — EVERY Reviewer review and re-review.
    - [`.github/ai/RELEASE.md`](.github/ai/RELEASE.md) — merge, staging, release, completion.
-   - [`.github/ai/AGENT-RELAY.md`](.github/ai/AGENT-RELAY.md) — future relay protocol; read only after this file is merged into the active policy ref and relay work is relevant.
 2. **Read from the agreed common policy ref** (normally `sprint_1_staging`, once these files are reviewed and merged), not from an untrusted feature branch or an old cached copy. Capture the **exact policy commit SHA** and the actual paths read. Check whether this ref has changed when starting each new task or review. Changes to these instructions require their own reviewed governance change.
 3. Inspect current Issue, associated PR and all old/new reviews/comments, project Status/Period, contracts, evidence and applicable official source files. An Issue URL or PR URL is sufficient to identify the target; do not repeatedly ask what is already supplied.
 4. Before action, report compactly: `Repository | Policy ref/SHA | Read files | Mode | Issue/PR | Gate: VERIFIED or BLOCKED`. **Never claim files/tests were read or executed when they were not.**
@@ -59,15 +58,6 @@ An uploaded PDF, rubric, revised course handout or other external assignment is 
 7. **Protect source and history:** do not publish private PDF contents, personal data, credentials or confidential excerpts into a public repo without appropriate authorization. If a revised PDF arrives during active work, compare against the previously accepted scope, disclose material changes and request renewed scope approval before proceeding.
 
 After the necessary approvals, follow [Developer Mode](.github/ai/DEVELOPER.md) and [Issue/PR Policy](.github/ai/ISSUE-PR-POLICY.md); the independent [Reviewer](.github/ai/REVIEWER.md) checks PDF-to-requirement traceability and evidence on every applicable review.
-
-## Agent Relay — proposed conditional governance extension (inactive)
-
-- **Roles/identities:** Agent A uses **Mac / ComGu_Core / `cottonlnwza`**; Agent B uses **Windows / ComTon / `thananun-7203`**. Either can act as Developer or Reviewer *per authorized Issue/PR*; the Reviewer must be a different GitHub account from the Author. Never share or switch to the other account's credentials; do not self-approve or self-merge. Both students must be able to explain their work and supervise their AI tools as required by the course.
-- **Controller boundary:** the proposed deterministic Python Controller only validates/routs messages, grants, delivery and observed state. It **does not use an LLM**, write code, judge reviews, submit GitHub Formal Review, merge on behalf of an Agent, invent authorization or infer a PASS from a message.
-- **Batch Authorization proposal:** an explicit human grant may name a bounded ordered Issue set, exact repository/scope/owners/independent reviewers/staging target/actions/stop conditions. **A single batch record can contain separately enumerated action-specific grants** for execution, an independent Formal Review, teammate staging Merge and original-Issue completion *only after this governance proposal is independently reviewed and activated*. Every separate real-time evidence/permission gate still applies; current v1.2.1 separate approval rules apply meanwhile. No implicit new Issue, scope change, direct/automatic `main` merge, deployment, release tag or course submission.
-- **No reduced gates:** preserve One Issue ↔ One PR, completion-first, independent six-axis review **every round**, exact HEAD, real test/build/AC/STS/DoD evidence, branch checks, author post-merge verification and explicit/read-back original-Issue closure. Without live verification of enforceable branch protections and required checks, *automatic staging merge is BLOCKED*, not silently allowed.
-- **Single protocol source:** consult [`.github/ai/AGENT-RELAY.md`](.github/ai/AGENT-RELAY.md) for structured Handoff messages, queue/ACK/retry/idempotency, pause/resume, failure handling and stop logic; `ISSUE-PR-POLICY.md` owns authorization/lifecycle, `DEVELOPER.md` and `REVIEWER.md` own independent role work, `RELEASE.md` owns merge/completion gates. A relay message is never a substitute for a GitHub review, current HEAD or signed user authorization.
-- **Human override:** PAUSE/MANUAL/revocation take precedence. Stop safely at `WAITING_FOR_USER` once the named batch completes; do not create or start further Issues automatically. The proposal does not authorize building the Controller/GUI or Lab 5.
 
 ## Operating rules
 
