@@ -1,0 +1,74 @@
+name: CI Quality Gate
+
+on:
+  pull_request:
+    branches:
+      - sprint_2_staging
+      - main
+  push:
+    branches:
+      - sprint_2_staging
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: build-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: ttworkshop_ci
+          POSTGRES_PASSWORD: ci-only-synthetic-password
+          POSTGRES_DB: ttworkshop_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ttworkshop_ci -d ttworkshop_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      # Negative-control phase: deliberately invalid database name to demonstrate
+      # that requireTestDatabaseUrl fails before any destructive test SQL.
+      # This temporary value is corrected in the SAME PR after the red run.
+      PG_TEST_URL: postgresql://ttworkshop_ci:ci-only-synthetic-password@127.0.0.1:5432/ttworkshop_negative_demo
+      PG_SEED_TEST_URL: postgresql://ttworkshop_ci:ci-only-synthetic-password@127.0.0.1:5432/ttworkshop_seed_test
+      APP_ORIGIN: http://127.0.0.1:5173
+      VITE_UNIVERSITY_TIMEZONE: Asia/Bangkok
+      CI: "true"
+    steps:
+      - name: Check out exact PR head (not synthetic PR merge ref)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Record tested Git SHA
+        run: git rev-parse HEAD
+      - name: Set up Node LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Build TypeScript and frontend
+        run: npm run build
+      - name: Install real Chromium and required libraries
+        run: npx --no-install playwright-core install --with-deps chromium
+      - name: Run real PostgreSQL integration and Chromium browser tests
+        run: |
+          set -o pipefail
+          npm test -- --reporter=verbose 2>&1 | tee "$RUNNER_TEMP/vitest-output.log"
+      - name: Retain test output for review (including failures)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-output-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/vitest-output.log
+          if-no-files-found: warn
+          retention-days: 7
