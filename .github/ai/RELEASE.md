@@ -6,6 +6,14 @@ Read root `AGENTS.md` and `ISSUE-PR-POLICY.md`, plus applicable mode policy and 
 
 A separate authorized release/integration Issue with independently reviewed release PR is required for `sprint_N_staging → main` when the agreed workflow calls for release. No direct unreviewed push or self-merge to `main`. Do not infer deploy or production readiness from staging merge.
 
+## Conditional review-to-merge-to-closure flow — Issue #37 proposal (INACTIVE)
+
+The user may **in a future activated policy revision** grant the independent teammate a bounded `MERGE_STAGING` permission alongside separately identified `SUBMIT_REVIEW` and Author post-merge completion permissions in a single initial instruction. It is a distinct conditional grant, **not** automatic permission inferred from an `APPROVED` message. Current active policy still requires existing separate action-specific authorizations. No self-merge; never auto-merge `main` or release/deploy.
+
+A real `CHANGES_REQUESTED` means Author continues ordinary scoped fixes and retests on the **same unmerged PR** under an already valid work grant, without re-requesting that same permission. A real independent `APPROVED` triggers a new read-back of reviewed HEAD/base, Review actor/state, binding threads, exact-HEAD checks, enforceable required protection and mergeability. Merge only if each live gate passes and this Reviewer's own explicit merge grant is valid. If changed HEAD, missing check/protection, unavailable permissions or stale approval, stop the merge, preserve state and report the exact blocker.
+
+After verified merge SHA/tree, the Author's separately scoped completion grant permits post-merge regression checks, evidence in original Issue, evidenced AC checklist, Project #4 Status/Period read-back and issue closure; no repeated permission request for the same valid grant. Do not treat workflow descriptions as a currently deployed autonomous Controller.
+
 ## Before approve/merge
 - Verify the exact reviewed HEAD, applicable AC/STS/DoD, actual tests and evidence, independent reviewer and all blocking review threads.
 - Developer/Reviewer must complete in-scope current-status documentation in the same work PR; only genuinely future merge facts belong in post-merge Issue evidence.
