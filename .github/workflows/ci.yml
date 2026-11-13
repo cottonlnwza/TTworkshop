@@ -1,0 +1,101 @@
+name: CI Quality Gate
+
+on:
+  pull_request:
+    branches:
+      - sprint_2_staging
+      - main
+  push:
+    branches:
+      - sprint_2_staging
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: build-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      # Dedicated, disposable service database; helper rejects any other name.
+      PG_TEST_URL: postgresql://ttworkshop_ci:ci-only-synthetic-password@127.0.0.1:5432/ttworkshop_test
+      PG_SEED_TEST_URL: postgresql://ttworkshop_ci:ci-only-synthetic-password@127.0.0.1:5432/ttworkshop_seed_test
+      APP_ORIGIN: http://127.0.0.1:5173
+      VITE_UNIVERSITY_TIMEZONE: Asia/Bangkok
+      CI: "true"
+    steps:
+      - name: Check out exact PR head (not synthetic PR merge ref)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Record tested Git SHA
+        run: git rev-parse HEAD
+      - name: Set up Node LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Build TypeScript and frontend
+        run: npm run build
+      - name: Install real Chromium and required libraries
+        run: npx --no-install playwright-core install --with-deps chromium
+      # The existing test helper requires both the client URL AND PostgreSQL's
+      # actual server IP to be loopback. GitHub's bridged `services:` network
+      # returns a Docker bridge IP from inet_server_addr(), and is refused.
+      # On this disposable Linux runner, host-network PostgreSQL explicitly
+      # listens on 127.0.0.1, preserving the application's safety checks.
+      - name: Start isolated loopback PostgreSQL 15
+        run: |
+          set -euo pipefail
+          docker run --detach --rm --name ttworkshop-ci-pg --network host \
+            -e POSTGRES_USER=ttworkshop_ci \
+            -e POSTGRES_PASSWORD=ci-only-synthetic-password \
+            -e POSTGRES_DB=ttworkshop_test \
+            postgres:15 -c listen_addresses=127.0.0.1
+          ready=0
+          for attempt in $(seq 1 60); do
+            if docker exec ttworkshop-ci-pg pg_isready -h 127.0.0.1 -U ttworkshop_ci -d ttworkshop_test >/dev/null 2>&1; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker logs ttworkshop-ci-pg
+            exit 1
+          fi
+          node --input-type=module -e '
+            import { Client } from "pg";
+            const client = new Client({ connectionString: process.env.PG_TEST_URL });
+            await client.connect();
+            try {
+              const result = await client.query("SELECT current_database() AS name, host(inet_server_addr()) AS server_ip");
+              const row = result.rows[0];
+              if (row.name !== "ttworkshop_test" || row.server_ip !== "127.0.0.1") {
+                throw new Error("CI PostgreSQL must be an isolated loopback test database");
+              }
+              console.log("CI PostgreSQL loopback database verified");
+            } finally {
+              await client.end();
+            }
+          '
+      - name: Run real PostgreSQL integration and Chromium browser tests
+        run: |
+          set -o pipefail
+          npm test -- --reporter=verbose 2>&1 | tee "$RUNNER_TEMP/vitest-output.log"
+      - name: Stop disposable PostgreSQL service
+        if: always()
+        run: docker rm -f ttworkshop-ci-pg || true
+      - name: Retain test output for review (including failures)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-output-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/vitest-output.log
+          if-no-files-found: warn
+          retention-days: 7
