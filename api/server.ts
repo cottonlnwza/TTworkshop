@@ -10,6 +10,19 @@ const pool = new Pool({ connectionString: databaseUrl });
 await migrate(pool);
 const app = createApp(pool, { appOrigin, production, sessionHours: 8 });
 const port = Number(process.env.PORT ?? 3000);
-app.listen(port, "127.0.0.1", () => {
-  process.stdout.write("F-01 API listening on localhost:" + port + "\n");
+const host = process.env.APP_HOST ?? "127.0.0.1";
+if (!["127.0.0.1", "0.0.0.0"].includes(host)) {
+  throw new Error("APP_HOST must be 127.0.0.1 or 0.0.0.0");
+}
+if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("PORT must be a valid TCP port");
+app.get("/healthz", async (_req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.status(200).json({ status: "ok" });
+  } catch {
+    res.status(503).json({ status: "unavailable" });
+  }
+});
+app.listen(port, host, () => {
+  process.stdout.write(`API listening on ${host}:${port}\n`);
 });
