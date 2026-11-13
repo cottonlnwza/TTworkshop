@@ -1,6 +1,6 @@
 # TTworkshop One Issue ↔ One PR and Completion-first Policy
 
-**Revision:** 1.0.0. **Applicable:** all modes. User-requested governance, not a professor-imposed 1:1 rule.
+**Revision:** 1.1.0 — **PROPOSED / NOT ACTIVE** until separately authorized independent governance review and actual merge into the agreed policy ref. All pre-existing 1.0.0 separate authorization gates remain applicable until then. User-requested governance, not a professor-imposed 1:1 rule.
 
 ## Hard mapping and authority
 - Exactly one execution Issue owns one work PR, and one work PR owns one execution Issue. Search open, closed and merged PR history before creating any PR. A closed/unmerged/merged PR does **not** free the Issue to take another PR.
@@ -39,3 +39,15 @@ Do not hide legitimate defects or required approval/documentation to avoid a new
 ## Project board
 
 Project #4 fields `Status` and `Period` must match actual verified workflow stages. Typical progression: Backlog → Specified → Started → PR Review ↔ Fixing → Done. Do not fabricate skipped history or rewind completed work. Every authorized stage change requires read-back and explicit reporting. If unavailable: `KANBAN NOT VERIFIED / BLOCKED`.
+
+## Proposed Batch Grant and relay lifecycle (INACTIVE until governance merge)
+
+**Authorization record contract:** each approved batch must contain `batch_id` (controller-issued), human approver and authenticated approval evidence, issue IDs in a finite ordered allowlist, owner + independent Reviewer GitHub account per Issue, branch target, scoped requirements/dependencies, allowed operations, action-specific grants, expiry or bounded validity, stop conditions, revocation source and append-only audit trail. Include explicit action permissions such as `IMPLEMENT`, `TEST`, `COMMIT_PUSH`, `OPEN_PR`, `SUBMIT_REVIEW`, `MERGE_STAGING`, `VERIFY_POST_MERGE`, `UPDATE_CHECKLIST`, `UPDATE_PROJECT`, `CLOSE_ISSUE` with principal and issue/PR bindings; missing fields deny action.
+
+**Proposed explicit change to current separate-approval rule:** after this governance revision is ACTIVE, one human-approved batch may contain *several distinct and individually enumerated grants* for Issue execution, formal independent Review, authorized teammate staging Merge and original-Issue closure. This is not a generic blanket permission: separate grants for different GitHub principals remain separately verifiable at execution time, and all evidence gates remain mandatory. An old grant, an instruction in a Handoff or a broad goal must never imply these permissions. Until governance activation, obtain the existing separate authorizations for Review/Merge/Closure. Any new Issue, scope/requirements change, `main` integration, tag, deploy or LEB2 submission remains outside the batch unless separately approved under its appropriate rules; never add it automatically.
+
+**Lifecycle:** (1) validate live policy SHA + grant + current Issue/PR ownership; (2) Developer performs scoped work, tests and one PR; (3) Reviewer independently performs all six axes on actual HEAD and submits GitHub review only under an expressly scoped grant; (4) CHANGES_REQUESTED reworks *same unmerged PR* and invalidates assumptions about old-HEAD approval; (5) staging merge only by independently authenticated teammate after live merge gate and explicit named `MERGE_STAGING` grant; (6) Author verifies actual staging merge SHA/tree and executes applicable tests; (7) only after matching authorized completion grants and real read-back update original Issue checklist, Project `Done` preserving Period and close with reason `completed`; (8) dispatch next **preapproved** Issue only after current verified completion and dependency checks. Log every step; no separate tracker-only PR.
+
+**Fail closed:** absent/revoked/expired grant, changed policy SHA, PR HEAD/base, unresolved binding Review, failed/missing checks, missing completed AC/STS/DoD, wrong GitHub account, stale queue payload or absent branch protection blocks *that action*. Unaffected, dependency-independent authorized work may continue. A GitHub API success or message ACK alone is not completion. No auto-created Issues. End full batch in `WAITING_FOR_USER`.
+
+[Structured Relay Protocol](AGENT-RELAY.md) defines the deterministic message schema/state-machine and does **not** relax this policy.

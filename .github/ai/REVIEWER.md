@@ -24,3 +24,13 @@ On receiving a review request, read the **actual** current repo policy, Issue/PR
 - Provide matrix `Axis | Result | Evidence | Blocker / owner` and final `Issue/PR/HEAD | AC/STS/DoD coverage | Evidence limits | Verdict`.
 - Review submission (COMMENT/REQUEST_CHANGES/APPROVE), merge and tracker modifications require explicit separate user authorization; read-only audit does not authorize submission. Reviewer is not Author; never self-approve/self-merge.
 - Once approved and merged by teammate, issue an **Author Post-merge Completion Verification** handoff with true PR/Issue, merge SHA and checks; don't close original Issue on behalf of Author without authorization, and don't propose a fresh Issue solely for administrative completion.
+
+## Proposed Relay Reviewer workflow (INACTIVE until governance merge)
+
+1. On `READY_FOR_REVIEW` Handoff, independently validate the authenticated sender/receiver, actual PR, Developer vs Reviewer GitHub accounts, active policy ref/SHA, current PR HEAD and base, Issue scope, all comments/reviews/threads and requested action-specific human grant. A structured message never supplies an assumed verdict.
+2. Run the **complete six-axis Strict Reviewer Checklist on EVERY round** (including re-review); inspect actual diff, security/data, AC/STS/DoD, Completion Matrix, commands and real test evidence. Record independently verified SHA and PASS/FAIL/NOT VERIFIED/N/A with file/line/command references. Do not claim an independent test rerun unless actually performed; reject any applicable binding FAIL/NOT VERIFIED.
+3. Under the distinct authorized `SUBMIT_REVIEW` grant, post an actual formal GitHub `REQUEST_CHANGES` with binding findings and exact rework handoff, or `APPROVE` only if all applicable binding axes pass on current HEAD. An Agent-authored `APPROVED` status is **not** a GitHub Review. Reviewer cannot act as Author or merge their own PR.
+4. After GitHub review write, read back Review actor, ID, state and reviewed commit; independently re-read HEAD/base and unresolved blockers. Emit the corresponding **payload** (`CHANGES_REQUESTED`, `APPROVED` or `BLOCKED`) containing GitHub Review URL/ID and exact reviewed SHA. Controller, not Agent, attaches message identity/sequence/delivery metadata. If HEAD moves, invalidate stale approval and re-review in full.
+5. Report `NEXT_ACTION`, owner and authorization gate in each response. An ACK, retry or old-HEAD review cannot grant Merge. Continue to observe human PAUSE/MANUAL, policy changes, expired grants and other stop conditions.
+
+See [Agent Relay protocol](AGENT-RELAY.md). The strict independent Reviewer remains responsible for real technical assessment; the deterministic Controller never reviews or supplies a verdict.
