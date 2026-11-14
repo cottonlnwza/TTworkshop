@@ -67,3 +67,23 @@ Issue #31 adds a local-development Docker Compose stack with three services: Pos
 4. Capture the `SMOKE_PASS <title>` output. Run `docker compose restart`, then `docker compose up -d --wait --wait-timeout 120`, and `APP_ORIGIN=... SEED_PASSWORD=... node scripts/docker-smoke.mjs --verify <title>` to verify the workshop persists in the database volume. Run `docker compose down` to stop safely **without deleting data**. To intentionally reset all local demo data, use `docker compose down -v` (**destructive**; only for this disposable stack). To rebuild from a clean checkout, copy only the non-secret `.env` configuration or set environment variables anew and rerun build/up/smoke. Run `docker image inspect ttworkshop-l5-api ttworkshop-l5-web` to capture image IDs/digests.
 
 The browser endpoint is for localhost development only; this stack is **not** an HTTPS production/GCP deployment and does not implement Lab 5 cloud/release Issues #32–#33. For exact test evidence and limitations, see [L5-02 Docker evidence](docs/evidence/l5-02-docker.md).
+
+## Lab 5 GCP deployment preparation (Issue #32 — NOT DEPLOYED)
+
+The **proposed**, not yet cloud-authorized, production layout is a single Cloud Run
+Node container serving the prebuilt Vite UI and same-origin API, backed by
+durable Cloud SQL PostgreSQL. In production set `SERVE_WEB=true`,
+`NODE_ENV=production`, `APP_HOST=0.0.0.0`, `PORT=8080`,
+`APP_ORIGIN` to the *real* public HTTPS origin and inject
+`DATABASE_URL` securely via Secret Manager. No credentials belong in Git.
+
+The existing local Docker Compose development stack is unchanged. The
+production static-asset routing can be checked without any cloud calls with
+`npx vitest run tests/web-static.unit.test.ts` and
+`node scripts/cloud-preflight.mjs`. These checks are **not** proof of GCP
+deployment, persistent Cloud SQL data, active billing or authorization.
+
+Read the [L5-03 preflight, access gates, security, migration, rollback and
+future cloud test plan](docs/evidence/l5-03-gcp-preflight.md) before creating
+any billable service. Actual Cloud deployment and evidence require a separately
+authorized action; release of `main` belongs to Issue #33.

@@ -1,4 +1,6 @@
 import { Pool } from "pg";
+import { resolve } from "node:path";
+import { attachWebUi } from "./web-static.js";
 import { createApp } from "./app.js";
 import { migrate } from "./migrate.js";
 const databaseUrl = process.env.DATABASE_URL;
@@ -9,6 +11,7 @@ if (production && !appOrigin.startsWith("https://")) throw new Error("APP_ORIGIN
 const pool = new Pool({ connectionString: databaseUrl });
 await migrate(pool);
 const app = createApp(pool, { appOrigin, production, sessionHours: 8 });
+if (process.env.SERVE_WEB === "true") attachWebUi(app, resolve("dist"));
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.APP_HOST ?? "127.0.0.1";
 if (!["127.0.0.1", "0.0.0.0"].includes(host)) {
