@@ -1,5 +1,13 @@
 # L5-03 / Issue #32 — GCP implementation preflight (NOT DEPLOYED)
 
+## 2026-11-15 — Continuing after provisioning: blocked credential step and tests
+
+Read-only Google Cloud verification again confirmed `ttworkshop-pg` RUNNABLE, `ttworkshop` database, only the built-in `postgres` database user, empty `ttworkshop-database-url` Secret version list, runtime Cloud SQL Client and per-secret Secret Accessor bindings, 8,000 THB before-credit alerts-only Budget and Project #4 Status `Started`, Period 2. The operator's earlier credential automation was blocked before execution; **do not retry it through another mechanism to evade the safety check**. No public Cloud Run deployment was authorized or performed in this continuation.
+
+New finding from Google's Cloud SQL PostgreSQL user documentation: **creating a built-in database user without explicit roles assigns `cloudsqlsuperuser` by default**. A dedicated Cloud Run service account with minimal IAM permissions does not remove that PostgreSQL privilege. Before treating the app DB identity as least privilege, the operator must review a separate database-role strategy and privately create/configure the user through an approved method. Google reference: https://docs.cloud.google.com/sql/docs/postgres/create-manage-users . The reviewed manual operator steps and placeholder-only Cloud SQL Unix socket URI are in `docs/labs/lab-05/deployment.md`.
+
+The read-only HTTPS smoke client now rejects cross-origin or HTTP-downgrade redirects and malformed origins, and a Python standard-library test suite covers its guards **without any network or credentials**. CI `build-test` adds this offline Python suite so the PR's existing required check covers the new smoke-test behavior. The local checks and exact PR HEAD/run results must be recorded after testing; no simulated result is evidence of live Cloud SQL connectivity or persistence.
+
 ## 2026-11-15 — Authorized cloud setup and verified state (NOT DEPLOYED)
 
 Earlier "no cloud resources" / "not verified" statements below are dated historical preflight observations, now superseded by this record. Authorization: the owner explicitly approved six GCP service APIs, Cloud SQL PostgreSQL 16 Enterprise `db-f1-micro` SSD 10 GB, `ttworkshop` database/app user, runtime SA and Cloud SQL Client, and narrowly scoped Secret access; separately authorized enabling the Budget API and creating a 1,500 THB alerts-only budget **only if none already covered the project**. Course Lab 5 handout §4.4 and Student Guide v1.1 Episodes 1/5 require owner-reviewed commands, no billing Upgrade and an existing Budget Alert before resource creation.

@@ -12,7 +12,7 @@ if [[ "${DRY_RUN:-1}" != '1' ]]; then
   exit 3
 fi
 cat <<EOF
-[DRY_RUN ONLY] TTworkshop GCP plan — NO commands below are executed
+[DRY_RUN ONLY] TTworkshop GCP reference plan — NO commands below are executed BY THIS SCRIPT
 Project: ${PROJECT_ID}
 Region: ${REGION}
 Source: Lab 5 handout §4.4/§5; Student Guide v1.1 Episodes 1, 5–8
@@ -42,6 +42,9 @@ Approval gates: instructor handout verified; active Free Trial; budget alert; hu
 10. Keep service running for grading; control SQL hourly charges and tear down ONLY
     with separate authorization, preserving DB/backup until retention is approved.
 
-Not executed: APIs, IAM, Cloud SQL, Artifact Registry, Secret Manager,
-build/push, Cloud Run, migrations, data mutation and release.
+Current real resource state must be read separately from GCP. On 2026-11-15,
+the APIs, Cloud SQL, database, runtime IAM and Secret metadata were already
+created via separately approved operator actions. This is still dry-run ONLY.
+Outstanding: app DB user, Secret version/value, Artifact Registry, build/push,
+Cloud Run, migration, live domain and persistence testing, main release.
 EOF

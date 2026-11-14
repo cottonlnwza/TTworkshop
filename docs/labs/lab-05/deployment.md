@@ -1,4 +1,4 @@
-# Lab 5 — TTworkshop Deployment Procedure (planned; not deployed)
+# Lab 5 — TTworkshop Deployment Procedure (partially provisioned; not deployed)
 
 **Official sources:** `01_SE_Lab_5_updated.pdf` pp. 1–10 (R-01..R-12, C-01..C-06); `03_Student-Guide-GCP-Deployment-and+CI+CD-V1_1.pdf` v1.1, Episodes 0–10; `02_lab5-starter-kit.zip` (TokTickIT example, not production-ready for this app).
 
@@ -36,6 +36,7 @@ From the TTworkshop repository root:
 npm ci --no-audit --no-fund
 npm run build
 npx vitest run tests/web-static.unit.test.ts
+python3 -m unittest discover -s tests -p 'test_cloud_smoke.py' -v
 node scripts/cloud-preflight.mjs
 DRY_RUN=1 PROJECT_ID=cpe334-ttworkshop REGION=asia-southeast1 bash deploy/plan.sh
 python3 -m py_compile deploy/smoke_test.py
@@ -44,10 +45,12 @@ git diff --check
 
 `deploy/plan.sh` intentionally has **no mutation mode**. It prints a human-reviewed sequence but does not run `gcloud`, alter Billing, IAM, databases or APIs, create resources, build images, or deploy. The TokTickIT `deploy/deploy.sh` **must not be run**: it uses Prisma and TokTickIT secrets/resource names, incompatible with TTworkshop. Any subsequent execution of commands must be checked against actual Google Cloud documentation, estimated cost, least-privilege IAM, and the human-permission gate from the Lab 5 guide.
 
-## Future provisioning and release gates (NOT EXECUTED)
+## Remaining provisioning and release gates (NOT EXECUTED)
 
-1. Confirm correct personal Gmail Free Trial, remaining credit, actual alerts-only budget and service restrictions. Check resource pricing for the chosen region. Do not upgrade, change Billing, or automatically grant IAM. All actual mutations require human review of exact commands per handout p.8 / guide p.1.
-2. After human review, enable required APIs, provision Artifact Registry and the smallest compatible Cloud SQL PostgreSQL instance (10 GiB SSD, auto-increase disabled), create database/user and dedicated runtime service account, and put generated URL/password only in Secret Manager. Never put credentials, full URI or tokens in code, output, terminal history, GitHub or screenshots. Only the runtime SA gets Cloud SQL Client and access to required secrets.
+1. Verify the project Free Trial and existing 8,000 THB alerts-only budget read-back. Check current credits/billing in the owner Console before new paid services; do not Upgrade. The basic APIs, Cloud SQL and runtime SA/Secret IAM already exist; **do not repeat creation of existing resources**. Read each proposed remaining GCP/IAM/database command and obtain human approval per Lab 5 handout p.8 / Student Guide p.1.
+2. Complete the missing app database user and Secret version via an **approved operator-controlled private credential entry**; no secret values in this agent chat or in Git. If using Google Cloud Console, select Project `cpe334-ttworkshop`, Cloud SQL → `ttworkshop-pg` → Users → Add user account, choose built-in authentication and user `ttworkshop_app`, and set a strong private password. **Important least-privilege caveat:** Google Cloud docs state a built-in PostgreSQL user normally receives `cloudsqlsuperuser` by default. Do not treat `ttworkshop_app` as a least-privilege runtime DB role until a reviewed role/permission plan is implemented. Grant only needed permissions for app DML and keep migrations separately controlled. The course reference kit's runtime Service Account IAM alone does **not** limit the PostgreSQL user's privileges.
+
+   Then use Secret Manager → `ttworkshop-database-url` → Add new version in Console. The secret payload must follow the URL structure `postgresql://ttworkshop_app:<URL_ENCODED_PASSWORD>@/ttworkshop?host=%2Fcloudsql%2Fcpe334-ttworkshop%3Aasia-southeast1%3Attworkshop-pg`. This is a **placeholder only**, never a value to commit or share. URL-encode the password using a private local method; Google Cloud's `/cloudsql/PROJECT:REGION:INSTANCE` Unix socket path is supported for Cloud Run. Confirm existence of user/secret version only via metadata read-back; **never access or print the secret value for proof**. If the operator has not confirmed completion, block all DB-connection and deployment claims.
 3. Build the exact approved commit, push its image to Artifact Registry, record image digest. Run `npm run db:migrate` as a separate Cloud Run migration job with the secret and Cloud SQL attachment. **Never run `npm run db:seed` in production**; it rejects production by design. Provision authorized synthetic test accounts through an explicitly approved secure process rather than hardcoded credentials.
 4. Deploy service with `NODE_ENV=production`, `APP_HOST=0.0.0.0`, `SERVE_WEB=true`, `PORT=8080`, and inject the database URI from Secret Manager. Set `APP_ORIGIN` to the actual HTTPS service origin before exposing traffic and before authentication tests. This value is not predictable before Cloud Run creates the URL. Verify runtime service account, SQL attachment, Cloud Run concurrency/max scale, TLS, allowed ingress, migrations and rollback.
 5. Run `python3 deploy/smoke_test.py https://ACTUAL_SERVICE_URL` (read-only, checks `/` + `/healthz`). Test authenticated Organizer publish and Participant registration, duplicate/full rejection and authorization using synthetic accounts; record redacted screenshots with URL and commit. Save record IDs and timestamps; trigger a real restart/new revision and then a separate redeploy, proving the same DB rows remain after both. No fake or local-only claims.
@@ -60,7 +63,7 @@ Submission deadline **Sunday 2026-11-15 23:59 Asia/Bangkok**; one PDF `lab5_sec<
 
 | Gate | State | Required evidence still missing |
 | --- | --- | --- |
-| AC-L5-10 | PARTIAL | Actual budget alert, approved exact commands and confirmed permitted access |
+| AC-L5-10 | PARTIAL | Budget, project/IAM, course reference and prior approvals verified; credit balance is screenshot-based and remaining credential/DB role gate outstanding |
 | AC-L5-11 | NOT VERIFIED | Public HTTPS URL and live UI/API/DB business workflow |
 | AC-L5-12 | NOT VERIFIED | Record IDs before/after restart and redeploy |
 | AC-L5-13 | PARTIAL | Actual secrets/IAM grants and rollback proof |

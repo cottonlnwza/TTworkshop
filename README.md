@@ -70,9 +70,14 @@ The browser endpoint is for localhost development only; this stack is **not** an
 
 ## Lab 5 GCP deployment preparation (Issue #32 — NOT DEPLOYED)
 
-The **proposed**, not yet cloud-authorized, production layout is a single Cloud Run
-Node container serving the prebuilt Vite UI and same-origin API, backed by
-durable Cloud SQL PostgreSQL. In production set `SERVE_WEB=true`,
+The proposed production layout is a single Cloud Run Node container serving
+the prebuilt Vite UI and same-origin API, backed by durable Cloud SQL PostgreSQL.
+**2026-11-15 actual status:** selected GCP APIs, a budget alert, Cloud SQL
+PostgreSQL 16 Enterprise `db-f1-micro` with database `ttworkshop`, runtime
+Service Account and Secret metadata/IAM were verified. **No app DB user or
+Secret version exists; no Cloud Run deployment, live URL, migration or
+persistence verification has been performed.** Cloud SQL is RUNNABLE and
+consumes Free Trial credits while it exists. In production set `SERVE_WEB=true`,
 `NODE_ENV=production`, `APP_HOST=0.0.0.0`, `PORT=8080`,
 `APP_ORIGIN` to the *real* public HTTPS origin and inject
 `DATABASE_URL` securely via Secret Manager. No credentials belong in Git.
@@ -80,10 +85,11 @@ durable Cloud SQL PostgreSQL. In production set `SERVE_WEB=true`,
 The existing local Docker Compose development stack is unchanged. The
 production static-asset routing can be checked without any cloud calls with
 `npx vitest run tests/web-static.unit.test.ts` and
-`node scripts/cloud-preflight.mjs`. These checks are **not** proof of GCP
-deployment, persistent Cloud SQL data, active billing or authorization.
+`node scripts/cloud-preflight.mjs`, and the read-only smoke script's independent
+Python checks with `python3 -m unittest discover -s tests -p 'test_cloud_smoke.py' -v`.
+These checks are **not** proof of live GCP deployment or data persistence.
 
-Read the [L5-03 preflight, access gates, security, migration, rollback and
-future cloud test plan](docs/evidence/l5-03-gcp-preflight.md) before creating
-any billable service. Actual Cloud deployment and evidence require a separately
-authorized action; release of `main` belongs to Issue #33.
+Read the [L5-03 live provisioning evidence and outstanding deployment gates](docs/evidence/l5-03-gcp-preflight.md)
+and the [Lab 5 deployment procedure](docs/labs/lab-05/deployment.md).
+Actual Cloud deployment and release require separate authorization; release
+of `main` belongs to Issue #33.

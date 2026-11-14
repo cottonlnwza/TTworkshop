@@ -9,11 +9,18 @@ from urllib.request import Request, urlopen
 
 def check(origin):
     parsed = urlparse(origin)
-    if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password or parsed.path not in ("", "/") or parsed.query or parsed.fragment:
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username is not None or parsed.password is not None or parsed.path not in ("", "/") or parsed.query or parsed.fragment:
         raise ValueError("Expected a bare HTTPS service origin, with no userinfo, path or query")
+    try:
+        parsed.port  # Reject invalid port syntax before any request.
+    except ValueError as exc:
+        raise ValueError("Invalid HTTPS service port") from exc
     for path, expected in (("/healthz", "json"), ("/", "html")):
         url = origin.rstrip("/") + path
         with urlopen(Request(url, headers={"User-Agent": "ttworkshop-lab5-readonly-smoke/1"}), timeout=15) as response:
+            final = urlparse(response.geturl())
+            if final.scheme != "https" or final.netloc != parsed.netloc or final.path != path:
+                raise RuntimeError("Smoke request was redirected away from the expected HTTPS endpoint")
             if response.status != 200:
                 raise RuntimeError(f"{path}: HTTP {response.status}")
             body = response.read(65536)
