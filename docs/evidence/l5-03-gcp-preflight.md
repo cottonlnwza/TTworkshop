@@ -1,5 +1,11 @@
 # L5-03 / Issue #32 — GCP implementation preflight (NOT DEPLOYED)
 
+## 2026-11-14 follow-up — new official Lab 5 materials verified
+
+The original preflight record below is a **historical snapshot**, not the latest account/access assessment. The later instructor materials are now available: `01_SE_Lab_5_updated.pdf` (Lab 5 handout, 11 pp.), `03_Student-Guide-GCP-Deployment-and+CI+CD-V1_1.pdf` (Student Guide v1.1, 105 pp.), and `02_lab5-starter-kit.zip` (TokTickIT example). The handout §4.4 **explicitly permits a personal Gmail Free Trial**, and §5 / Student Guide Episode 0 **recommend** Artifact Registry + Cloud Run + Cloud SQL PostgreSQL + Secret Manager + GitHub Actions/WIF. An exact stack is not mandatory. The user furnished a Free Trial Billing screen showing THB 10,133 available, 90 days remaining, and no Upgrade. Live gcloud authenticated access verified project `cpe334-ttworkshop` ACTIVE, billingEnabled=true, and `roles/owner`. Cloud Run and Cloud SQL Admin APIs were disabled when read, and **remain untouched** by this Issue's offline work.
+
+Current bounded preparation: `deploy/plan.sh` prints an offline, non-executing, TTworkshop-specific mutation review plan; `deploy/smoke_test.py` checks only `/` and `/healthz` over HTTPS; `docs/labs/lab-05/deployment.md` documents configuration, guide deviations, release/permission gates, budget risks and evidence. No Prisma deployment scripts are copied unadapted. The handout §9 and guide p.1 explicitly require human review of commands and prohibit an AI making independent Billing/IAM/database changes. **No budget alert, actual cloud resources, GitHub-to-main release or persistence proof is claimed.** Keep public service running for grading only after an authorized deployment. The source-derived hard rubric includes R-03/R-04 (public GCP UI/API/DB and restart/redeploy persistence), R-07/R-08 (reviewed `main` release pipeline, SHA), C-04/C-05/C-06, and the required PDF submission by 2026-11-15 23:59 Asia/Bangkok.
+
 **Scope:** Issue #32 only; one PR into `sprint_2_staging`. This is a source/test/documentation change. **No GCP API was enabled, no cloud resource created, no billing action, no deploy performed.** Do not check AC-L5-10..14 merely because this PR is present.
 
 ## Source and decision status
