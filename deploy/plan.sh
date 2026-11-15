@@ -28,7 +28,11 @@ Approval gates: instructor handout verified; active Free Trial; budget alert; hu
    Runtime service account: ttworkshop-runner, Cloud SQL Client and per-secret Secret Accessor only
    Secrets: ttworkshop-database-url (never expose URI in CLI logs or Git)
 4. Build exact-reviewed Git SHA and record immutable Artifact Registry digest.
-5. Migrations: Cloud Run job uses 'npm run db:migrate' with DATABASE_URL from Secret Manager.
+5. Migrations: a separate, independently authorized Cloud Run job uses
+   'npm run db:migrate' with a MIGRATOR-ONLY DATABASE_URL Secret and SA.
+   Runtime Cloud Run SA never reads the migrator Secret and NEVER runs DDL on startup.
+   First review deploy/db-role-review.md, reduce runtime DB user privileges,
+   and verify the separate migration identity and DB grants with human approval.
    Do NOT run 'npm run db:seed' in production: scripts/seed.ts explicitly refuses it.
 6. Cloud Run service: ttworkshop, image digest, HTTPS public access only after approval,
    NODE_ENV=production, SERVE_WEB=true, APP_HOST=0.0.0.0, PORT=8080,

@@ -3,13 +3,20 @@ import { resolve } from "node:path";
 import { attachWebUi } from "./web-static.js";
 import { createApp } from "./app.js";
 import { migrate } from "./migrate.js";
+import { prepareDatabaseOnStartup } from "./runtime-schema.js";
 const databaseUrl = process.env.DATABASE_URL;
 const appOrigin = process.env.APP_ORIGIN;
 if (!databaseUrl || !appOrigin) throw new Error("DATABASE_URL and APP_ORIGIN are required");
 const production = process.env.NODE_ENV === "production";
 if (production && !appOrigin.startsWith("https://")) throw new Error("APP_ORIGIN must be HTTPS in production");
 const pool = new Pool({ connectionString: databaseUrl });
-await migrate(pool);
+try {
+  await prepareDatabaseOnStartup(pool, production, () => migrate(pool));
+} catch (error) {
+  try { await pool.end(); } catch { /* do not expose driver connection details */ }
+  if (production) throw new Error("Production database schema is not ready; run the reviewed migration job first");
+  throw error;
+}
 const app = createApp(pool, { appOrigin, production, sessionHours: 8 });
 if (process.env.SERVE_WEB === "true") attachWebUi(app, resolve("dist"));
 const port = Number(process.env.PORT ?? 3000);

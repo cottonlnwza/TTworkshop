@@ -6,6 +6,8 @@
 
 **Credential verification limit:** Only user and Secret version metadata were read through GCP APIs. **The Secret value has not been read or validated.** The user chose the built-in `cloudsqlsuperuser` role for this Lab setup; least-privilege database access remains a documented security risk and does not satisfy AC-L5-13 on its own.
 
+**Reviewer #42 `CHANGES_REQUESTED` remediation (code only, 2026-11-15):** `api/server.ts` now invokes `prepareDatabaseOnStartup()`. In Production this reads `schema_migrations` and verifies the migration filenames bundled with the exact image; it does **not** run `migrate()` or issue DDL. If migration history is absent, incomplete, unexpectedly ahead, unreadable or inaccessible to the runtime DB role, startup fails closed with redacted error, before opening the HTTP listener. Existing Development/Test startup still auto-migrates as before. The only production DDL entrypoint is a separately reviewed one-shot `scripts/migrate.ts` job with its own migration DB login, service account and per-secret IAM. See [`deploy/db-role-review.md`](../../../deploy/db-role-review.md) for exact role/grant/revocation proposals, explicit operator review gates and recovery, **not yet executed**. Never inject migrator credentials into the public API service.
+
 ## Architecture and deviations from Starter Kit
 
 Reference services are **recommended**, not a forced exact stack: Artifact Registry, Cloud Run, Cloud SQL PostgreSQL, Secret Manager, GitHub Actions with Workload Identity Federation. TTworkshop uses React/Vite + Express 5 + `pg` and SQL migrations, **not Prisma**. Its root `Dockerfile` builds the UI and runs an unprivileged Node API; `SERVE_WEB=true` serves static UI and `/api/v1` on one HTTPS origin, needed for strict browser Origin validation and session cookies. The existing Compose environment uses separate local frontend/backend and is unchanged.
@@ -40,6 +42,7 @@ npm run build
 npx vitest run tests/web-static.unit.test.ts
 python3 -m unittest discover -s tests -p 'test_cloud_smoke.py' -v
 npx vitest run tests/cloud-db-check.unit.test.ts
+npx vitest run tests/runtime-schema.unit.test.ts tests/migration-runner.unit.test.ts
 node scripts/cloud-preflight.mjs
 DRY_RUN=1 PROJECT_ID=cpe334-ttworkshop REGION=asia-southeast1 bash deploy/plan.sh
 python3 -m py_compile deploy/smoke_test.py

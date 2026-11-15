@@ -107,3 +107,15 @@ are recorded for Artifact Registry, build by immutable SHA, Cloud Run DB probe,
 versioned migrations and service setup. **None of those proposed cloud
 commands have been executed**, and the course requires reviewed staging →
 `main` release before deploying the accepted application.
+
+**Reviewer `CHANGES_REQUESTED` remediation (2026-11-15):** production API
+startup now verifies `schema_migrations` with a read-only `SELECT`, failing
+closed if required versions are missing/extra; it does not execute DDL. The
+separate `scripts/migrate.ts` entrypoint runs transaction-based migrations
+under a reviewed migration-only identity and now redacts driver errors.
+Existing development/test startup migration behavior remains unchanged.
+Unit tests and isolated-PostgreSQL integration tests cover clean schema,
+repeat migration/startup and failure cases. See [proposed role separation and
+DB privilege audit](deploy/db-role-review.md) for the still-unexecuted changes
+needed to remove `cloudsqlsuperuser` from the live app user. **No change to
+live PostgreSQL roles, credentials, IAM or deployments has occurred.**

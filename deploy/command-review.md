@@ -6,9 +6,9 @@
 
 - GCP Project `cpe334-ttworkshop` (`348518197526`), Region `asia-southeast1`, authenticated user is the owner; billing enabled on Free Trial (last evidenced by account screenshot). Never Upgrade to Paid.
 - An existing 8,000 THB **alerts-only** Budget applies only to the project, excludes credits, with 10/20/50/90% notifications. **Not a hard cost limit**; Cloud SQL `ttworkshop-pg` is already accruing costs. Review actual cost/remaining credit before proceeding.
-- Existing resources — **do not recreate**: Cloud SQL `ttworkshop-pg` (PostgreSQL 16 Enterprise `db-f1-micro`, SSD 10 GiB), database `ttworkshop`, database user `ttworkshop_app`, runtime SA `ttworkshop-runner@cpe334-ttworkshop.iam.gserviceaccount.com`, Secret `ttworkshop-database-url` **version 1 ENABLED**. Secret **payload has not been accessed or validated**, and user is using built-in `cloudsqlsuperuser` temporarily (least-privilege gap). Runtime SA has project `roles/cloudsql.client` and only this Secret's `roles/secretmanager.secretAccessor`.
+- Existing resources — **do not recreate**: Cloud SQL `ttworkshop-pg` (PostgreSQL 16 Enterprise `db-f1-micro`, SSD 10 GiB), database `ttworkshop`, database user `ttworkshop_app`, runtime SA `ttworkshop-runner@cpe334-ttworkshop.iam.gserviceaccount.com`, Secret `ttworkshop-database-url` **version 1 ENABLED**. Secret **payload has not been accessed or validated**, and user is using built-in `cloudsqlsuperuser` temporarily (least-privilege gap). Runtime SA has project `roles/cloudsql.client` and only this Secret's `roles/secretmanager.secretAccessor`. **This is BLOCKING before production use.** See the exact remediation/verification gates in [`deploy/db-role-review.md`](db-role-review.md).
 - The **current Draft PR #42 is not independently approved or merged**. Official handout §9 requires `staging → reviewed release PR → main → deploy`. **NO IMAGE PUSH, RUN JOB EXECUTION, CLOUD RUN SERVICE DEPLOYMENT OR PUBLIC ACCESS IS AUTHORIZED HERE BEFORE THAT RELEASE GATE IS MET**, regardless of whether the commands below are reviewed.
-- Source: TTworkshop Express + `pg`, **not Prisma**. `scripts/cloud-db-check.ts` is a read-only credential/identity check that logs only PASS/FAIL; `scripts/migrate.ts` runs transactional versioned SQL migrations; production service serves the Vite UI and API on the same origin. Never run production `db:seed` or CI integration tests against Cloud SQL.
+- Source: TTworkshop Express + `pg`, **not Prisma**. `scripts/cloud-db-check.ts` is a read-only credential/identity check that logs only PASS/FAIL; `scripts/migrate.ts` runs transactional versioned SQL migrations with redacted failures. **After Reviewer remediation, `api/server.ts` in production no longer runs `migrate()` on startup: it performs a read-only `SELECT` of `schema_migrations` and fails closed if any expected migration is absent or unexpectedly present.** Development/test retains local migration behavior. Production service serves Vite UI/API on one origin. Never run production `db:seed` or CI integration tests against Cloud SQL.
 
 ## 0. Safe, read-only checks (already allowed)
 
@@ -68,15 +68,15 @@ gcloud run jobs execute ttworkshop-db-check \
   --project=cpe334-ttworkshop --region=asia-southeast1 --wait
 ```
 
-**Migrations (WRITES to Cloud SQL)**: After the read-only job PASS and specific database-change review, execute versioned additive SQL migrations once from the reviewed image digest. The current app also calls `migrate()` on service startup; migration locking/idempotency prevents duplicate application of tracked migrations, but does not substitute for a rollback strategy.
+**Migrations (WRITES to Cloud SQL)**: After the read-only job PASS, independent release and **separate review/authorization** of the DB role changes in [`deploy/db-role-review.md`](db-role-review.md), execute versioned additive SQL migrations once from the reviewed image digest. **Do NOT reuse the API runtime SA and its DB Secret to run this job.** The proposed dedicated migration-only SA/Secret and the corresponding DB user are **NOT CREATED**; provision and restrict them only after human review. The production API does **not** execute DDL at startup; transactional migration locking/idempotency does not replace a recovery plan.
 
 ```bash
 gcloud run jobs create ttworkshop-migrate \
   --project=cpe334-ttworkshop --region=asia-southeast1 \
   --image="${IMAGE_DIGEST_REF}" \
-  --service-account=ttworkshop-runner@cpe334-ttworkshop.iam.gserviceaccount.com \
+  --service-account=ttworkshop-migrator-runner@cpe334-ttworkshop.iam.gserviceaccount.com \
   --set-cloudsql-instances=cpe334-ttworkshop:asia-southeast1:ttworkshop-pg \
-  --set-secrets=DATABASE_URL=ttworkshop-database-url:1 \
+  --set-secrets=DATABASE_URL=ttworkshop-migrator-url:1 \
   --command=node \
   --args=./node_modules/tsx/dist/cli.mjs,scripts/migrate.ts \
   --max-retries=0 --tasks=1 --task-timeout=300s --memory=512Mi
@@ -85,6 +85,8 @@ gcloud run jobs execute ttworkshop-migrate \
 ```
 
 **Private Cloud Run service initialization** (billable cloud service; no unauthenticated invocation, no live traffic; run only after valid DB check and migration). URL is only known after Cloud Run creation, so the initial `APP_ORIGIN` is an inert HTTPS placeholder, not a usable production Origin. **Do not publicly route traffic before changing it to the actual URL**:
+
+**Production startup constraint:** The live service must use the runtime-only identity `ttworkshop-runner` and its runtime Secret, **after** a verified DB privilege reduction (no `cloudsqlsuperuser`) and a successful one-shot migration job. The startup executes **only `SELECT filename FROM schema_migrations ORDER BY filename`** to verify exact schema version before serving traffic. If the migration job fails, stop; do not let the API attempt automatic DDL or add a broad role to work around it.
 
 ```bash
 gcloud run deploy ttworkshop \
@@ -122,6 +124,6 @@ No steps above establish persistence. Only actual synthetic workshop/registratio
 1. Human reads and explicitly approves these commands and the access/DB changes specified, and separately handles any needed IAM role modifications. No automatic addition of `roles/editor` or Service Account keys if Cloud Build permissions are missing.
 2. Independent Reviewer approves PR #42 on actual HEAD, teammate merges into protected `sprint_2_staging`, and an independently reviewed/authorized Issue #33 release PR merges staging → `main` (per official course rule). Then the reviewed `main` SHA drives build/deploy.
 3. Before spending more Trial credit, human checks balance and confirms any now-running Cloud SQL cost and the expected limited service usage. Existing budget alerts **do not stop charges**.
-4. The chosen PostgreSQL built-in `cloudsqlsuperuser` user is not least-privilege; log this as an explicit security gap instead of claiming AC-L5-13 complete. Plan remediation before production use.
+4. The chosen PostgreSQL built-in `cloudsqlsuperuser` user is not least-privilege. The reviewed two-identity DB plan in [`deploy/db-role-review.md`](db-role-review.md) is **proposed only**: separate migration DB user/SA/Secret, limited runtime grants, revocation of `cloudsqlsuperuser`, and privilege read-back require additional explicit approval and actual execution before claiming AC-L5-13 complete.
 
 No new Issues, Merge, releases, Cloud Run jobs, Artifact Registry repo, IAM grants, migrations, public access or database writes were performed by authoring this command list.
