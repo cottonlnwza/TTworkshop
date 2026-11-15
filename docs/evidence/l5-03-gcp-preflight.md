@@ -1,5 +1,11 @@
 # L5-03 / Issue #32 — GCP implementation preflight (NOT DEPLOYED)
 
+## 2026-11-15 13:03 Asia/Bangkok — Operator-created app user and Secret version VERIFIED
+
+User performed credential setup privately in the Google Cloud Console. Independent **metadata-only** `gcloud` read-back confirmed the built-in Cloud SQL user `ttworkshop_app` on `ttworkshop-pg` (alongside `postgres`) and Secret Manager `ttworkshop-database-url` **version `1` ENABLED** (created `2026-11-15T06:03:53Z`). The Cloud SQL instance remains `RUNNABLE`. **No Secret payload was accessed, read, printed, committed or exposed for verification.** The older "only postgres" / "zero Secret versions" observations below are dated snapshots **superseded** by this update.
+
+**Remaining binding evidence gaps:** existence of the Secret version does **not** prove its PostgreSQL URI/password validity, that the role's database privileges are least-privilege, actual database connectivity or SQL migrations. The operator elected to use the built-in `cloudsqlsuperuser` role for the Lab setup; the PostgreSQL least-privilege concern remains an explicit **security risk**, not a verified AC-L5-13 PASS. **No Cloud Run public service, registry image, deploy, live UI/API/DB smoke, restart/redeploy persistence test, independent Formal Review or main release** has been performed. Budget alert continues to be notifications-only; Cloud SQL continues consuming Free Trial credits while running. Issue #32 stays OPEN, PR #42 Draft, GitHub Project #4 `Started` / Period 2.
+
 ## 2026-11-15 — Continuing after provisioning: blocked credential step and tests
 
 Read-only Google Cloud verification again confirmed `ttworkshop-pg` RUNNABLE, `ttworkshop` database, only the built-in `postgres` database user, empty `ttworkshop-database-url` Secret version list, runtime Cloud SQL Client and per-secret Secret Accessor bindings, 8,000 THB before-credit alerts-only Budget and Project #4 Status `Started`, Period 2. The operator's earlier credential automation was blocked before execution; **do not retry it through another mechanism to evade the safety check**. No public Cloud Run deployment was authorized or performed in this continuation.

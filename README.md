@@ -72,11 +72,14 @@ The browser endpoint is for localhost development only; this stack is **not** an
 
 The proposed production layout is a single Cloud Run Node container serving
 the prebuilt Vite UI and same-origin API, backed by durable Cloud SQL PostgreSQL.
-**2026-11-15 actual status:** selected GCP APIs, a budget alert, Cloud SQL
-PostgreSQL 16 Enterprise `db-f1-micro` with database `ttworkshop`, runtime
-Service Account and Secret metadata/IAM were verified. **No app DB user or
-Secret version exists; no Cloud Run deployment, live URL, migration or
-persistence verification has been performed.** Cloud SQL is RUNNABLE and
+**2026-11-15 13:03 Asia/Bangkok actual status:** selected GCP APIs, an existing
+budget alert, Cloud SQL PostgreSQL 16 Enterprise `db-f1-micro` with database
+`ttworkshop`, runtime Service Account and Secret IAM are verified. The human
+operator created `ttworkshop_app` and Secret version `1` (`ENABLED`), verified
+via metadata-only GCP read-back. The Secret payload was not read or validated,
+and **no Cloud Run deployment, live URL, migration, database connectivity or
+persistence evidence exists**. The user selected built-in `cloudsqlsuperuser`;
+PostgreSQL least privilege remains a security gap. Cloud SQL is RUNNABLE and
 consumes Free Trial credits while it exists. In production set `SERVE_WEB=true`,
 `NODE_ENV=production`, `APP_HOST=0.0.0.0`, `PORT=8080`,
 `APP_ORIGIN` to the *real* public HTTPS origin and inject
