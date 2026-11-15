@@ -39,6 +39,7 @@ npm ci --no-audit --no-fund
 npm run build
 npx vitest run tests/web-static.unit.test.ts
 python3 -m unittest discover -s tests -p 'test_cloud_smoke.py' -v
+npx vitest run tests/cloud-db-check.unit.test.ts
 node scripts/cloud-preflight.mjs
 DRY_RUN=1 PROJECT_ID=cpe334-ttworkshop REGION=asia-southeast1 bash deploy/plan.sh
 python3 -m py_compile deploy/smoke_test.py
@@ -46,6 +47,8 @@ git diff --check
 ```
 
 `deploy/plan.sh` intentionally has **no mutation mode**. It prints a human-reviewed sequence but does not run `gcloud`, alter Billing, IAM, databases or APIs, create resources, build images, or deploy. The TokTickIT `deploy/deploy.sh` **must not be run**: it uses Prisma and TokTickIT secrets/resource names, incompatible with TTworkshop. Any subsequent execution of commands must be checked against actual Google Cloud documentation, estimated cost, least-privilege IAM, and the human-permission gate from the Lab 5 guide.
+
+**New operator command review (2026-11-15):** The user approved continuing Cloud DB checks, migrations and Artifact Registry / Cloud Run preparations. The course handout §9 (p. 8) separately requires students to **read every exact gcloud command or Console change before running it**, and specifies that only independently reviewed `main` releases deploy. Therefore the exact proposed commands, preconditions, cost and IAM consequences are recorded in [`deploy/command-review.md`](../../../deploy/command-review.md); **they have not been run**. The offline `scripts/cloud-db-check.ts` makes a read-only PostgreSQL identity probe in a future Cloud Run Job with secret injection, not in the agent tool or test runner; it prints PASS/FAIL only. This does **not** validate the current Secret payload or database connectivity. No additional GCP service, Cloud Run Job, image push, permission or DB migration was created by this preparation.
 
 ## Remaining provisioning and release gates (NOT EXECUTED)
 

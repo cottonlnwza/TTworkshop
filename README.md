@@ -96,3 +96,14 @@ Read the [L5-03 live provisioning evidence and outstanding deployment gates](doc
 and the [Lab 5 deployment procedure](docs/labs/lab-05/deployment.md).
 Actual Cloud deployment and release require separate authorization; release
 of `main` belongs to Issue #33.
+
+**Approved preparation / not a live deployment:** `scripts/cloud-db-check.ts`
+performs only a single read-only `SELECT` to verify the intended database and
+user when run **later** in a human-reviewed Cloud Run Job with Secret Manager
+injection. It suppresses driver error details to avoid logging credentials.
+`tests/cloud-db-check.unit.test.ts` verifies this check without connecting to
+GCP. The [exact proposed cloud commands and mandatory student review gates](deploy/command-review.md)
+are recorded for Artifact Registry, build by immutable SHA, Cloud Run DB probe,
+versioned migrations and service setup. **None of those proposed cloud
+commands have been executed**, and the course requires reviewed staging →
+`main` release before deploying the accepted application.
