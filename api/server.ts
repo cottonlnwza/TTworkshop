@@ -1,6 +1,6 @@
 import { Pool } from "pg";
 import { resolve } from "node:path";
-import { attachWebUi } from "./web-static.js";
+import { attachDeploymentRoutes } from "./web-static.js";
 import { createApp } from "./app.js";
 import { migrate } from "./migrate.js";
 import { prepareDatabaseOnStartup } from "./runtime-schema.js";
@@ -18,21 +18,16 @@ try {
   throw error;
 }
 const app = createApp(pool, { appOrigin, production, sessionHours: 8 });
-if (process.env.SERVE_WEB === "true") attachWebUi(app, resolve("dist"));
+attachDeploymentRoutes(app, pool, {
+  serveWeb: process.env.SERVE_WEB === "true",
+  distDirectory: resolve("dist"),
+});
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.APP_HOST ?? "127.0.0.1";
 if (!["127.0.0.1", "0.0.0.0"].includes(host)) {
   throw new Error("APP_HOST must be 127.0.0.1 or 0.0.0.0");
 }
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("PORT must be a valid TCP port");
-app.get("/healthz", async (_req, res) => {
-  try {
-    await pool.query("SELECT 1");
-    res.status(200).json({ status: "ok" });
-  } catch {
-    res.status(503).json({ status: "unavailable" });
-  }
-});
 app.listen(port, host, () => {
   // Preserve the existing local startup marker used by real API-process
   // restart integration tests; container logging names its explicit host.

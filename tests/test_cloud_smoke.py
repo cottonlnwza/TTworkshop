@@ -60,6 +60,22 @@ class SmokeTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "readiness"):
                 check(ORIGIN)
 
+    def test_rejects_spa_html_at_database_health_url(self):
+        # Regression for SERVE_WEB SPA middleware intercepting /healthz.
+        with patch("deploy.smoke_test.urlopen", return_value=FakeResponse(
+            ORIGIN + "/healthz", b"<!doctype html><html>Not DB readiness</html>"
+        )):
+            with self.assertRaises(ValueError):
+                check(ORIGIN)
+
+    def test_rejects_http_503_database_health(self):
+        # Healthy HTML at / must not mask a failed DB probe at /healthz.
+        with patch("deploy.smoke_test.urlopen", return_value=FakeResponse(
+            ORIGIN + "/healthz", b'{"status":"unavailable"}', status=503
+        )):
+            with self.assertRaisesRegex(RuntimeError, "HTTP 503"):
+                check(ORIGIN)
+
     def test_rejects_200_non_html(self):
         def reply(request, _timeout=None, **_kwargs):
             if request.full_url.endswith("/healthz"):

@@ -72,22 +72,34 @@ The browser endpoint is for localhost development only; this stack is **not** an
 
 The proposed production layout is a single Cloud Run Node container serving
 the prebuilt Vite UI and same-origin API, backed by durable Cloud SQL PostgreSQL.
-**2026-11-15 13:03 Asia/Bangkok actual status:** selected GCP APIs, an existing
-budget alert, Cloud SQL PostgreSQL 16 Enterprise `db-f1-micro` with database
-`ttworkshop`, runtime Service Account and Secret IAM are verified. The human
-operator created `ttworkshop_app` and Secret version `1` (`ENABLED`), verified
-via metadata-only GCP read-back. The Secret payload was not read or validated,
-and **no Cloud Run deployment, live URL, migration, database connectivity or
-persistence evidence exists**. The user selected built-in `cloudsqlsuperuser`;
-PostgreSQL least privilege remains a security gap. Cloud SQL is RUNNABLE and
-consumes Free Trial credits while it exists. In production set `SERVE_WEB=true`,
+**Current status (2026-11-16, Asia/Bangkok; Issue #32 / Draft PR #42):**
+The student/operator created Cloud SQL PostgreSQL 16 `ttworkshop-pg` and DB
+`ttworkshop`, runtime `ttworkshop_app` and its separate Service Account and
+`ttworkshop-database-url:1` Secret. The student subsequently created NOLOGIN
+roles `ttworkshop_runtime` and `ttworkshop_migration`, the `ttworkshop_migrator`
+login with restricted migration-role membership, dedicated migration Service
+Account `ttworkshop-migrator-runner` (project `roles/cloudsql.client`) and
+`ttworkshop-migrator-url:1` Secret with a **Secret-level** Accessor grant.
+Operator-provided read-only SQL verified the migrator is not a
+`cloudsqlsuperuser` and cannot `CREATEDB`/`CREATEROLE`; Author AI verified
+GCP user/Secret version/IAM **metadata only, without reading Secret values**.
+The existing app login `ttworkshop_app` **still has `cloudsqlsuperuser`**, so
+live runtime least privilege is **NOT VERIFIED**. Secret URI/password validity,
+actual database login, migrations, Cloud Run Job/service, public HTTPS URL and
+restart/redeploy persistence are **NOT VERIFIED / NOT DEPLOYED**. Cloud SQL
+remains RUNNABLE and consumes Free Trial credits; budget alerts do not cap spend.
+The dated 2026-11-15 pre-provisioning evidence below is historical; this
+paragraph supersedes it for current status. In production set `SERVE_WEB=true`,
 `NODE_ENV=production`, `APP_HOST=0.0.0.0`, `PORT=8080`,
 `APP_ORIGIN` to the *real* public HTTPS origin and inject
 `DATABASE_URL` securely via Secret Manager. No credentials belong in Git.
 
 The existing local Docker Compose development stack is unchanged. The
-production static-asset routing can be checked without any cloud calls with
-`npx vitest run tests/web-static.unit.test.ts` and
+production `/healthz` handler now mounts **before** the SPA catch-all (repair
+for the independent 2026-11-16 Formal `CHANGES_REQUESTED`); the same route
+composer used by `api/server.ts` is tested under `SERVE_WEB=true` for
+DB-ready JSON `200`, DB-unavailable JSON `503`, static HTML and API paths.
+Run `npx vitest run tests/production-health-routing.unit.test.ts tests/web-static.unit.test.ts` and
 `node scripts/cloud-preflight.mjs`, and the read-only smoke script's independent
 Python checks with `python3 -m unittest discover -s tests -p 'test_cloud_smoke.py' -v`.
 These checks are **not** proof of live GCP deployment or data persistence.
@@ -102,7 +114,9 @@ performs only a single read-only `SELECT` to verify the intended database and
 user when run **later** in a human-reviewed Cloud Run Job with Secret Manager
 injection. It suppresses driver error details to avoid logging credentials.
 `tests/cloud-db-check.unit.test.ts` verifies this check without connecting to
-GCP. The [exact proposed cloud commands and mandatory student review gates](deploy/command-review.md)
+GCP. The probe supports an explicit `ttworkshop_migrator` expected identity
+without exposing the migration Secret, but **it has not run against Cloud SQL**.
+The [exact proposed cloud commands and mandatory student review gates](deploy/command-review.md)
 are recorded for Artifact Registry, build by immutable SHA, Cloud Run DB probe,
 versioned migrations and service setup. **None of those proposed cloud
 commands have been executed**, and the course requires reviewed staging →
@@ -112,10 +126,13 @@ commands have been executed**, and the course requires reviewed staging →
 startup now verifies `schema_migrations` with a read-only `SELECT`, failing
 closed if required versions are missing/extra; it does not execute DDL. The
 separate `scripts/migrate.ts` entrypoint runs transaction-based migrations
-under a reviewed migration-only identity and now redacts driver errors.
+under a distinct, operator-created migration-only identity and now redacts driver errors.
 Existing development/test startup migration behavior remains unchanged.
 Unit tests and isolated-PostgreSQL integration tests cover clean schema,
 repeat migration/startup and failure cases. See [proposed role separation and
-DB privilege audit](deploy/db-role-review.md) for the still-unexecuted changes
-needed to remove `cloudsqlsuperuser` from the live app user. **No change to
-live PostgreSQL roles, credentials, IAM or deployments has occurred.**
+DB privilege audit](deploy/db-role-review.md) for the still-unexecuted **runtime**
+table/sequence grants and removal of `cloudsqlsuperuser` from the live app user.
+**The student has provisioned migration roles, user, SA and Secret; the Author
+AI only verified their metadata and updated source/docs.** No migration job,
+schema DDL, production runtime privilege reduction, live connectivity test or
+Cloud Run deployment has occurred.

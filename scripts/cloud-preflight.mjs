@@ -15,6 +15,9 @@ const server = readFileSync("api/server.ts", "utf8");
 if (!server.includes('process.env.SERVE_WEB === "true"') || !server.includes('process.env.APP_HOST')) {
   throw new Error("Expected production web and container listen-host guards");
 }
+if (!server.includes("attachDeploymentRoutes(app, pool")) {
+  throw new Error("Production server must use the tested health-before-SPA route composer");
+}
 if (!server.includes("prepareDatabaseOnStartup(pool, production") || server.includes("await migrate(pool)")) {
   throw new Error("Production startup must separate read-only schema checks from DDL migrations");
 }
