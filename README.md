@@ -136,3 +136,5 @@ table/sequence grants and removal of `cloudsqlsuperuser` from the live app user.
 AI only verified their metadata and updated source/docs.** No migration job,
 schema DDL, production runtime privilege reduction, live connectivity test or
 Cloud Run deployment has occurred.
+
+Lab 5 release candidate: [Issue #33 controlled-release manifest](docs/releases/lab5-issue33-release-candidate.md). This is pre-release evidence, not a deployment claim.
