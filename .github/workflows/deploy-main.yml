@@ -32,6 +32,13 @@ jobs:
       SERVICE: ttworkshop
       MIGRATION_JOB: ttworkshop-migrate
     steps:
+      - name: Require operator-confirmed production environment protection
+        shell: bash
+        env:
+          ENV_PROTECTED: ${{ vars.PRODUCTION_ENV_PROTECTED }}
+        run: |
+          set -euo pipefail
+          [[ "$ENV_PROTECTED" == 'true' ]] || { echo 'BLOCKED: configure protected production environment and explicit repository variable'; exit 1; }
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
