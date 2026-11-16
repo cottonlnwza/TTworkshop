@@ -67,3 +67,72 @@ Issue #31 adds a local-development Docker Compose stack with three services: Pos
 4. Capture the `SMOKE_PASS <title>` output. Run `docker compose restart`, then `docker compose up -d --wait --wait-timeout 120`, and `APP_ORIGIN=... SEED_PASSWORD=... node scripts/docker-smoke.mjs --verify <title>` to verify the workshop persists in the database volume. Run `docker compose down` to stop safely **without deleting data**. To intentionally reset all local demo data, use `docker compose down -v` (**destructive**; only for this disposable stack). To rebuild from a clean checkout, copy only the non-secret `.env` configuration or set environment variables anew and rerun build/up/smoke. Run `docker image inspect ttworkshop-l5-api ttworkshop-l5-web` to capture image IDs/digests.
 
 The browser endpoint is for localhost development only; this stack is **not** an HTTPS production/GCP deployment and does not implement Lab 5 cloud/release Issues #32–#33. For exact test evidence and limitations, see [L5-02 Docker evidence](docs/evidence/l5-02-docker.md).
+
+## Lab 5 GCP deployment preparation (Issue #32 — NOT DEPLOYED)
+
+The proposed production layout is a single Cloud Run Node container serving
+the prebuilt Vite UI and same-origin API, backed by durable Cloud SQL PostgreSQL.
+**Current status (2026-11-16, Asia/Bangkok; Issue #32 / Draft PR #42):**
+The student/operator created Cloud SQL PostgreSQL 16 `ttworkshop-pg` and DB
+`ttworkshop`, runtime `ttworkshop_app` and its separate Service Account and
+`ttworkshop-database-url:1` Secret. The student subsequently created NOLOGIN
+roles `ttworkshop_runtime` and `ttworkshop_migration`, the `ttworkshop_migrator`
+login with restricted migration-role membership, dedicated migration Service
+Account `ttworkshop-migrator-runner` (project `roles/cloudsql.client`) and
+`ttworkshop-migrator-url:1` Secret with a **Secret-level** Accessor grant.
+Operator-provided read-only SQL verified the migrator is not a
+`cloudsqlsuperuser` and cannot `CREATEDB`/`CREATEROLE`; Author AI verified
+GCP user/Secret version/IAM **metadata only, without reading Secret values**.
+The existing app login `ttworkshop_app` **still has `cloudsqlsuperuser`**, so
+live runtime least privilege is **NOT VERIFIED**. Secret URI/password validity,
+actual database login, migrations, Cloud Run Job/service, public HTTPS URL and
+restart/redeploy persistence are **NOT VERIFIED / NOT DEPLOYED**. Cloud SQL
+remains RUNNABLE and consumes Free Trial credits; budget alerts do not cap spend.
+The dated 2026-11-15 pre-provisioning evidence below is historical; this
+paragraph supersedes it for current status. In production set `SERVE_WEB=true`,
+`NODE_ENV=production`, `APP_HOST=0.0.0.0`, `PORT=8080`,
+`APP_ORIGIN` to the *real* public HTTPS origin and inject
+`DATABASE_URL` securely via Secret Manager. No credentials belong in Git.
+
+The existing local Docker Compose development stack is unchanged. The
+production `/healthz` handler now mounts **before** the SPA catch-all (repair
+for the independent 2026-11-16 Formal `CHANGES_REQUESTED`); the same route
+composer used by `api/server.ts` is tested under `SERVE_WEB=true` for
+DB-ready JSON `200`, DB-unavailable JSON `503`, static HTML and API paths.
+Run `npx vitest run tests/production-health-routing.unit.test.ts tests/web-static.unit.test.ts` and
+`node scripts/cloud-preflight.mjs`, and the read-only smoke script's independent
+Python checks with `python3 -m unittest discover -s tests -p 'test_cloud_smoke.py' -v`.
+These checks are **not** proof of live GCP deployment or data persistence.
+
+Read the [L5-03 live provisioning evidence and outstanding deployment gates](docs/evidence/l5-03-gcp-preflight.md)
+and the [Lab 5 deployment procedure](docs/labs/lab-05/deployment.md).
+Actual Cloud deployment and release require separate authorization; release
+of `main` belongs to Issue #33.
+
+**Approved preparation / not a live deployment:** `scripts/cloud-db-check.ts`
+performs only a single read-only `SELECT` to verify the intended database and
+user when run **later** in a human-reviewed Cloud Run Job with Secret Manager
+injection. It suppresses driver error details to avoid logging credentials.
+`tests/cloud-db-check.unit.test.ts` verifies this check without connecting to
+GCP. The probe supports an explicit `ttworkshop_migrator` expected identity
+without exposing the migration Secret, but **it has not run against Cloud SQL**.
+The [exact proposed cloud commands and mandatory student review gates](deploy/command-review.md)
+are recorded for Artifact Registry, build by immutable SHA, Cloud Run DB probe,
+versioned migrations and service setup. **None of those proposed cloud
+commands have been executed**, and the course requires reviewed staging →
+`main` release before deploying the accepted application.
+
+**Reviewer `CHANGES_REQUESTED` remediation (2026-11-15):** production API
+startup now verifies `schema_migrations` with a read-only `SELECT`, failing
+closed if required versions are missing/extra; it does not execute DDL. The
+separate `scripts/migrate.ts` entrypoint runs transaction-based migrations
+under a distinct, operator-created migration-only identity and now redacts driver errors.
+Existing development/test startup migration behavior remains unchanged.
+Unit tests and isolated-PostgreSQL integration tests cover clean schema,
+repeat migration/startup and failure cases. See [proposed role separation and
+DB privilege audit](deploy/db-role-review.md) for the still-unexecuted **runtime**
+table/sequence grants and removal of `cloudsqlsuperuser` from the live app user.
+**The student has provisioned migration roles, user, SA and Secret; the Author
+AI only verified their metadata and updated source/docs.** No migration job,
+schema DDL, production runtime privilege reduction, live connectivity test or
+Cloud Run deployment has occurred.

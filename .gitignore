@@ -10,3 +10,5 @@ coverage/
 .cache/
 playwright-report/
 test-results/
+__pycache__/
+*.pyc
