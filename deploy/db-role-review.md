@@ -2,6 +2,23 @@
 
 **STATUS: PROPOSED, NOT EXECUTED.** Consolidated binding Reviewer finding #1 on PR #42 (`CHANGES_REQUESTED` at reviewed HEAD `8f315703deafa8f30a6ab540a964450ea0b07c2b`). This document is a **human-reviewed plan** for the production Cloud SQL database `ttworkshop`, not proof of a changed live user, migration or role. Do not run its SQL or GCP commands without student review and separately scoped database/IAM authorization. The course handout requires reviewing each actual command before execution.
 
+## 0. Operator-supplied live read-only results (2026-11-16, Asia/Bangkok)
+
+The student executed **three read-only SELECT queries** in Cloud SQL Studio using `ttworkshop_app` and supplied result screenshots. These are operator-provided observations, **not an Author-run DB session**. No password or screenshot with private authentication fields is stored in the public repository.
+
+| Field | Observed result |
+| --- | --- |
+| `current_database()` / `current_user` | `ttworkshop` / `ttworkshop_app` |
+| `rolcreatedb` / `rolcreaterole` | `true` / `true` |
+| Member of `cloudsqlsuperuser` | `true` |
+| Runtime `CREATE` on `public` | `true` |
+| `public` tables / sequences | **0 / 0** (no migrations yet observed) |
+| Owner of database `ttworkshop` | `cloudsqlsuperuser` |
+| Owner of schema `public` | `pg_database_owner` |
+| `postgres` `CREATE` on `public` | `true` |
+
+**Implication:** There are no application tables to grant privileges on yet. Provision a separate controlled migration identity **before the first migration**, apply migrations as that identity, and only then grant runtime table/sequence DML. The elevated application login must not be used as the migration owner. Cloud SQL's PostgreSQL users documentation distinguishes database-role membership from the user's `CREATEDB`/`CREATEROLE` attributes: **replacing `cloudsqlsuperuser` membership alone does not prove these attributes are false**. Verify each explicitly after an independently approved operator change.
+
 ## 1. Why the previous design was unsafe
 
 - Cloud SQL currently contains the built-in database user `ttworkshop_app` whose chosen role is `cloudsqlsuperuser`. This grants elevated DB rights not required for API requests. It is NOT a PostgreSQL native unrestricted `SUPERUSER`, but Cloud SQL gives it extra rights (`CREATEDB`, `CREATEROLE` etc.).
@@ -21,11 +38,37 @@ The migration job must **not** reuse the runtime Service Account/Secret. Creatin
 
 **Preconditions:** Connect via an approved operator-controlled PostgreSQL session to database `ttworkshop`, inspect `current_database()`, `current_user`, schema ownership, tables and grants. Verify the new migration-only user exists and owns/can migrate the intended schema; if the schema already has objects created by a different owner, adapt grants after explicit review. First apply migrations as the approved migration identity, then establish Runtime grants to existing objects. For a clean initial schema, the suggested restricted SQL grants are:
 
+### 3A. Review-only role preparation BEFORE the first migration
+
+The following SQL is **not approved for automatic execution**. The human operator must log in using a separately authorized administrative session, confirm the empty `public` schema still matches the 2026-11-16 observation, and verify the role names do not already exist. A privileged operator needs to check whether they can issue these `CREATE ROLE` and `GRANT` statements; **having schema `CREATE` does not prove the operator has `GRANT OPTION`**. Cloud SQL `postgres` is not an unrestricted PostgreSQL superuser, so do not assume that role can change every ACL. Verify the effective grant authority and stop if it is absent; do not use the application's elevated password as a shortcut.
+
 ```sql
--- REVIEW ONLY. Must be executed as a suitably authorized database administrator.
+-- REVIEW ONLY: no real database writes by the Author AI.
 CREATE ROLE ttworkshop_runtime NOLOGIN;
-GRANT CONNECT ON DATABASE ttworkshop TO ttworkshop_runtime;
+CREATE ROLE ttworkshop_migration NOLOGIN;
+GRANT CONNECT ON DATABASE ttworkshop TO ttworkshop_runtime, ttworkshop_migration;
 GRANT USAGE ON SCHEMA public TO ttworkshop_runtime;
+GRANT USAGE, CREATE ON SCHEMA public TO ttworkshop_migration;
+```
+
+Then the **human** creates the built-in `ttworkshop_migrator` login through the Google Cloud Console with a privately entered unique password and creates a separate Secret using an approved private channel. Cloud SQL grants `cloudsqlsuperuser` to a newly created built-in account by default unless it is created with an existing custom role. Therefore, **before any migration login**, the operator must replace its membership with the already-created `ttworkshop_migration` role using the exact command approved separately:
+
+```bash
+# REVIEW ONLY — mutation to database role memberships, do NOT auto-run.
+gcloud sql users assign-roles ttworkshop_migrator \
+  --project=cpe334-ttworkshop --instance=ttworkshop-pg \
+  --type=BUILT_IN --database-roles=ttworkshop_migration \
+  --revoke-existing-roles
+```
+
+The operator must also independently review the PostgreSQL role attributes (`rolcreatedb`, `rolcreaterole`) and, if needed, arrange an authorized administrative command `ALTER ROLE ttworkshop_migrator NOCREATEDB NOCREATEROLE;`. Verify that `cloudsqlsuperuser` membership is `false`, both role attributes are `false`, and the migrator can `CREATE` in `public` **before** permitting the one-shot migration job. This is distinct from Cloud IAM Service Account membership. If any check fails, **stop without trying migrations**.
+
+### 3B. Review-only runtime privileges AFTER the first migration
+
+**Do not execute this SQL before the migration job:** the application tables and identity sequences currently do not exist, so the `GRANT ON TABLE` and `GRANT ON SEQUENCE` statements would fail. Inspect the actual new table/sequence names, types, owners and grants from a fresh read-only query after migrations. The **migration object's owner (`ttworkshop_migrator`) or an independently verified grant-capable operator**, not an assumed superuser, must issue the reviewed table/sequence grants. Then review the following against the actual names:
+
+```sql
+-- REVIEW ONLY. Execute as the migration object owner or verified grant-capable role.
 -- Allow only the four known business tables from migrations 001..004.
 GRANT SELECT, INSERT, UPDATE, DELETE
   ON TABLE public.users, public.sessions, public.workshops, public.registrations
@@ -52,6 +95,8 @@ gcloud sql users assign-roles ttworkshop_app \
 
 **Safety requirement:** This command revokes existing role memberships and changes production authorization. It **must not be executed autonomously by the Author AI**. A database operator must validate the current live membership list, the proposed replacement, and recovery before approving and running the exact command.
 
+**Separate user-attribute gate:** the operator-provided query on 2026-11-16 proved `ttworkshop_app` has `rolcreatedb=true` and `rolcreaterole=true`. After replacing its role membership, the authorized administrator must also review whether `ALTER ROLE ttworkshop_app NOCREATEDB NOCREATEROLE;` is required and permitted, and then read back both flags as `false`. Neither `--revoke-existing-roles` nor a `cloudsqlsuperuser=false` membership check by itself proves the application user is least-privileged. If the `public` schema still grants `CREATE` independently, inspect the effective grants and remove only the verified excess permission through a separately reviewed change; do not revoke unrelated database-owner rights.
+
 **Read-only verification (post-change, approved SQL session):**
 
 ```sql
@@ -72,5 +117,7 @@ Expected: privileged membership `false`, `rolcreatedb=false`, `rolcreaterole=fal
 - Versioned SQL in `db/migrations/001_auth.sql` through `004_registrations.sql` is applied transactionally with advisory lock `48033401`, and tracked by `schema_migrations`. It does not grant production runtime DDL. Never authorize the production runtime identity to read the migrator secret.
 - **Failure before commit:** migrate() rolls back the migration transaction; the job exits nonzero with redacted errors. Stop further deployment if it fails. **Repeat execution:** previously recorded migrations are skipped; production startup only verifies exact migration records and does not mutate schema. **Rollback after a committed change:** do not run guessed destructive down migrations. Inspect Cloud SQL backups/restore and the application version's schema compatibility, and get separate approval for rollback or restore.
 - Before any live service, execute a reviewed read-only Cloud SQL connection Job using the **runtime** identity and Secret, and validate the production startup readiness query. If it fails, verify connection/privilege errors through safe redacted diagnostics, never paste actual credentials. Only independent reviewed `main` release + authorized deployment can become a public app.
+
+**Course workflow dependency:** the current Draft PR #42 cannot be used as a production release. The independent Reviewer still lists live deployment/persistence as unresolved; the Author must obtain a reviewed, actionable sequence resolving the staging→`main` release prerequisite before requesting a cloud deployment. No reviewer account, main release, or student credential is to be impersonated or bypassed.
 
 **Sources:** [Google Cloud SQL — Create/manage users](https://docs.cloud.google.com/sql/docs/postgres/create-manage-users), [Cloud SQL PostgreSQL users and roles](https://docs.cloud.google.com/sql/docs/postgres/users); actual Reviewer formal findings in PR #42. No mutations to Cloud SQL, Service Accounts, Secrets, Kanban, PR merge or GCP deployment were performed by this document.

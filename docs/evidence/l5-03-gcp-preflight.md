@@ -1,5 +1,13 @@
 # L5-03 / Issue #32 — GCP implementation preflight (NOT DEPLOYED)
 
+## 2026-11-16 — Cloud SQL Studio owner/privilege inspection (operator-provided evidence)
+
+The student submitted screenshots of three successful **read-only** Cloud SQL Studio queries against `ttworkshop` logged in as `ttworkshop_app`. This is **operator-provided proof**, not a SQL session executed by the Author AI. Observed `rolcreatedb=true`, `rolcreaterole=true`, `cloudsqlsuperuser` membership `true`, and schema `public` `CREATE` privilege `true`. Database owner was `cloudsqlsuperuser`; schema `public` owner was `pg_database_owner`; `postgres` also had `CREATE` on `public`. The `pg_class` inventory of `public` tables and sequences returned **zero rows**, matching Cloud SQL Studio Explorer (`Tables 0`, `Sequences 0`). The actual app migrations were therefore **not yet applied** at inspection time. No password, Secret value, or raw screenshot is committed to this public repository.
+
+Independently, the Author made read-only GCP metadata calls: `ttworkshop-pg` is `RUNNABLE`, the built-in `ttworkshop_app` has `databaseRoles: [cloudsqlsuperuser]`, Secret `ttworkshop-database-url` version `1` is enabled, and no application Artifact Registry repository or Cloud Run service exists in `asia-southeast1`. The GCP metadata does **not** independently confirm PostgreSQL grants; the operator's screenshots are the basis for the `CREATE`/owner findings.
+
+**Review remediation only:** the proposed plan in [`deploy/db-role-review.md`](../../deploy/db-role-review.md) now orders schema/identity preparation **before** applying migrations, table/sequence DML grants **after** migrations, and explicit verification of `CREATEDB`/`CREATEROLE` as well as removal of `cloudsqlsuperuser`. No database roles, IAM, passwords, Secret payloads, Cloud resources or schema migrations were modified by this inspection. AC-L5-11/12/13/14 remain incomplete for live cloud operation.
+
 ## 2026-11-15 — Developer response to independent Formal `CHANGES_REQUESTED` on PR #42
 
 Independent Reviewer `thananun-7203` submitted a Formal six-axis `CHANGES_REQUESTED` on exact SHA `8f315703deafa8f30a6ab540a964450ea0b07c2b` (2026-11-15 16:12 Bangkok). The binding findings are: (1) AC-L5-13 privileged runtime DB login and automatic migrations on startup, (2) AC-L5-11 no live GCP URL and business journey, (3) AC-L5-12 no restart/redeploy persistence, and (4) AC-L5-14 no actual deployed revision/digest/evidence. Hosted previous-head CI had passed; that is not proof of live GCP. No reviewer approval, staging merge, release or production deployment has occurred.
