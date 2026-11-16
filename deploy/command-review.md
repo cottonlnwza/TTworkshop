@@ -1,5 +1,7 @@
 # L5-03 / Issue #32 — Proposed GCP commands for human review (NOT EXECUTED)
 
+**2026-11-16 latest GCP Secret verification (newer than the historical statements below):** The **human operator** created the migration-only Secret `ttworkshop-migrator-url` using Google Cloud Console and granted Secret-level `roles/secretmanager.secretAccessor` to `ttworkshop-migrator-runner@cpe334-ttworkshop.iam.gserviceaccount.com`. The Author AI performed **read-only, metadata-only** checks: Secret exists with automatic replication; version `1` is `enabled`; the Secret resource IAM policy has one explicit accessor binding for the migration Service Account; the existing `ttworkshop-database-url` resource policy still has only the runtime Service Account accessor. **The Author did not access the Secret value or change IAM.** Do not repeat Secret creation or the access grant. Secret contents/password correctness, actual Cloud SQL authentication, Migration Job execution and live app remain **NOT VERIFIED**. The independently reviewed `main` release and individually reviewed command gates still apply. Detailed evidence: [`docs/evidence/l5-03-gcp-preflight.md`](../docs/evidence/l5-03-gcp-preflight.md).
+
 **2026-11-16 human-executed IAM commands — verified, superseding older migration-SA status below:** The student, **not the Author AI**, personally ran these exact commands in their own Cloud Shell and provided the successful output:
 
 ```bash

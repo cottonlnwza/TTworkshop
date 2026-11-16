@@ -1,5 +1,20 @@
 # L5-03 / Issue #32 — GCP implementation preflight (NOT DEPLOYED)
 
+## 2026-11-16 — Human-created migration Secret and scoped access (verified; no payload inspected)
+
+**Action attribution:** The student/operator confirmed that they personally created `ttworkshop-migrator-url` and granted migration-only Secret access in the Google Cloud Console. The Author AI performed **read-only verification** through the ComGu GCP environment and did **not** create the Secret, upload the credential, grant IAM permissions, or access any Secret payload. The following observations are source-side GCP metadata, **not** proof that the connection URI or password is valid:
+
+| GCP metadata check | Independently observed result |
+| --- | --- |
+| Secret | `projects/348518197526/secrets/ttworkshop-migrator-url` exists; automatic replication |
+| Secret version | `1` — `enabled`; created 2026-11-16 07:58:23 UTC |
+| Migration Secret resource IAM policy | Exactly one explicit `roles/secretmanager.secretAccessor` member: `serviceAccount:ttworkshop-migrator-runner@cpe334-ttworkshop.iam.gserviceaccount.com` |
+| Existing runtime Secret resource IAM policy | `ttworkshop-database-url` still has explicit Secret Accessor for only `serviceAccount:ttworkshop-runner@cpe334-ttworkshop.iam.gserviceaccount.com` |
+| Migration Service Account | Exists; display name `TTworkshop Migration Job`; previously verified project `roles/cloudsql.client` |
+| Migration database user | `ttworkshop_migrator` has Cloud SQL `databaseRoles: [ttworkshop_migration]`; PostgreSQL attribute/privilege results were previously operator-verified |
+
+**Limits and remaining gates:** These Secret IAM findings describe each resource's **explicit policy**, not a blanket assertion about every inherited project-level permission. Secret contents, URI syntax in the stored version, password authentication, Cloud SQL connection, schema migrations, actual application runtime privileges, public HTTPS and persistence are **NOT VERIFIED**. The `ttworkshop_app` runtime login remains elevated until the separately approved least-privilege change. No Cloud Run Job, Artifact Registry build, production deployment, IAM mutation, Secret-value read, issue closure or merge was performed by the Author. The instructor's per-command review and independently reviewed `main` release gates still apply.
+
 ## 2026-11-16 — Human-executed migration Service Account and IAM grant (verified)
 
 **Action attribution: the student/operator, not the Author AI, executed both commands in their own Google Cloud Shell session.** The human provided the successful Cloud Shell output, and the Author AI independently verified the resulting resource and IAM binding using read-only `gcloud` commands through the approved ComGu environment. Neither statement implies that the AI made an IAM change.
