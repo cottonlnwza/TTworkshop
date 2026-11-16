@@ -1,5 +1,19 @@
 # L5-03 / Issue #32 — Proposed GCP commands for human review (NOT EXECUTED)
 
+**2026-11-16 human-executed IAM commands — verified, superseding older migration-SA status below:** The student, **not the Author AI**, personally ran these exact commands in their own Cloud Shell and provided the successful output:
+
+```bash
+gcloud iam service-accounts create ttworkshop-migrator-runner \
+  --project=cpe334-ttworkshop \
+  --display-name="TTworkshop Migration Job"
+
+gcloud projects add-iam-policy-binding cpe334-ttworkshop \
+  --member="serviceAccount:ttworkshop-migrator-runner@cpe334-ttworkshop.iam.gserviceaccount.com" \
+  --role="roles/cloudsql.client"
+```
+
+The Author AI then independently used **read-only** `gcloud iam service-accounts describe` and `gcloud projects get-iam-policy` to confirm that the Service Account now exists and holds exactly the observed `roles/cloudsql.client` project IAM binding. **Do not repeat either creation/grant command.** The Secret `ttworkshop-migrator-url`, its human-entered private payload and scoped accessor grant are **NOT CREATED**. No migration Job, registry image, Cloud Run service or schema migration has been run by these steps. The old "NOT CREATED" migration Service Account statements later in this document are historical proposals and are superseded here; all remaining command-review and independent `main` release gates still apply.
+
 **2026-11-16 Cloud SQL Studio read-back:** the operator provided screenshots of three successful `SELECT` queries. `ttworkshop` is owned by `cloudsqlsuperuser`; schema `public` is owned by `pg_database_owner`; there are **zero** application tables/sequences, and `ttworkshop_app` currently has `cloudsqlsuperuser` membership, `CREATEDB=true`, `CREATEROLE=true` and `CREATE` in `public`. The Author independently verified only the Cloud SQL **metadata** (`RUNNABLE`, existing user/Secret) via `gcloud`; the Author did not authenticate to the PostgreSQL database. **Do not issue table/sequence grants against nonexistent objects.** See the ordered pre-migration identity, post-migration grants and distinct attribute-remediation gates in [`deploy/db-role-review.md`](db-role-review.md).
 
 **2026-11-16 later operator update:** The human created `ttworkshop_runtime` and `ttworkshop_migration` NOLOGIN roles, reviewed the migration role's `CONNECT`, schema `USAGE` and schema `CREATE` privileges (`true`), and created the built-in `ttworkshop_migrator` login with a privately entered password and custom role `ttworkshop_migration`. The Author verified via `gcloud sql users describe` that the new login exists with only that listed database role. **Its PostgreSQL CREATEDB/CREATEROLE attributes, effective privileges, and successful login remain UNVERIFIED**; do not execute migrations yet. The separate migration Service Account, Secret and Job remain **NOT CREATED**. No Secret payload/password was accessed by the Author.
