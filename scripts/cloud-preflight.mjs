@@ -24,7 +24,7 @@ if (!dockerfile.includes("npm ci") || !dockerfile.includes("USER node")) {
 }
 const dbCheck = readFileSync("scripts/cloud-db-check.ts", "utf8");
 if (!dbCheck.includes("CLOUD_DB_CHECK_PASS") || !dbCheck.includes("CLOUD_DB_CHECK_FAIL") ||
-    !dbCheck.includes("verifyCloudDbConnection")) {
+    !dbCheck.includes("verifyCloudDbConnection") || !dbCheck.includes("CLOUD_DB_EXPECTED_USER")) {
   throw new Error("Expected read-only cloud database preflight entrypoint");
 }
 console.log("GCP_PREFLIGHT_PASS: offline source checks only; no cloud project, secrets, deployment or billing verified.");

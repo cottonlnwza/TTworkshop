@@ -1,5 +1,13 @@
 # L5-03 / Issue #32 — GCP implementation preflight (NOT DEPLOYED)
 
+## 2026-11-16 — Source-only read-only migrator connection probe (Developer follow-up)
+
+The Author AI verified GCP **metadata only**: Cloud SQL `ttworkshop-pg` remains `RUNNABLE`; Secret `ttworkshop-migrator-url` version `1` is `enabled` with a Secret-resource `roles/secretmanager.secretAccessor` binding for the dedicated migration Service Account. No Artifact Registry Docker repository, Cloud Run service or Cloud Run Job exists yet in `asia-southeast1`. The current Draft PR has not been independently approved and merged via staging to a reviewed `main` release. **The Author did not read either database Secret payload, connect to Cloud SQL, create any GCP resources, run migration SQL or deploy.**
+
+**Issue #32 preparation in this PR:** `api/cloud-db-check.ts` now restricts the read-only identity probe to an explicit allowlist: existing default `ttworkshop_app` or reviewed `ttworkshop_migrator` chosen via the ordinary non-secret `CLOUD_DB_EXPECTED_USER`. It sends only `SELECT current_database(), current_user, 1`, fails closed on an unexpected login, and never displays driver exceptions, passwords or connection URIs. `tests/cloud-db-check.unit.test.ts` adds explicit synthetic migrator success, default-runtime mismatch, unsupported-role rejection and duplicate-row rejection without accessing any live database. The `deploy/command-review.md` document supplies an **unexecuted** proposed `ttworkshop-migrator-db-check` Cloud Run Job command, with the dedicated SA and pinned migration Secret. No Job may be created/executed before the course's individually reviewed commands and independent `main` release gate.
+
+**Important evidence boundary:** A source-level unit-test PASS is **not** a real Cloud SQL connection PASS. Record an actual authorized Cloud Run Job execution only once the reviewed release/image digest and separate command authorization exist. Only then consider the distinct DDL-writing migration job and post-migration runtime grants/role reduction. All live AC-L5-11/12/13/14 remain open.
+
 ## 2026-11-16 — Human-created migration Secret and scoped access (verified; no payload inspected)
 
 **Action attribution:** The student/operator confirmed that they personally created `ttworkshop-migrator-url` and granted migration-only Secret access in the Google Cloud Console. The Author AI performed **read-only verification** through the ComGu GCP environment and did **not** create the Secret, upload the credential, grant IAM permissions, or access any Secret payload. The following observations are source-side GCP metadata, **not** proof that the connection URI or password is valid:

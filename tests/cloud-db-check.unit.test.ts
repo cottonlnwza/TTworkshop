@@ -25,4 +25,34 @@ describe("cloud-db-check read-only connection verification", () => {
     const query = vi.fn(async () => ({ rows: [] }));
     await expect(verifyCloudDbConnection({ query })).rejects.toThrow("Unexpected Cloud SQL");
   });
+
+  it("passes for migration-only credentials when that identity is explicitly selected", async () => {
+    const query = vi.fn(async (_sql: string) => ({
+      rows: [{ database_name: "ttworkshop", role_name: "ttworkshop_migrator", probe_ok: 1 }],
+    }));
+    await verifyCloudDbConnection({ query }, "ttworkshop_migrator");
+    expect(query).toHaveBeenCalledOnce();
+    expect(query.mock.calls[0]![0]).toMatch(/^SELECT current_database\(\)/);
+  });
+
+  it("rejects a migration login if a runtime check is configured", async () => {
+    const query = vi.fn(async () => ({
+      rows: [{ database_name: "ttworkshop", role_name: "ttworkshop_migrator", probe_ok: 1 }],
+    }));
+    await expect(verifyCloudDbConnection({ query })).rejects.toThrow("Unexpected Cloud SQL");
+  });
+
+  it("rejects an unknown expected identity without opening a database connection", async () => {
+    const query = vi.fn();
+    await expect(verifyCloudDbConnection({ query }, "postgres")).rejects.toThrow("Unsupported Cloud SQL");
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("rejects unexpected additional identity rows", async () => {
+    const query = vi.fn(async () => ({ rows: [
+      { database_name: "ttworkshop", role_name: "ttworkshop_app", probe_ok: 1 },
+      { database_name: "ttworkshop", role_name: "ttworkshop_app", probe_ok: 1 },
+    ] }));
+    await expect(verifyCloudDbConnection({ query })).rejects.toThrow("Unexpected Cloud SQL");
+  });
 });

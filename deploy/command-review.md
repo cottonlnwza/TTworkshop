@@ -1,5 +1,7 @@
 # L5-03 / Issue #32 — Proposed GCP commands for human review (NOT EXECUTED)
 
+**2026-11-16 scoped connection-preflight improvement, source-only:** The same PR adds `CLOUD_DB_EXPECTED_USER` to `scripts/cloud-db-check.ts`, restricted in `api/cloud-db-check.ts` to `ttworkshop_app` (default) or `ttworkshop_migrator` (explicit). The probe remains **only one `SELECT`**, rejects missing/wrong DB identity and unknown requested roles without reading tables or changing rows, and redacts driver/connection errors. This allows a **separate read-only migration-credential check** without putting the migration Secret into a runtime Service Account. All real Cloud Run Jobs, image pushes and SQL migrations remain **NOT EXECUTED** until the individually reviewed commands and independently reviewed `main` release gate are satisfied. The Secret's enabled state and IAM do **not** prove that its stored URI/password works.
+
 **2026-11-16 latest GCP Secret verification (newer than the historical statements below):** The **human operator** created the migration-only Secret `ttworkshop-migrator-url` using Google Cloud Console and granted Secret-level `roles/secretmanager.secretAccessor` to `ttworkshop-migrator-runner@cpe334-ttworkshop.iam.gserviceaccount.com`. The Author AI performed **read-only, metadata-only** checks: Secret exists with automatic replication; version `1` is `enabled`; the Secret resource IAM policy has one explicit accessor binding for the migration Service Account; the existing `ttworkshop-database-url` resource policy still has only the runtime Service Account accessor. **The Author did not access the Secret value or change IAM.** Do not repeat Secret creation or the access grant. Secret contents/password correctness, actual Cloud SQL authentication, Migration Job execution and live app remain **NOT VERIFIED**. The independently reviewed `main` release and individually reviewed command gates still apply. Detailed evidence: [`docs/evidence/l5-03-gcp-preflight.md`](../docs/evidence/l5-03-gcp-preflight.md).
 
 **2026-11-16 human-executed IAM commands — verified, superseding older migration-SA status below:** The student, **not the Author AI**, personally ran these exact commands in their own Cloud Shell and provided the successful output:
@@ -90,7 +92,30 @@ gcloud run jobs execute ttworkshop-db-check \
   --project=cpe334-ttworkshop --region=asia-southeast1 --wait
 ```
 
-**Migrations (WRITES to Cloud SQL)**: After the read-only job PASS, independent release and **separate review/authorization** of the DB role changes in [`deploy/db-role-review.md`](db-role-review.md), execute versioned additive SQL migrations once from the reviewed image digest. **Do NOT reuse the API runtime SA and its DB Secret to run this job.** The separate migration-only DB user was operator-created with the limited custom role, but its PostgreSQL attributes/effective privileges remain unverified; its dedicated migration SA/Secret are **NOT CREATED**. Verify that no `cloudsqlsuperuser` membership or `CREATEDB`/`CREATEROLE` flags are held before this job; if any elevation exists, stop and obtain reviewed reduction. Runtime table/sequence privileges must only be granted **after** successful migrations because the schema is presently empty. The production API does **not** execute DDL at startup; transactional migration locking/idempotency does not replace a recovery plan.
+**Additional MIGRATOR-only read-only check — exact proposed commands, NOT EXECUTED:** After an independently approved/authorized `main` release and verified `IMAGE_DIGEST_REF`, the student must separately review and authorize these Cloud Run resource/job commands before running. This is **not** the migration job; it checks only a connection and that the **actual authenticated PostgreSQL user** is `ttworkshop_migrator`. Do not replace the migrator Service Account with the runtime one and do not point it at `ttworkshop-database-url`. The ordinary non-secret `CLOUD_DB_EXPECTED_USER` is an allowlisted identity; `DATABASE_URL` is supplied solely as a Secret reference pinned to version `1`.
+
+```bash
+# REVIEW ONLY — creates a Cloud Run Job resource; may incur Free Trial usage.
+# Prerequisite: a human-verified, reviewed main SHA and immutable image digest.
+gcloud run jobs create ttworkshop-migrator-db-check \
+  --project=cpe334-ttworkshop --region=asia-southeast1 \
+  --image="${IMAGE_DIGEST_REF}" \
+  --service-account=ttworkshop-migrator-runner@cpe334-ttworkshop.iam.gserviceaccount.com \
+  --set-cloudsql-instances=cpe334-ttworkshop:asia-southeast1:ttworkshop-pg \
+  --set-secrets=DATABASE_URL=ttworkshop-migrator-url:1 \
+  --set-env-vars=CLOUD_DB_EXPECTED_USER=ttworkshop_migrator \
+  --command=node \
+  --args=./node_modules/tsx/dist/cli.mjs,scripts/cloud-db-check.ts \
+  --max-retries=0 --tasks=1 --task-timeout=60s --memory=512Mi
+
+# REVIEW ONLY — executes the SELECT-only job against the live Cloud SQL DB.
+gcloud run jobs execute ttworkshop-migrator-db-check \
+  --project=cpe334-ttworkshop --region=asia-southeast1 --wait
+```
+
+Expected sanitized result: `CLOUD_DB_CHECK_PASS: read-only PostgreSQL connection/identity`. Fail closed for invalid URI, failed authentication, missing Secret, unavailable Cloud SQL socket or wrong login; the script does not print passwords, URIs or driver errors. **Do not mark the real connection verified until an actual permitted execution reports PASS.** Only then separately review/authorize the DDL-writing `ttworkshop-migrate` job.
+
+**Migrations (WRITES to Cloud SQL)**: After the **migration-identity** read-only job PASS, independent release and **separate review/authorization** of the DB role changes in [`deploy/db-role-review.md`](db-role-review.md), execute versioned additive SQL migrations once from the reviewed image digest. **Do NOT reuse the API runtime SA and its DB Secret to run this job.** The separate migration-only DB user, SA, Secret and explicit grants were operator-created; human-provided PostgreSQL read-back verified its `cloudsqlsuperuser=false`, `CREATEDB=false`, `CREATEROLE=false` and schema `CREATE=true`. **Actual migrator password/Secret login is still unverified** until the SELECT-only job passes. Runtime table/sequence privileges must only be granted **after** successful migrations because the schema is presently empty. The production API does **not** execute DDL at startup; transactional migration locking/idempotency does not replace a recovery plan.
 
 ```bash
 gcloud run jobs create ttworkshop-migrate \
