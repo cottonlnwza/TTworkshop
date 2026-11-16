@@ -1,0 +1,102 @@
+name: Deploy reviewed main release (manual, gated)
+
+# First-time GCP bootstrap, IAM and database privilege changes are operator-reviewed
+# per Lab 5 handout §9 and are NOT performed by this workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      expected_main_sha:
+        description: 'Full 40-character reviewed main commit SHA (must match current main HEAD)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write # WIF; no long-lived service account JSON key
+
+concurrency:
+  group: ttworkshop-production-release
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Reviewed main SHA to immutable image and smoke test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: production # Configure required reviewers/protection in GitHub before first use
+    timeout-minutes: 35
+    env:
+      PROJECT_ID: cpe334-ttworkshop
+      REGION: asia-southeast1
+      REPOSITORY: ttworkshop
+      SERVICE: ttworkshop
+      MIGRATION_JOB: ttworkshop-migrate
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Match user-approved immutable main SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_main_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo 'Expected full reviewed SHA'; exit 1; }
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          [[ "$ACTUAL_SHA" == "$EXPECTED_SHA" ]] || { echo 'Main HEAD is not the reviewed SHA'; exit 1; }
+          echo "Verified exact main SHA $ACTUAL_SHA"
+      - name: Authenticate without service-account key (requires operator-configured WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOYER_SA }}
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      - name: Confirm prerequisites without changing resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud artifacts repositories describe "$REPOSITORY" --project="$PROJECT_ID" --location="$REGION" >/dev/null
+          gcloud run jobs describe "$MIGRATION_JOB" --project="$PROJECT_ID" --region="$REGION" >/dev/null
+          gcloud run services describe "$SERVICE" --project="$PROJECT_ID" --region="$REGION" >/dev/null
+          # Operator must already have created restricted DB runtime role and job,
+          # reviewed required cloud/IAM commands, configured production environment
+          # protection, and provided a healthy existing HTTPS service URL.
+          RUNTIME_SA="$(gcloud run services describe "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --format='value(spec.template.spec.serviceAccountName)')"
+          [[ "$RUNTIME_SA" == "ttworkshop-runner@$PROJECT_ID.iam.gserviceaccount.com" ]] || { echo 'Service runtime SA mismatch; stop'; exit 1; }
+          SERVICE_URL="$(gcloud run services describe "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --format='value(status.url)')"
+          [[ "$SERVICE_URL" == https://* ]] || { echo 'No existing HTTPS service; run separately reviewed bootstrap'; exit 1; }
+          echo "SERVICE_URL=$SERVICE_URL" >> "$GITHUB_ENV"
+      - name: Build approved main source into image with exact SHA tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMAGE_TAG="$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/app:${GITHUB_SHA}"
+          gcloud builds submit . --project="$PROJECT_ID" --tag="$IMAGE_TAG"
+          DIGEST="$(gcloud artifacts docker images describe "$IMAGE_TAG" --project="$PROJECT_ID" --format='value(image_summary.digest)')"
+          [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo 'Artifact Registry did not return immutable digest'; exit 1; }
+          echo "IMAGE_REF=$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/app@$DIGEST" >> "$GITHUB_ENV"
+          echo "Image built from reviewed main SHA $GITHUB_SHA, digest $DIGEST"
+      - name: Run previously approved migration-only Cloud Run Job
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Pre-provisioned Job must use dedicated migrator SA/Secret; no runtime DDL.
+          JOB_SA="$(gcloud run jobs describe "$MIGRATION_JOB" --project="$PROJECT_ID" --region="$REGION" --format='value(spec.template.spec.template.spec.serviceAccountName)')"
+          [[ "$JOB_SA" == "ttworkshop-migrator-runner@$PROJECT_ID.iam.gserviceaccount.com" ]] || { echo 'Migrator Job SA is not dedicated; stop'; exit 1; }
+          gcloud run jobs update "$MIGRATION_JOB" --project="$PROJECT_ID" --region="$REGION" --image="$IMAGE_REF" --quiet
+          gcloud run jobs execute "$MIGRATION_JOB" --project="$PROJECT_ID" --region="$REGION" --wait --quiet
+      - name: Deploy same digest to existing production service
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Existing service must already be configured with runtime-only SA/Secret,
+          # Cloud SQL attachment and APP_ORIGIN by reviewed operator bootstrap.
+          gcloud run deploy "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --image="$IMAGE_REF" --quiet
+      - name: Read-only production smoke and revision record
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 deploy/smoke_test.py "$SERVICE_URL"
+          gcloud run services describe "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --format='value(status.latestReadyRevisionName)'
+          echo 'Smoke PASS is not proof of login/business flow or restart/redeploy persistence.'
