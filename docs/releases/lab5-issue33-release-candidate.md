@@ -16,8 +16,14 @@ This is the **single** release PR owned by [Issue #33](https://github.com/cotton
 | AC-L5-15 | `Dockerfile`, `deploy/plan.sh` offline-only, `.github/workflows/ci.yml`, PR #42 source readiness | Manual `deploy-main.yml` source added: checks exact main SHA, WIF, image digest, migration job, Cloud Run and HTTPS smoke. **UNEXECUTED** until reviewed GCP prerequisites / environment protection and actual release |
 | AC-L5-16 | PR #42 independently reviewed, merged into `sprint_2_staging` | This PR independent six-axis review, checks, authorized teammate merge into `main`, actual merge SHA/parents/tree |
 | AC-L5-17 | `deploy/smoke_test.py` read-only HTTPS readiness checks, documented migration separation | Cloud Run actual HTTPS URL, workload connection, authorized deploy and rollback verification; real restart and redeploy persisted record IDs |
-| AC-L5-18 | Course evidence requirements indexed below | Hosted CI/quality gate and blocked-merge proof, live URL/revision, screenshots, actual PDF and LEB2 receipt |
+| AC-L5-18 | Course evidence requirements indexed below | Hosted source CI and **C-02 failing-required-check merge block verified** via [PR #44](https://github.com/cottonlnwza/TTworkshop/pull/44), [run #44045343530](https://github.com/cottonlnwza/TTworkshop/actions/runs/44045343530). Still missing live URL/revision, screenshots, actual PDF and LEB2 receipt |
 | AC-L5-19 | Current README/deployment docs and release candidate manifest | Real post-main results in Issue #33; valid board read-back and closure grant |
+
+## Verified `main` merge-gate evidence (2026-11-17)
+
+- Repository Ruleset [#27441259](https://github.com/cottonlnwza/TTworkshop/rules/27441259) active on `refs/heads/main`, no bypass actors (`current_user_can_bypass=never`), requires a Pull Request, **one independent approval**, post-push last-actor approval, dismisses stale approvals, resolves review threads, and requires passing GitHub Actions `build-test` from integration id `15368`, strict up-to-date. Read-back of effective rules on main confirmed `pull_request`, `required_status_checks`, no force push or branch deletion. This is required-check enforcement evidence, not Reviewer Approval.
+- Course Lab 5 C-02 demonstration is the temporary [PR #44](https://github.com/cottonlnwza/TTworkshop/pull/44), not an implementation PR for Issue #33. Its final HEAD `44debbd743224fa3a40ab79ddedce4b25c20fd7e` produced [hosted failed run #44045343530](https://github.com/cottonlnwza/TTworkshop/actions/runs/44045343530): **13 passing test files, 103 passing tests, 1 intentionally failing assertion** at `tests/lab5-required-ci-proof.test.ts:6`, exactly the required negative test. GitHub API read-back `mergeStateStatus=BLOCKED` while PR was open and Ready for Review. The temporary PR was then CLOSED **without merge**; commit/test/run history preserved. Earlier transient failed runs on the demonstration branch were due to missing Lab 5 smoke harness in pre-Lab5 `main`, not used as the final proof.
+- This does **not** prove any cloud deployment, valid production credentials, or accepted release into `main`.
 
 ## Safety and remaining dependency order
 
@@ -34,7 +40,7 @@ This is the **single** release PR owned by [Issue #33](https://github.com/cotton
 | PDF part | Points | Actual evidence required | Status |
 | --- | ---: | --- | --- |
 | 0 Team and evidence index | — | Names/IDs/usernames, repo, release SHA, public URL and serving commit, contribution rows | INCOMPLETE |
-| 1 CI and quality gate | 30 | `ci.yml`, passing actual PR run and separate failing test PR blocked by required merge gate (C-01/02) | PARTIAL; blocked required gate not yet independently verified |
+| 1 CI and quality gate | 30 | `ci.yml`, [passing PR #43 run #43866378964](https://github.com/cottonlnwza/TTworkshop/actions/runs/43866378964) at `39d7503`, and [temporary C-02 PR #44](https://github.com/cottonlnwza/TTworkshop/pull/44) failed at `44debbd`: [run #44045343530](https://github.com/cottonlnwza/TTworkshop/actions/runs/44045343530), 103 PASS/1 deliberately failing Vitest, `mergeStateStatus=BLOCKED` | C-01/02 evidence collected; pending instructor judgment and final release source CI |
 | 2 Docker and reproducibility | 20 | Dockerfile, clean-clone container+DB, env table and commands (C-03) | PARTIAL |
 | 3 GCP and persistence | 35 | Live HTTPS UI/API/DB, role/denial, actual restart **and** redeploy before/after data (C-04/05) | NOT VERIFIED |
 | 4 Repeatable release | 15 | Independently reviewed release path and actual main SHA → image digest → deployed revision (C-06) | NOT VERIFIED |
