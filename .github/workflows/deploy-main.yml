@@ -100,10 +100,22 @@ jobs:
           # Existing service must already be configured with runtime-only SA/Secret,
           # Cloud SQL attachment and APP_ORIGIN by reviewed operator bootstrap.
           gcloud run deploy "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --image="$IMAGE_REF" --quiet
-      - name: Read-only production smoke and revision record
+      - name: Verify approved digest is actually serving 100 percent of public traffic
+        shell: bash
+        run: |
+          set -euo pipefail
+          TMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TMP_DIR"' EXIT
+          # Read-only snapshots. Do NOT change traffic automatically on mismatch.
+          gcloud run services describe "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --format=json > "$TMP_DIR/service.json"
+          READY_REVISION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("status",{}).get("latestReadyRevisionName",""))' "$TMP_DIR/service.json")"
+          [[ "$READY_REVISION" =~ ^[a-z0-9-]+$ ]] || { echo 'Cloud Run ready revision name invalid'; exit 1; }
+          gcloud run revisions describe "$READY_REVISION" --project="$PROJECT_ID" --region="$REGION" --format=json > "$TMP_DIR/revision.json"
+          python3 deploy/verify_serving_revision.py "$TMP_DIR/service.json" "$TMP_DIR/revision.json" \
+            --main-sha "$GITHUB_SHA" --image-ref "$IMAGE_REF" --service-url "$SERVICE_URL"
+      - name: Read-only production smoke (only after release routing verification)
         shell: bash
         run: |
           set -euo pipefail
           python3 deploy/smoke_test.py "$SERVICE_URL"
-          gcloud run services describe "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --format='value(status.latestReadyRevisionName)'
           echo 'Smoke PASS is not proof of login/business flow or restart/redeploy persistence.'

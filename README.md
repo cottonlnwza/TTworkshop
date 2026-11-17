@@ -72,7 +72,9 @@ The browser endpoint is for localhost development only; this stack is **not** an
 
 The proposed production layout is a single Cloud Run Node container serving
 the prebuilt Vite UI and same-origin API, backed by durable Cloud SQL PostgreSQL.
-**Current status (2026-11-16, Asia/Bangkok; Issue #32 / Draft PR #42):**
+**Current source/release status (2026-11-17, Asia/Bangkok):** Issue #32 remains **OPEN / Started** because no live Cloud Run deployment or persistence proof exists. Its implementation [PR #42](https://github.com/cottonlnwza/TTworkshop/pull/42) was independently reviewed and **MERGED** into `sprint_2_staging` as `dee47ce0cdef25226115627ab13a0dce798529a1`. The separately scoped Issue #33 release candidate [PR #43](https://github.com/cottonlnwza/TTworkshop/pull/43) targets `main`, and the independent Reviewer requested changes on its prior HEAD `c2d9b09` (source/release workflow rework in progress); it is **not merged or deployed**. The GCP provisioning status below is an operator/metadata snapshot from 2026-11-16 and is not a new live GCP acceptance test.
+
+**GCP infrastructure snapshot (2026-11-16, Asia/Bangkok):**
 The student/operator created Cloud SQL PostgreSQL 16 `ttworkshop-pg` and DB
 `ttworkshop`, runtime `ttworkshop_app` and its separate Service Account and
 `ttworkshop-database-url:1` Secret. The student subsequently created NOLOGIN
