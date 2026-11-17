@@ -4,8 +4,11 @@ coverage/
 .env
 .env.*
 !.env.example
+!.env.docker.example
 *.log
 .DS_Store
 .cache/
 playwright-report/
 test-results/
+__pycache__/
+*.pyc
