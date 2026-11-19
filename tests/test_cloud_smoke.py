@@ -33,14 +33,14 @@ class SmokeTest(unittest.TestCase):
 
         def reply(request, timeout):
             requests.append((request.full_url, request.get_method(), timeout))
-            if request.full_url.endswith("/healthz"):
+            if request.full_url.endswith("/health"):
                 return FakeResponse(request.full_url, b'{"status":"ok"}')
             return FakeResponse(request.full_url, b"<!doctype html><html></html>")
 
         with patch("deploy.smoke_test.urlopen", side_effect=reply), patch("builtins.print"):
             check(ORIGIN)
         self.assertEqual(requests, [
-            (ORIGIN + "/healthz", "GET", 15), (ORIGIN + "/", "GET", 15)
+            (ORIGIN + "/health", "GET", 15), (ORIGIN + "/", "GET", 15)
         ])
 
     def test_rejects_insecure_or_malformed_origins_before_network(self):
@@ -56,29 +56,29 @@ class SmokeTest(unittest.TestCase):
             network.assert_not_called()
 
     def test_rejects_database_unavailable(self):
-        with patch("deploy.smoke_test.urlopen", return_value=FakeResponse(ORIGIN + "/healthz", b'{"status":"unavailable"}')):
+        with patch("deploy.smoke_test.urlopen", return_value=FakeResponse(ORIGIN + "/health", b'{"status":"unavailable"}')):
             with self.assertRaisesRegex(RuntimeError, "readiness"):
                 check(ORIGIN)
 
     def test_rejects_spa_html_at_database_health_url(self):
-        # Regression for SERVE_WEB SPA middleware intercepting /healthz.
+        # Regression for SERVE_WEB SPA middleware intercepting /health.
         with patch("deploy.smoke_test.urlopen", return_value=FakeResponse(
-            ORIGIN + "/healthz", b"<!doctype html><html>Not DB readiness</html>"
+            ORIGIN + "/health", b"<!doctype html><html>Not DB readiness</html>"
         )):
             with self.assertRaises(ValueError):
                 check(ORIGIN)
 
     def test_rejects_http_503_database_health(self):
-        # Healthy HTML at / must not mask a failed DB probe at /healthz.
+        # Healthy HTML at / must not mask a failed DB probe at /health.
         with patch("deploy.smoke_test.urlopen", return_value=FakeResponse(
-            ORIGIN + "/healthz", b'{"status":"unavailable"}', status=503
+            ORIGIN + "/health", b'{"status":"unavailable"}', status=503
         )):
             with self.assertRaisesRegex(RuntimeError, "HTTP 503"):
                 check(ORIGIN)
 
     def test_rejects_200_non_html(self):
         def reply(request, _timeout=None, **_kwargs):
-            if request.full_url.endswith("/healthz"):
+            if request.full_url.endswith("/health"):
                 return FakeResponse(request.full_url, b'{"status":"ok"}')
             return FakeResponse(request.full_url, b"not a browser page")
 
@@ -87,7 +87,7 @@ class SmokeTest(unittest.TestCase):
                 check(ORIGIN)
 
     def test_rejects_downgrade_or_cross_origin_redirect(self):
-        for redirected in ("http://ttworkshop.example.test/healthz", "https://elsewhere.example.test/healthz"):
+        for redirected in ("http://ttworkshop.example.test/health", "https://elsewhere.example.test/health"):
             with self.subTest(redirected=redirected):
                 with patch("deploy.smoke_test.urlopen", return_value=FakeResponse(redirected, b'{"status":"ok"}')):
                     with self.assertRaisesRegex(RuntimeError, "redirected"):
