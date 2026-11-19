@@ -224,7 +224,7 @@ export function OrganizerApp() {
             <ul style={{ listStyle: "none", padding: 0 }}>
               {workshops.map(w => (
                 <li key={w.id} style={{ marginBottom: "1rem", padding: "1rem", border: "1px solid #ccc", borderRadius: "4px" }}>
-                  <strong>{w.title || "Untitled Draft"}</strong> 
+                  <strong>{w.title || "Untitled Draft"}</strong>
                   <span style={{ marginLeft: "0.5rem", padding: "0.2rem 0.5rem", background: w.status === "PUBLISHED" ? "#d4edda" : "#fff3cd", borderRadius: "4px" }}>
                     {w.status}
                   </span>

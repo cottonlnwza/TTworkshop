@@ -64,7 +64,7 @@ export function createWorkshopRouter(
   router.post("/workshops", requireOrigin, requireOrganizerWithIdentity, async (req: Request, res: Response) => {
     const identity = (req as any).identity as Identity;
     const { title, description, location, starts_at, ends_at, capacity, registration_deadline } = req.body || {};
-    
+
     // BR-08 Create validation
     const start = starts_at == null ? null : parseDateTime(starts_at);
     const end = ends_at == null ? null : parseDateTime(ends_at);
@@ -183,7 +183,7 @@ export function createWorkshopRouter(
 
     try {
       const result = await pool.query(
-        `UPDATE workshops SET 
+        `UPDATE workshops SET
           title = COALESCE($2, title),
           description = COALESCE($3, description),
           location = COALESCE($4, location),
