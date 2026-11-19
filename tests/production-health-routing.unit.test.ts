@@ -15,7 +15,8 @@ describe("production SERVE_WEB health routing / Cloud Run smoke contract", () =>
     dist = await mkdtemp(join(tmpdir(), "ttw-health-route-"));
     await writeFile(join(dist, "index.html"), "<!doctype html><html>TTworkshop UI</html>");
     // A prebuilt artifact must never mask the health handler.
-    await writeFile(join(dist, "healthz"), "wrong static health response");
+    await writeFile(join(dist, "health"), "wrong static health response");
+    await writeFile(join(dist, "healthz"), "wrong retired health response");
   });
   afterAll(async () => { if (dist) await rm(dist, { recursive: true, force: true }); });
 
@@ -30,7 +31,7 @@ describe("production SERVE_WEB health routing / Cloud Run smoke contract", () =>
 
   it("returns DB-backed JSON 200 before the SPA catch-all when PostgreSQL responds", async () => {
     const { app, probe } = productionApp(async () => ({ rows: [{ one: 1 }] }));
-    const health = await request(app).get("/healthz");
+    const health = await request(app).get("/health");
     expect(health.status).toBe(200);
     expect(health.headers["content-type"]).toMatch(/application\/json/);
     expect(health.headers["cache-control"]).toBe("no-store");
@@ -46,7 +47,7 @@ describe("production SERVE_WEB health routing / Cloud Run smoke contract", () =>
 
   it("returns DB-backed JSON 503 on a failed probe, never 200 SPA HTML", async () => {
     const { app, probe } = productionApp(async () => { throw new Error("synthetic DB failure"); });
-    const health = await request(app).get("/healthz");
+    const health = await request(app).get("/health");
     expect(health.status).toBe(503);
     expect(health.headers["content-type"]).toMatch(/application\/json/);
     expect(health.body).toEqual({ status: "unavailable" });
@@ -64,9 +65,17 @@ describe("production SERVE_WEB health routing / Cloud Run smoke contract", () =>
     expect(deep.text).toContain("TTworkshop UI");
   });
 
+  it("does not map the retired /healthz endpoint to SPA HTML", async () => {
+    const { app, probe } = productionApp(async () => ({ rows: [{ one: 1 }] }));
+    const oldHealth = await request(app).get("/healthz");
+    expect(oldHealth.status).toBe(404);
+    expect(oldHealth.text).not.toContain("TTworkshop UI");
+    expect(probe).not.toHaveBeenCalled();
+  });
+
   it("retains JSON health without static SPA for local API-only mode", async () => {
     const { app } = productionApp(async () => ({ rows: [{ one: 1 }] }), false);
-    expect((await request(app).get("/healthz")).body).toEqual({ status: "ok" });
+    expect((await request(app).get("/health")).body).toEqual({ status: "ok" });
     expect((await request(app).get("/")).status).toBe(404);
   });
 });
