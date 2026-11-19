@@ -15,7 +15,7 @@ def check(origin):
         parsed.port  # Reject invalid port syntax before any request.
     except ValueError as exc:
         raise ValueError("Invalid HTTPS service port") from exc
-    for path, expected in (("/healthz", "json"), ("/", "html")):
+    for path, expected in (("/health", "json"), ("/", "html")):
         url = origin.rstrip("/") + path
         with urlopen(Request(url, headers={"User-Agent": "ttworkshop-lab5-readonly-smoke/1"}), timeout=15) as response:
             final = urlparse(response.geturl())

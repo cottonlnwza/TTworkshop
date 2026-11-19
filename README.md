@@ -62,17 +62,40 @@ The CI job name is **`build-test`**. For `sprint_2_staging`, actual GitHub Branc
 Issue #31 adds a local-development Docker Compose stack with three services: PostgreSQL 15, the Node/Express API, and the Vite/React UI. Images are built from a digest-pinned Node 22 base with `npm ci` and strict TypeScript/Vite build; PostgreSQL 15 uses a pinned digest. The DB is an internal-only container service with a persistent named volume. The UI is published **only to host loopback** (`127.0.0.1`), and API/DB are not exposed directly to the host.
 
 1. Install and start Docker Desktop (or a compatible Docker daemon). Copy `.env.docker.example` to `.env` (never commit `.env`) and replace `TTW_DB_PASSWORD` with a **random synthetic local secret**. It is not a production database password. If port 5173 is in use, change `TTW_WEB_PORT` (e.g. `18173`). No cloud credentials are needed.
-2. Run `docker compose config --quiet`, `docker compose build` and `docker compose up -d --wait --wait-timeout 120`. Visit `http://localhost:${TTW_WEB_PORT:-5173}` with the concrete configured port. `docker compose ps` should show `db`, `api` and `web` all healthy. The API initializes idempotent database migrations on startup; its `/healthz` reports 503 when PostgreSQL is unreachable. `APP_HOST=0.0.0.0` is set **only** in the container; ordinary local development defaults to `127.0.0.1`.
+2. Run `docker compose config --quiet`, `docker compose build` and `docker compose up -d --wait --wait-timeout 120`. Visit `http://localhost:${TTW_WEB_PORT:-5173}` with the concrete configured port. `docker compose ps` should show `db`, `api` and `web` all healthy. The API initializes idempotent database migrations on startup; its `/health` reports 503 when PostgreSQL is unreachable. `APP_HOST=0.0.0.0` is set **only** in the container; ordinary local development defaults to `127.0.0.1`.
 3. To use disposable **synthetic** demo accounts only, choose a separate random shell value `SEED_PASSWORD` of at least 12 characters. Execute `docker compose run --rm -T -e SEED_PASSWORD="$SEED_PASSWORD" api node ./node_modules/tsx/dist/cli.mjs scripts/seed.ts` once. Never use this demo seed on real accounts or production data. Seeded identities are listed above. Run `APP_ORIGIN=http://localhost:<configured-port> SEED_PASSWORD="$SEED_PASSWORD" node scripts/docker-smoke.mjs` and (with Chrome installed locally) `APP_ORIGIN=... SEED_PASSWORD=... node scripts/docker-browser-smoke.mjs` after `npm ci` on the host. These scripts check real HTTP interactions through the Compose UI proxy and a real browser respectively.
 4. Capture the `SMOKE_PASS <title>` output. Run `docker compose restart`, then `docker compose up -d --wait --wait-timeout 120`, and `APP_ORIGIN=... SEED_PASSWORD=... node scripts/docker-smoke.mjs --verify <title>` to verify the workshop persists in the database volume. Run `docker compose down` to stop safely **without deleting data**. To intentionally reset all local demo data, use `docker compose down -v` (**destructive**; only for this disposable stack). To rebuild from a clean checkout, copy only the non-secret `.env` configuration or set environment variables anew and rerun build/up/smoke. Run `docker image inspect ttworkshop-l5-api ttworkshop-l5-web` to capture image IDs/digests.
 
 The browser endpoint is for localhost development only; this stack is **not** an HTTPS production/GCP deployment and does not implement Lab 5 cloud/release Issues #32–#33. For exact test evidence and limitations, see [L5-02 Docker evidence](docs/evidence/l5-02-docker.md).
 
-## Lab 5 GCP deployment preparation (Issue #32 — NOT DEPLOYED)
+## Lab 5 GCP private preflight and health fix (Issues #32 and #46; public release pending)
+
+**Latest verified live observation (2026-11-19; supersedes historical deployment
+snapshots below):** Cloud Run service `ttworkshop` exists **privately** in
+`cpe334-ttworkshop/asia-southeast1`, backed by Cloud SQL and runtime Secret
+`ttworkshop-database-url:3`. Its independently reviewed `main` image digest
+is `sha256:4731ee4424ca08fe82e1c5de65b574f80aa151fadd96e1f883cc67c13eacded2`.
+Revision `ttworkshop-00001-hix` takes 100% **private** traffic; revision
+`ttworkshop-00002-fin` is Ready, tagged `preflight-v2`, with 0% default
+traffic and the actual HTTPS `APP_ORIGIN`. Cloud Run IAM does not include
+`allUsers`. PostgreSQL migration and least-privilege checks passed, and
+private proxy `/` returned HTML 200 while `/api/v1/workshops` returned 401.
+Cloud Run intercepts `/healthz` with a frontend 404; `/healthz/` responded
+200 `{"status":"ok"}` on the **older deployed image**. [Fix Issue #46](https://github.com/cottonlnwza/TTworkshop/issues/46)
+changes the code, Compose health check and read-only smoke probes to
+**`/health`**.
+The revised image is **NOT BUILT OR DEPLOYED** from this candidate and requires
+its own independently reviewed fix PR and subsequent authorized `main` release.
+After that release, change the Cloud Run startup probe to `/health`, deploy a
+new immutable image to a **private tagged revision**, and verify authenticated
+HTTPS `GET /health` = 200 `{"status":"ok"}` before shifting any traffic.
+Public access, end-to-end authentication/registration, restart/redeploy
+persistence, LEB2 submission and Issue completion remain **NOT VERIFIED**.
+See [Lab 5 deployment procedure](docs/labs/lab-05/deployment.md).
 
 The proposed production layout is a single Cloud Run Node container serving
 the prebuilt Vite UI and same-origin API, backed by durable Cloud SQL PostgreSQL.
-**Current status (2026-11-16, Asia/Bangkok; Issue #32 / Draft PR #42):**
+**Historical status (2026-11-16, Asia/Bangkok; Issue #32 / Draft PR #42):**
 The student/operator created Cloud SQL PostgreSQL 16 `ttworkshop-pg` and DB
 `ttworkshop`, runtime `ttworkshop_app` and its separate Service Account and
 `ttworkshop-database-url:1` Secret. The student subsequently created NOLOGIN
@@ -88,14 +111,14 @@ live runtime least privilege is **NOT VERIFIED**. Secret URI/password validity,
 actual database login, migrations, Cloud Run Job/service, public HTTPS URL and
 restart/redeploy persistence are **NOT VERIFIED / NOT DEPLOYED**. Cloud SQL
 remains RUNNABLE and consumes Free Trial credits; budget alerts do not cap spend.
-The dated 2026-11-15 pre-provisioning evidence below is historical; this
-paragraph supersedes it for current status. In production set `SERVE_WEB=true`,
+This dated snapshot superseded the 2026-11-15 pre-provisioning evidence
+at the time; the live 2026-11-19 state above now supersedes it. In production set `SERVE_WEB=true`,
 `NODE_ENV=production`, `APP_HOST=0.0.0.0`, `PORT=8080`,
 `APP_ORIGIN` to the *real* public HTTPS origin and inject
 `DATABASE_URL` securely via Secret Manager. No credentials belong in Git.
 
 The existing local Docker Compose development stack is unchanged. The
-production `/healthz` handler now mounts **before** the SPA catch-all (repair
+production `/health` handler mounts **before** the SPA catch-all (repair
 for the independent 2026-11-16 Formal `CHANGES_REQUESTED`); the same route
 composer used by `api/server.ts` is tested under `SERVE_WEB=true` for
 DB-ready JSON `200`, DB-unavailable JSON `503`, static HTML and API paths.

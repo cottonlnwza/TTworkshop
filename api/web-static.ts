@@ -9,7 +9,7 @@ export function attachDeploymentRoutes(
   db: HealthDb,
   options: { serveWeb: boolean; distDirectory: string }
 ): void {
-  app.get("/healthz", async (_req, res) => {
+  app.get("/health", async (_req, res) => {
     res.setHeader("Cache-Control", "no-store");
     try {
       await db.query("SELECT 1");
@@ -18,6 +18,9 @@ export function attachDeploymentRoutes(
       res.status(503).json({ status: "unavailable" });
     }
   });
+  // Fail closed if an old health URL is requested; do not serve a static asset
+  // or SPA HTML for a retired readiness endpoint.
+  app.get("/healthz", (_req, res) => res.sendStatus(404));
   if (options.serveWeb) attachWebUi(app, options.distDirectory);
 }
 
@@ -29,7 +32,7 @@ export function attachWebUi(app: Express, distDirectory: string): void {
     if (req.method !== "GET" && req.method !== "HEAD") return next();
     if (req.path === "/api" || req.path.startsWith("/api/")) return res.sendStatus(404);
     // Never turn a missing/misconfigured database readiness handler into HTML.
-    if (req.path === "/healthz") return next();
+    if (req.path === "/health" || req.path === "/healthz") return next();
     // Missing static assets must not masquerade as the SPA HTML document.
     if (req.path.split("/").at(-1)?.includes(".")) return res.sendStatus(404);
     res.sendFile(join(distDirectory, "index.html"));

@@ -1,16 +1,52 @@
-# Lab 5 — TTworkshop Deployment Procedure (partially provisioned; not deployed)
+# Lab 5 — TTworkshop Deployment Procedure (private preflight deployed; public release pending)
+
+**Latest verified live state (2026-11-19, Asia/Bangkok):** PR #43 was independently
+approved and merged to `main@d9e9f99637c0511bc93b561f51fb34d2b913d71b`.
+Cloud Run service `ttworkshop` now exists **privately**: revision
+`ttworkshop-00001-hix` is receiving 100% of the default private traffic and
+`ttworkshop-00002-fin` (tag `preflight-v2`) is Ready with 0%. Runtime Secret is
+`ttworkshop-database-url:3`; PostgreSQL schema migrations, restricted
+runtime-role membership/privileges and DB login were verified via read-only
+cloud jobs. The Service has no `allUsers` invoker binding. Production browser
+workflows and persistence across both restart and redeploy are **NOT VERIFIED**.
+Authenticated proxy observations on the **old deployed image**: `/` was HTML
+200, `/api/v1/workshops` was unauthenticated 401, `/healthz` was Google
+Frontend HTML 404 and `/healthz/` returned JSON 200. Google Cloud documents
+some `z`-ending paths as reserved. [Fix Issue #46](https://github.com/cottonlnwza/TTworkshop/issues/46)
+changes the local candidate, not yet merged or deployed, to `/health`. Preserve historical review evidence
+for the earlier `2026-11-16` `/healthz` source fix below.
+
+**Pre-deploy checklist for the `/health` fix (NOT EXECUTED):** independently
+review and merge its separately authorized fix PR; obtain an independently
+reviewed/authorized new `main` release; build the exact merged commit to a
+new immutable Artifact Registry image digest; deploy that image **privately**
+under `ttworkshop-runner` with Secret `ttworkshop-database-url:3`, the exact
+Cloud SQL instance, `APP_ORIGIN=https://ttworkshop-348518197526.asia-southeast1.run.app`
+and HTTP startup probe `path=/health` (not `/healthz`). Use a tagged revision
+with 0% of the default service traffic. Confirm Cloud Run Ready, image/digest,
+Secret reference, no `allUsers` invoker access, and an authenticated request
+to `GET /health` returns HTTP 200 `{"status":"ok"}`. Only later, with separate
+public-deploy/IAM approval, shift traffic and verify live synthetic business
+journeys and persistence. Never expose passwords, database URLs or identity
+tokens. Lab 5 p.8 §9 requires operator review of each real `gcloud` command.
 
 **Official sources:** `01_SE_Lab_5_updated.pdf` pp. 1–10 (R-01..R-12, C-01..C-06); `03_Student-Guide-GCP-Deployment-and+CI+CD-V1_1.pdf` v1.1, Episodes 0–10; `02_lab5-starter-kit.zip` (TokTickIT example, not production-ready for this app).
 
-**Current status (2026-11-16, Asia/Bangkok):** GCP INFRASTRUCTURE **PARTIALLY PROVISIONED**, **NOT DEPLOYED**. The **student/operator** created Cloud SQL `ttworkshop-pg` and database `ttworkshop`; runtime `ttworkshop_app`, `ttworkshop-runner` and `ttworkshop-database-url:1`; and later distinct `ttworkshop_runtime`/`ttworkshop_migration` NOLOGIN PostgreSQL roles, restricted `ttworkshop_migrator` login, `ttworkshop-migrator-runner` with `roles/cloudsql.client`, and `ttworkshop-migrator-url:1` Secret with only the migration SA as its explicit resource-level Secret Accessor. **The Author AI performed metadata-only read-backs, did not create these later IAM/Secret resources, and did not inspect credential payloads.** The migrator's PostgreSQL role attributes and effective schema `CREATE` were verified by student-provided read-only SQL; successful migrator password login was **not** tested. **Production `ttworkshop_app` still has `cloudsqlsuperuser`; no migrations, Cloud Run Job/service, public URL, live database connection, authentication workflow, restart/redeploy persistence or reviewed `main` release is verified.** Issue #32 / Draft PR #42 remains open and `CHANGES_REQUESTED`, targeting `sprint_2_staging`. This supersedes dated 2026-11-15 status snapshots without rewriting history. Do not treat metadata or a dry-run as cloud acceptance evidence.
+## Historical provisioning and review notes (2026-11-16; superseded by the live state above)
 
-**Credential verification limit:** Only user and Secret version/IAM metadata were read through GCP APIs. **Neither Secret value has been read or validated.** The operator's migration user was verified not to hold `cloudsqlsuperuser`/`CREATEDB`/`CREATEROLE`, but `ttworkshop_app` still has `cloudsqlsuperuser`. Until the separately reviewed live runtime privilege reduction is evidenced, AC-L5-13 remains incomplete.
+**Historical status (2026-11-16, Asia/Bangkok):** GCP INFRASTRUCTURE **PARTIALLY PROVISIONED**, **NOT DEPLOYED**. The **student/operator** created Cloud SQL `ttworkshop-pg` and database `ttworkshop`; runtime `ttworkshop_app`, `ttworkshop-runner` and `ttworkshop-database-url:1`; and later distinct `ttworkshop_runtime`/`ttworkshop_migration` NOLOGIN PostgreSQL roles, restricted `ttworkshop_migrator` login, `ttworkshop-migrator-runner` with `roles/cloudsql.client`, and `ttworkshop-migrator-url:1` Secret with only the migration SA as its explicit resource-level Secret Accessor. **The Author AI performed metadata-only read-backs, did not create these later IAM/Secret resources, and did not inspect credential payloads.** The migrator's PostgreSQL role attributes and effective schema `CREATE` were verified by student-provided read-only SQL; successful migrator password login was **not** tested. **Production `ttworkshop_app` still has `cloudsqlsuperuser`; no migrations, Cloud Run Job/service, public URL, live database connection, authentication workflow, restart/redeploy persistence or reviewed `main` release is verified.** Issue #32 / Draft PR #42 remains open and `CHANGES_REQUESTED`, targeting `sprint_2_staging`. This supersedes dated 2026-11-15 status snapshots without rewriting history. Do not treat metadata or a dry-run as cloud acceptance evidence.
+
+**Historical credential verification limit (2026-11-16):** Only user and Secret version/IAM metadata were read through GCP APIs. **Neither Secret value has been read or validated.** The operator's migration user was verified not to hold `cloudsqlsuperuser`/`CREATEDB`/`CREATEROLE`, but `ttworkshop_app` still has `cloudsqlsuperuser`. Until the separately reviewed live runtime privilege reduction is evidenced, AC-L5-13 remains incomplete.
 
 **Reviewer #42 `CHANGES_REQUESTED` remediation (code only, 2026-11-15):** `api/server.ts` now invokes `prepareDatabaseOnStartup()`. In Production this reads `schema_migrations` and verifies the migration filenames bundled with the exact image; it does **not** run `migrate()` or issue DDL. If migration history is absent, incomplete, unexpectedly ahead, unreadable or inaccessible to the runtime DB role, startup fails closed with redacted error, before opening the HTTP listener. Existing Development/Test startup still auto-migrates as before. The only production DDL entrypoint is a separately reviewed one-shot `scripts/migrate.ts` job with its own migration DB login, service account and per-secret IAM. See [`deploy/db-role-review.md`](../../../deploy/db-role-review.md) for exact role/grant/revocation proposals, explicit operator review gates and recovery, **not yet executed**. Never inject migrator credentials into the public API service.
 
 **2026-11-16 Formal Re-review source fix (not a cloud execution):** Independent Reviewer found that `SERVE_WEB=true` previously mounted the SPA catch-all before `GET /healthz`, incorrectly returning HTML for readiness. The Author now uses `attachDeploymentRoutes()` from the actual production `api/server.ts` to register a DB-aware `/healthz` **before** serving static UI. Healthy `SELECT 1` yields HTTP 200 `{"status":"ok"}`; DB failure yields HTTP 503 `{"status":"unavailable"}`; errors are not echoed. A second fallback guard excludes `/healthz`. New isolated `tests/production-health-routing.unit.test.ts` invokes the same route composer with `createApp()` in `production: true` mode and `serveWeb: true`, including failure and ordinary UI/API checks; Python smoke tests cover the response contract. **This is source/test evidence only, not a running Cloud Run instance.**
 
 ## Architecture and deviations from Starter Kit
+
+**Note:** The resource inventory and rollout assumptions below are a 2026-11-16
+historical planning snapshot. The 2026-11-19 live state at the top supersedes
+conflicting older resource/release claims.
 
 Reference services are **recommended**, not a forced exact stack: Artifact Registry, Cloud Run, Cloud SQL PostgreSQL, Secret Manager, GitHub Actions with Workload Identity Federation. TTworkshop uses React/Vite + Express 5 + `pg` and SQL migrations, **not Prisma**. Its root `Dockerfile` builds the UI and runs an unprivileged Node API; `SERVE_WEB=true` serves static UI and `/api/v1` on one HTTPS origin, needed for strict browser Origin validation and session cookies. The existing Compose environment uses separate local frontend/backend and is unchanged.
 
@@ -64,7 +100,7 @@ git diff --check
    The operator-entered Secret should follow the URL structure `postgresql://ttworkshop_app:<URL_ENCODED_PASSWORD>@/ttworkshop?host=%2Fcloudsql%2Fcpe334-ttworkshop%3Aasia-southeast1%3Attworkshop-pg`. This is a **placeholder only**, never a value to commit or share. The password must be URL-encoded privately. Google Cloud's `/cloudsql/PROJECT:REGION:INSTANCE` Unix socket path is supported for Cloud Run. Secret **metadata** has been verified; **never access or print the Secret value for proof**. Test actual connectivity only after separate applicable approval and do not mark persistence PASS until live evidence exists.
 3. Build the exact approved commit, push its image to Artifact Registry, record image digest. Run `npm run db:migrate` as a separate Cloud Run migration job with the secret and Cloud SQL attachment. **Never run `npm run db:seed` in production**; it rejects production by design. Provision authorized synthetic test accounts through an explicitly approved secure process rather than hardcoded credentials.
 4. Deploy service with `NODE_ENV=production`, `APP_HOST=0.0.0.0`, `SERVE_WEB=true`, `PORT=8080`, and inject the database URI from Secret Manager. Set `APP_ORIGIN` to the actual HTTPS service origin before exposing traffic and before authentication tests. This value is not predictable before Cloud Run creates the URL. Verify runtime service account, SQL attachment, Cloud Run concurrency/max scale, TLS, allowed ingress, migrations and rollback.
-5. Run `python3 deploy/smoke_test.py https://ACTUAL_SERVICE_URL` (read-only, checks `/` + `/healthz`). Test authenticated Organizer publish and Participant registration, duplicate/full rejection and authorization using synthetic accounts; record redacted screenshots with URL and commit. Save record IDs and timestamps; trigger a real restart/new revision and then a separate redeploy, proving the same DB rows remain after both. No fake or local-only claims.
+5. Run `python3 deploy/smoke_test.py https://ACTUAL_SERVICE_URL` (read-only, checks `/` + `/health`). Test authenticated Organizer publish and Participant registration, duplicate/full rejection and authorization using synthetic accounts; record redacted screenshots with URL and commit. Save record IDs and timestamps; trigger a real restart/new revision and then a separate redeploy, proving the same DB rows remain after both. No fake or local-only claims.
 6. Independent teammate reviews PR #42 and its CI on the exact HEAD before staging merge; release through an independently reviewed staging-to-`main` PR and `main`-triggered deployment workflow (separate release ownership and authorization). A direct manual first deployment does not alone fulfill R-07/R-08. Record GitHub run, commit, digest, Cloud Run revision and rollback steps.
 7. Do not destroy persistent Cloud SQL, backups, or grading data without separate explicit approval. Keep the public URL alive until grading ends as the handout requires. When authorized, run separate post-grading teardown procedure.
 
