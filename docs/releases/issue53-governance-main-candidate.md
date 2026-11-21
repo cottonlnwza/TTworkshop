@@ -77,8 +77,30 @@ not on a deployed service:
 
 Environment: ComTon Windows; Node 26.13.0 and Python 3.12.10.
 No safe local PostgreSQL/Chromium integration setup was available.
-The full Vitest suite is **not independently rerun locally**;
-exact-HEAD hosted CI is a mandatory remaining check.
+The full Vitest suite was **not rerun by the ComTon Author locally**.
+This local limitation does not negate the separate hosted and independent
+Reviewer verification below.
+
+## Hosted and independent pre-merge evidence (2026-11-21)
+
+- **GitHub Actions `build-test` SUCCESS** on the then-current exact PR
+  HEAD `84bf98c49582adb387ab81818fda7f62ffa2e79a`:
+  [run #44894571629](https://github.com/cottonlnwza/TTworkshop/actions/runs/44894571629).
+  TypeScript/Vite build PASS; isolated PostgreSQL 15/Chromium Vitest
+  **20/20 files, 134/134 tests PASS**; Python smoke **7/7 PASS** and
+  release provenance **11/11 PASS**.
+- Independent Reviewer `cottonlnwza` reported separate checks on that
+  same reviewed HEAD: locked install, build, Python 7/7 + 11/11,
+  isolated local PostgreSQL 15/Chrome Vitest **134/134**, YAML metadata,
+  Markdown lint and links, and `git diff --check` PASS. These are
+  **Reviewer-run**, not ComTon Author-local test results; see
+  [Formal Review #6004763967](https://github.com/cottonlnwza/TTworkshop/pull/55#pullrequestreview-6004763967).
+- This is **dated, exact-SHA evidence**. After this documentation-only
+  correction creates a new PR HEAD, independently read back required
+  `build-test` for that new commit from
+  [PR #55 checks](https://github.com/cottonlnwza/TTworkshop/pull/55/checks).
+  A successful run on the previous SHA must never be represented as a
+  passing run on an untested newer SHA.
 
 ## Verification and remaining gates
 
@@ -87,9 +109,13 @@ exact-HEAD hosted CI is a mandatory remaining check.
 - Run `git diff --check` and Markdown lint.
 - Run locked NPM install, TypeScript/Vite build, Python smoke and
   release-provenance tests, plus locally runnable Vitest tests.
-- Hosted `build-test` on exact release PR HEAD must run the complete
-  isolated PostgreSQL/Chromium suite.
-- `cottonlnwza` must independently submit a six-axis Formal Review.
+- Hosted `build-test` **passed** on the pre-correction exact HEAD
+  `84bf98c49582adb387ab81818fda7f62ffa2e79a` (run #44894571629,
+  134/134 Vitest, Python 7/7 + 11/11). Recheck [PR #55 checks](https://github.com/cottonlnwza/TTworkshop/pull/55/checks)
+  for required CI on the **post-correction** HEAD before re-review.
+- Independent `cottonlnwza` six-axis Formal Review on the prior HEAD
+  requested this documentation correction; a new-HEAD six-axis
+  **Formal Re-review remains pending**.
 - Main merge needs a separate explicit authorization and rechecking
   actual main ruleset, fresh HEAD, CI, conversations and mergeability.
 - The PR Author cannot approve or merge their own PR.
@@ -103,7 +129,7 @@ exact-HEAD hosted CI is a mandatory remaining check.
 | Root AGENTS and four Skills | Integrated | Independent Review |
 | Governance archives | Historical only | Link validation |
 | Main deploy/CI controls | Preserved | Diff verification |
-| Hosted full tests | Not yet run on release HEAD | CI |
+| Hosted full tests | **PASS on prior exact HEAD `84bf98c`** — [run #44894571629](https://github.com/cottonlnwza/TTworkshop/actions/runs/44894571629), 134/134 Vitest, Python 7/7 + 11/11 | Recheck required `build-test` on the new documentation-only HEAD; independent Re-review |
 | Main merge | Not done | Separate authority |
 | Issue #53 closure | Not done | Post-merge verification |
 
