@@ -1,0 +1,160 @@
+name: Deploy reviewed main release (manual, gated)
+
+# First-time GCP bootstrap, IAM and database privilege changes are operator-reviewed
+# per Lab 5 handout §9 and are NOT performed by this workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      expected_main_sha:
+        description: 'Full 40-character reviewed main commit SHA (must match current main HEAD)'
+        required: true
+        type: string
+      operator_approved_migration_and_traffic:
+        description: 'Operator reviewed the exact migration Job, backup and production traffic commands for this SHA'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write # WIF; no long-lived service account JSON key
+
+concurrency:
+  group: ttworkshop-production-release
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Reviewed main SHA to immutable image and smoke test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: production # Configure required reviewers/protection in GitHub before first use
+    timeout-minutes: 35
+    env:
+      PROJECT_ID: cpe334-ttworkshop
+      REGION: asia-southeast1
+      REPOSITORY: ttworkshop
+      SERVICE: ttworkshop
+      MIGRATION_JOB: ttworkshop-migrate
+    steps:
+      - name: Require operator-confirmed production environment protection
+        shell: bash
+        env:
+          ENV_PROTECTED: ${{ vars.PRODUCTION_ENV_PROTECTED }}
+        run: |
+          set -euo pipefail
+          [[ "$ENV_PROTECTED" == 'true' ]] || { echo 'BLOCKED: configure protected production environment and explicit repository variable'; exit 1; }
+      - name: Require explicit operator approval of migration and traffic changes
+        shell: bash
+        env:
+          OPERATOR_APPROVED: ${{ inputs.operator_approved_migration_and_traffic }}
+        run: |
+          set -euo pipefail
+          [[ "$OPERATOR_APPROVED" == "true" ]] || { echo 'BLOCKED: operator has not confirmed reviewed migration and 100% traffic changes'; exit 1; }
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Match user-approved immutable main SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_main_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo 'Expected full reviewed SHA'; exit 1; }
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          [[ "$ACTUAL_SHA" == "$EXPECTED_SHA" ]] || { echo 'Main HEAD is not the reviewed SHA'; exit 1; }
+          echo "Verified exact main SHA $ACTUAL_SHA"
+      - name: Authenticate without service-account key (requires operator-configured WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOYER_SA }}
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      - name: Confirm prerequisites without changing resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud artifacts repositories describe "$REPOSITORY" --project="$PROJECT_ID" --location="$REGION" >/dev/null
+          gcloud run jobs describe "$MIGRATION_JOB" --project="$PROJECT_ID" --region="$REGION" >/dev/null
+          gcloud run services describe "$SERVICE" --project="$PROJECT_ID" --region="$REGION" >/dev/null
+          # Operator must already have created restricted DB runtime role and job,
+          # reviewed required cloud/IAM commands, configured production environment
+          # protection, and provided a healthy existing HTTPS service URL.
+          RUNTIME_SA="$(gcloud run services describe "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --format='value(spec.template.spec.serviceAccountName)')"
+          [[ "$RUNTIME_SA" == "ttworkshop-runner@$PROJECT_ID.iam.gserviceaccount.com" ]] || { echo 'Service runtime SA mismatch; stop'; exit 1; }
+          SERVICE_URL="$(gcloud run services describe "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --format='value(status.url)')"
+          [[ "$SERVICE_URL" == https://* ]] || { echo 'No existing HTTPS service; run separately reviewed bootstrap'; exit 1; }
+          echo "SERVICE_URL=$SERVICE_URL" >> "$GITHUB_ENV"
+      - name: Build approved main source into image with exact SHA tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMAGE_TAG="$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/app:${GITHUB_SHA}"
+          gcloud builds submit . --project="$PROJECT_ID" --tag="$IMAGE_TAG" \
+            --service-account="projects/$PROJECT_ID/serviceAccounts/ttworkshop-builder@$PROJECT_ID.iam.gserviceaccount.com" \
+            --gcs-log-dir="gs://cpe334-ttworkshop_cloudbuild/c06-logs"
+          DIGEST="$(gcloud artifacts docker images describe "$IMAGE_TAG" --project="$PROJECT_ID" --format='value(image_summary.digest)')"
+          [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo 'Artifact Registry did not return immutable digest'; exit 1; }
+          echo "IMAGE_REF=$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/app@$DIGEST" >> "$GITHUB_ENV"
+          echo "Image built from reviewed main SHA $GITHUB_SHA, digest $DIGEST"
+      - name: Run previously approved migration-only Cloud Run Job
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Pre-provisioned Job must use dedicated migrator SA/Secret; no runtime DDL.
+          JOB_SA="$(gcloud run jobs describe "$MIGRATION_JOB" --project="$PROJECT_ID" --region="$REGION" --format='value(spec.template.spec.template.spec.serviceAccountName)')"
+          [[ "$JOB_SA" == "ttworkshop-migrator-runner@$PROJECT_ID.iam.gserviceaccount.com" ]] || { echo 'Migrator Job SA is not dedicated; stop'; exit 1; }
+          gcloud run jobs update "$MIGRATION_JOB" --project="$PROJECT_ID" --region="$REGION" --image="$IMAGE_REF" --quiet
+          gcloud run jobs execute "$MIGRATION_JOB" --project="$PROJECT_ID" --region="$REGION" --wait --quiet
+      - name: Deploy immutable candidate with zero production traffic
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Existing service must already have the runtime-only SA/Secret,
+          # Cloud SQL attachment, APP_ORIGIN and HTTP startup probe /health.
+          # A Ready candidate must be verified before any traffic change.
+          gcloud run deploy "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --image="$IMAGE_REF" --no-traffic --tag=c06-candidate --quiet
+      - name: Verify Ready candidate image while previous revision serves all traffic
+        shell: bash
+        run: |
+          set -euo pipefail
+          TMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TMP_DIR"' EXIT
+          gcloud run services describe "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --format=json > "$TMP_DIR/service.json"
+          CANDIDATE_REVISION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("status",{}).get("latestCreatedRevisionName",""))' "$TMP_DIR/service.json")"
+          [[ "$CANDIDATE_REVISION" =~ ^[a-z0-9-]+$ ]] || { echo 'Candidate revision name invalid'; exit 1; }
+          gcloud run revisions describe "$CANDIDATE_REVISION" --project="$PROJECT_ID" --region="$REGION" --format=json > "$TMP_DIR/revision.json"
+          python3 deploy/verify_candidate_revision.py "$TMP_DIR/service.json" "$TMP_DIR/revision.json" \
+            --main-sha "$GITHUB_SHA" --image-ref "$IMAGE_REF" --service-url "$SERVICE_URL"
+          CANDIDATE_URL="$(python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); print(next(r["url"] for r in s["status"]["traffic"] if r.get("tag")=="c06-candidate"))' "$TMP_DIR/service.json")"
+          python3 deploy/smoke_test.py "$CANDIDATE_URL"
+          echo "CANDIDATE_REVISION=$CANDIDATE_REVISION" >> "$GITHUB_ENV"
+      - name: Promote verified candidate to 100 percent of production traffic
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Only after operator's explicit dispatch confirmation AND independent
+          # production Environment approval. No silent reroute on an error.
+          [[ "$CANDIDATE_REVISION" =~ ^[a-z0-9-]+$ ]] || exit 1
+          gcloud run services update-traffic "$SERVICE" --project="$PROJECT_ID" --region="$REGION" \
+            --to-revisions="$CANDIDATE_REVISION=100" --quiet
+      - name: Verify approved digest is actually serving 100 percent of public traffic
+        shell: bash
+        run: |
+          set -euo pipefail
+          TMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TMP_DIR"' EXIT
+          # Read-only snapshots. Do NOT change traffic automatically on mismatch.
+          gcloud run services describe "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --format=json > "$TMP_DIR/service.json"
+          READY_REVISION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("status",{}).get("latestReadyRevisionName",""))' "$TMP_DIR/service.json")"
+          [[ "$READY_REVISION" =~ ^[a-z0-9-]+$ ]] || { echo 'Cloud Run ready revision name invalid'; exit 1; }
+          gcloud run revisions describe "$READY_REVISION" --project="$PROJECT_ID" --region="$REGION" --format=json > "$TMP_DIR/revision.json"
+          python3 deploy/verify_serving_revision.py "$TMP_DIR/service.json" "$TMP_DIR/revision.json" \
+            --main-sha "$GITHUB_SHA" --image-ref "$IMAGE_REF" --service-url "$SERVICE_URL"
+      - name: Read-only production smoke (only after release routing verification)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 deploy/smoke_test.py "$SERVICE_URL"
+          echo 'Smoke PASS is not proof of login/business flow or restart/redeploy persistence.'
