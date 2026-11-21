@@ -114,7 +114,7 @@ jobs:
           # Existing service must already have the runtime-only SA/Secret,
           # Cloud SQL attachment, APP_ORIGIN and HTTP startup probe /health.
           # A Ready candidate must be verified before any traffic change.
-          gcloud run deploy "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --image="$IMAGE_REF" --no-traffic --quiet
+          gcloud run deploy "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --image="$IMAGE_REF" --no-traffic --tag=c06-candidate --quiet
       - name: Verify Ready candidate image while previous revision serves all traffic
         shell: bash
         run: |
@@ -127,6 +127,8 @@ jobs:
           gcloud run revisions describe "$CANDIDATE_REVISION" --project="$PROJECT_ID" --region="$REGION" --format=json > "$TMP_DIR/revision.json"
           python3 deploy/verify_candidate_revision.py "$TMP_DIR/service.json" "$TMP_DIR/revision.json" \
             --main-sha "$GITHUB_SHA" --image-ref "$IMAGE_REF" --service-url "$SERVICE_URL"
+          CANDIDATE_URL="$(python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); print(next(r["url"] for r in s["status"]["traffic"] if r.get("tag")=="c06-candidate"))' "$TMP_DIR/service.json")"
+          python3 deploy/smoke_test.py "$CANDIDATE_URL"
           echo "CANDIDATE_REVISION=$CANDIDATE_REVISION" >> "$GITHUB_ENV"
       - name: Promote verified candidate to 100 percent of production traffic
         shell: bash

@@ -7,6 +7,7 @@ IMAGE = "asia-southeast1-docker.pkg.dev/cpe334-ttworkshop/ttworkshop/app@sha256:
 URL = "https://ttworkshop-test.a.run.app"
 CANDIDATE = "ttworkshop-00024-candidate"
 OLD = "ttworkshop-00023-old"
+TAG = "c06-candidate"
 
 
 def snapshots():
@@ -14,12 +15,15 @@ def snapshots():
                           "latestReadyRevisionName": CANDIDATE,
                           "conditions": [{"type": "Ready", "status": "True"}],
                           "traffic": [{"revisionName": OLD, "percent": 100},
+                                      {"revisionName": CANDIDATE, "tag": TAG,
+                                       "url": "https://c06-candidate---ttworkshop-test.a.run.app"},
                                       {"revisionName": OLD, "tag": "previous",
                                        "url": "https://previous.example.run.app"}]}}
     revision = {"metadata": {"name": CANDIDATE},
                 "spec": {"containers": [{"image": IMAGE}]},
                 "status": {"imageDigest": IMAGE,
-                           "conditions": [{"type": "Ready", "status": "True"}]}}
+                           "conditions": [{"type": "Ready", "status": "True"},
+                                          {"type": "Active", "status": "True"}]}}
     return service, revision
 
 
@@ -32,9 +36,35 @@ class CandidateVerificationTest(unittest.TestCase):
         svc, rev = snapshots()
         self.assertEqual(self.check(svc, rev), (CANDIDATE, "sha256:" + "b" * 64))
 
-    def test_new_candidate_still_not_ready_rejected(self):
+    def test_tagged_ready_candidate_with_old_latest_ready_accepted(self):
         svc, rev = snapshots()
         svc["status"]["latestReadyRevisionName"] = OLD
+        self.assertEqual(self.check(svc, rev), (CANDIDATE, "sha256:" + "b" * 64))
+
+    def test_retired_candidate_rejected_even_if_ready_true(self):
+        svc, rev = snapshots()
+        rev["status"]["conditions"][0]["reason"] = "Retired"
+        rev["status"]["conditions"][1]["status"] = "False"
+        with self.assertRaises(CandidateError): self.check(svc, rev)
+
+    def test_candidate_tag_must_point_to_candidate(self):
+        svc, rev = snapshots()
+        svc["status"]["traffic"][1]["revisionName"] = OLD
+        with self.assertRaises(CandidateError): self.check(svc, rev)
+
+    def test_candidate_tag_missing_rejected(self):
+        svc, rev = snapshots()
+        del svc["status"]["traffic"][1]
+        with self.assertRaises(CandidateError): self.check(svc, rev)
+
+    def test_candidate_tag_with_foreign_url_rejected(self):
+        svc, rev = snapshots()
+        svc["status"]["traffic"][1]["url"] = "https://unrelated.example"
+        with self.assertRaises(CandidateError): self.check(svc, rev)
+
+    def test_candidate_missing_active_condition_rejected(self):
+        svc, rev = snapshots()
+        rev["status"]["conditions"] = [{"type": "Ready", "status": "True"}]
         with self.assertRaises(CandidateError): self.check(svc, rev)
 
     def test_candidate_is_serving_traffic_rejected(self):
