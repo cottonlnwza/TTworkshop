@@ -52,10 +52,11 @@ def verify_candidate(service, revision, *, main_sha, image_ref, service_url):
     containers = revision.get("spec", {}).get("containers")
     require(isinstance(containers, list) and len(containers) == 1, "candidate container count invalid")
     require(containers[0].get("image") == image_ref, "candidate image mismatch")
+    # Cloud Run's resolved image is an authoritative full image@sha256 reference.
+    # Missing or malformed evidence must block traffic promotion (fail closed).
     resolved = revision.get("status", {}).get("imageDigest")
-    if resolved is not None:
-        require(isinstance(resolved, str) and resolved.endswith(image_ref.split("@", 1)[1]),
-                "candidate resolved digest mismatch")
+    require(isinstance(resolved, str) and resolved == image_ref,
+            "candidate resolved digest missing or mismatched")
     for item in (service, revision):
         ready_conditions = [c.get("status") for c in item.get("status", {}).get("conditions", [])
                             if c.get("type") == "Ready"]

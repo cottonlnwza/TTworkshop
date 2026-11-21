@@ -1,6 +1,6 @@
 # Issue #54 — C-06 safe-builder release hardening candidate (NOT MERGED / NOT DEPLOYED)
 
-**As of 2026-11-21 (Asia/Bangkok), Author-side preparation.** `cottonlnwza` authored the proposed Release PR against `main@13ee9a19350dd06e614d3dc196d880c5275b489b`. Original Issue #33 / PR #43 and main Health Fix Issue #49 / PR #50 remain immutable historical milestones. This new Issue exists because #43 is already merged and a new source edit cannot reuse its PR. This file is a **pre-merge candidate** and must be updated with actual tested PR HEAD before Formal Review; no Release or GCP deploy is claimed.
+**As of 2026-11-21 (Asia/Bangkok), Author-side preparation.** `cottonlnwza` authored the proposed Release PR against `main@13ee9a19350dd06e614d3dc196d880c5275b489b`. Original Issue #33 / PR #43 and main Health Fix Issue #49 / PR #50 remain immutable historical milestones. This new Issue exists because #43 is already merged and a new source edit cannot reuse its PR. This is a **pre-merge candidate**. Original PR HEAD `843e59fe0f1418b53e3e0cb16122a1670a201fbc` passed hosted `build-test` on [Run 44895287538](https://github.com/cottonlnwza/TTworkshop/actions/runs/44895287538) (2026-11-21): Vitest 134/134, Python smoke 7/7, provenance 13/13, candidate 11/11, TypeScript/Vite build PASS. Independent Reviewer `thananun-7203` issued Formal `CHANGES_REQUESTED` on that HEAD (B1 missing/malformed resolved digest fail-open, B2 incomplete evidence). This same-PR revision addresses both findings; **the new HEAD and its hosted CI must be checked after push**. These CI counts belong to the original HEAD and must not be represented as new-HEAD evidence. Author-side local PostgreSQL/Chromium full-suite execution is not claimed; hosted CI on the original HEAD exercised its isolated PostgreSQL/Chromium setup. No merge or GCP production deployment is claimed.
 
 ## Evidence and specific risks
 
@@ -32,8 +32,8 @@ Cloud SQL is RUNNABLE, automated backups enabled with count retention 7; last ob
 
 | Surface | Status | Evidence | Remaining gate / owner |
 |---|---|---|---|
-| Deploy workflow + candidate verifier | Proposed source change | Issue #54 diff and isolated Python tests | Author exact HEAD tests, independent six-axis Reviewer |
-| Provenance security regression | Added tests for tag-only Cloud Run entries | Real read-only service snapshot and Python unit tests | Hosted CI on PR HEAD |
+| Deploy workflow + candidate verifier | Same-PR B1 fail-closed fix + missing/malformed digest regression tests | PR #56; original SHA `843e59f`; new HEAD requires CI read-back | Independent six-axis Re-review on new HEAD |
+| Provenance security regression | Original hosted CI PASS; new digest negative cases added | [Original CI 44895287538](https://github.com/cottonlnwza/TTworkshop/actions/runs/44895287538): Vitest 134, Python smoke 7, provenance 13, candidate 11, build PASS | New-HEAD CI must pass before independent Re-review |
 | Current README + Lab 5 deployment runbook | Dated 2026-11-21 superseding note | Source file diff | Independent current-status review |
 | Immutable main build/deploy run | NOT EXECUTED | No GitHub `deploy-main.yml` runs as of preparation | After reviewed merge, distinct operator dispatch permission and real ComTon approval |
 | Production DB / PITR / rollback | Read-only schema and privilege evidence; PITR NOT VERIFIED | Cloud SQL/Proxy metadata audit | Operator reviews current backup+PITR+restore plan before any release |

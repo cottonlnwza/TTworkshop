@@ -58,6 +58,31 @@ class CandidateVerificationTest(unittest.TestCase):
         rev["status"]["imageDigest"] = IMAGE[:-1] + "c"
         with self.assertRaises(CandidateError): self.check(svc, rev)
 
+    def test_missing_resolved_digest_rejected(self):
+        svc, rev = snapshots()
+        rev["status"].pop("imageDigest")
+        with self.assertRaises(CandidateError): self.check(svc, rev)
+
+    def test_null_resolved_digest_rejected(self):
+        svc, rev = snapshots()
+        rev["status"]["imageDigest"] = None
+        with self.assertRaises(CandidateError): self.check(svc, rev)
+
+    def test_malformed_prefix_resolved_digest_rejected(self):
+        svc, rev = snapshots()
+        rev["status"]["imageDigest"] = "nonsense-prefix:" + IMAGE.rsplit("@", 1)[-1]
+        with self.assertRaises(CandidateError): self.check(svc, rev)
+
+    def test_other_repository_same_digest_rejected(self):
+        svc, rev = snapshots()
+        rev["status"]["imageDigest"] = "other.registry/example/app@" + IMAGE.rsplit("@", 1)[-1]
+        with self.assertRaises(CandidateError): self.check(svc, rev)
+
+    def test_digest_only_rejected_without_authoritative_image_identity(self):
+        svc, rev = snapshots()
+        rev["status"]["imageDigest"] = IMAGE.rsplit("@", 1)[-1]
+        with self.assertRaises(CandidateError): self.check(svc, rev)
+
     def test_revision_mismatch_rejected(self):
         svc, rev = snapshots()
         rev["metadata"]["name"] = OLD
