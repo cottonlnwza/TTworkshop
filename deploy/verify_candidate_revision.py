@@ -10,6 +10,7 @@ import re
 import sys
 from urllib.parse import urlsplit
 
+CANDIDATE_TAG = "c06-candidate"
 
 class CandidateError(ValueError):
     pass
@@ -47,7 +48,6 @@ def verify_candidate(service, revision, *, main_sha, image_ref, service_url):
     require(isinstance(status, dict) and status.get("url") == service_url, "service origin mismatch")
     candidate = status.get("latestCreatedRevisionName")
     require(isinstance(candidate, str) and re.fullmatch(r"[a-z0-9-]+", candidate), "candidate name missing")
-    require(status.get("latestReadyRevisionName") == candidate, "candidate not Ready")
     require(revision.get("metadata", {}).get("name") == candidate, "revision name mismatch")
     containers = revision.get("spec", {}).get("containers")
     require(isinstance(containers, list) and len(containers) == 1, "candidate container count invalid")
@@ -62,6 +62,21 @@ def verify_candidate(service, revision, *, main_sha, image_ref, service_url):
                             if c.get("type") == "Ready"]
         require(ready_conditions and all(c in (True, "True") for c in ready_conditions),
                 "service or candidate not Ready")
+    revision_conditions = revision.get("status", {}).get("conditions", [])
+    active_conditions = [c.get("status") for c in revision_conditions if c.get("type") == "Active"]
+    require(active_conditions and all(c in (True, "True") for c in active_conditions),
+            "candidate not active")
+    require(not any(c.get("reason") == "Retired" for c in revision_conditions),
+            "candidate retired")
+    routes = status.get("traffic")
+    require(isinstance(routes, list), "missing traffic routes")
+    tagged = [r for r in routes if isinstance(r, dict) and r.get("tag") == CANDIDATE_TAG]
+    require(len(tagged) == 1 and tagged[0].get("revisionName") == candidate,
+            "candidate tag missing or targets another revision")
+    candidate_url = urlsplit(tagged[0].get("url", ""))
+    require(candidate_url.scheme == "https" and
+            candidate_url.hostname == f"{CANDIDATE_TAG}---{urlsplit(service_url).hostname}",
+            "candidate tagged URL missing or unexpected")
     active = active_routes(service)
     require(len(active) == 1 and active[0].get("percent") == 100,
             "existing traffic not on exactly one ready baseline")
