@@ -46,6 +46,8 @@ jobs:
         run: python3 -m unittest discover -s tests -p 'test_cloud_smoke.py' -v
       - name: Test deployed revision provenance guard with isolated API snapshots
         run: python3 -m unittest discover -s tests -p 'test_release_provenance.py' -v
+      - name: Test zero-traffic Cloud Run candidate safety with isolated API snapshots
+        run: python3 -m unittest discover -s tests -p 'test_release_candidate.py' -v
       - name: Install real Chromium and required libraries
         run: npx --no-install playwright-core install --with-deps chromium
       # The existing test helper requires both the client URL AND PostgreSQL's

@@ -9,6 +9,11 @@ on:
         description: 'Full 40-character reviewed main commit SHA (must match current main HEAD)'
         required: true
         type: string
+      operator_approved_migration_and_traffic:
+        description: 'Operator reviewed the exact migration Job, backup and production traffic commands for this SHA'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -39,6 +44,13 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$ENV_PROTECTED" == 'true' ]] || { echo 'BLOCKED: configure protected production environment and explicit repository variable'; exit 1; }
+      - name: Require explicit operator approval of migration and traffic changes
+        shell: bash
+        env:
+          OPERATOR_APPROVED: ${{ inputs.operator_approved_migration_and_traffic }}
+        run: |
+          set -euo pipefail
+          [[ "$OPERATOR_APPROVED" == "true" ]] || { echo 'BLOCKED: operator has not confirmed reviewed migration and 100% traffic changes'; exit 1; }
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -79,7 +91,9 @@ jobs:
         run: |
           set -euo pipefail
           IMAGE_TAG="$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/app:${GITHUB_SHA}"
-          gcloud builds submit . --project="$PROJECT_ID" --tag="$IMAGE_TAG"
+          gcloud builds submit . --project="$PROJECT_ID" --tag="$IMAGE_TAG" \
+            --service-account="projects/$PROJECT_ID/serviceAccounts/ttworkshop-builder@$PROJECT_ID.iam.gserviceaccount.com" \
+            --gcs-log-dir="gs://cpe334-ttworkshop_cloudbuild/c06-logs"
           DIGEST="$(gcloud artifacts docker images describe "$IMAGE_TAG" --project="$PROJECT_ID" --format='value(image_summary.digest)')"
           [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo 'Artifact Registry did not return immutable digest'; exit 1; }
           echo "IMAGE_REF=$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/app@$DIGEST" >> "$GITHUB_ENV"
@@ -93,13 +107,36 @@ jobs:
           [[ "$JOB_SA" == "ttworkshop-migrator-runner@$PROJECT_ID.iam.gserviceaccount.com" ]] || { echo 'Migrator Job SA is not dedicated; stop'; exit 1; }
           gcloud run jobs update "$MIGRATION_JOB" --project="$PROJECT_ID" --region="$REGION" --image="$IMAGE_REF" --quiet
           gcloud run jobs execute "$MIGRATION_JOB" --project="$PROJECT_ID" --region="$REGION" --wait --quiet
-      - name: Deploy same digest to existing production service
+      - name: Deploy immutable candidate with zero production traffic
         shell: bash
         run: |
           set -euo pipefail
-          # Existing service must already be configured with runtime-only SA/Secret,
-          # Cloud SQL attachment and APP_ORIGIN by reviewed operator bootstrap.
-          gcloud run deploy "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --image="$IMAGE_REF" --quiet
+          # Existing service must already have the runtime-only SA/Secret,
+          # Cloud SQL attachment, APP_ORIGIN and HTTP startup probe /health.
+          # A Ready candidate must be verified before any traffic change.
+          gcloud run deploy "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --image="$IMAGE_REF" --no-traffic --quiet
+      - name: Verify Ready candidate image while previous revision serves all traffic
+        shell: bash
+        run: |
+          set -euo pipefail
+          TMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TMP_DIR"' EXIT
+          gcloud run services describe "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --format=json > "$TMP_DIR/service.json"
+          CANDIDATE_REVISION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("status",{}).get("latestCreatedRevisionName",""))' "$TMP_DIR/service.json")"
+          [[ "$CANDIDATE_REVISION" =~ ^[a-z0-9-]+$ ]] || { echo 'Candidate revision name invalid'; exit 1; }
+          gcloud run revisions describe "$CANDIDATE_REVISION" --project="$PROJECT_ID" --region="$REGION" --format=json > "$TMP_DIR/revision.json"
+          python3 deploy/verify_candidate_revision.py "$TMP_DIR/service.json" "$TMP_DIR/revision.json" \
+            --main-sha "$GITHUB_SHA" --image-ref "$IMAGE_REF" --service-url "$SERVICE_URL"
+          echo "CANDIDATE_REVISION=$CANDIDATE_REVISION" >> "$GITHUB_ENV"
+      - name: Promote verified candidate to 100 percent of production traffic
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Only after operator's explicit dispatch confirmation AND independent
+          # production Environment approval. No silent reroute on an error.
+          [[ "$CANDIDATE_REVISION" =~ ^[a-z0-9-]+$ ]] || exit 1
+          gcloud run services update-traffic "$SERVICE" --project="$PROJECT_ID" --region="$REGION" \
+            --to-revisions="$CANDIDATE_REVISION=100" --quiet
       - name: Verify approved digest is actually serving 100 percent of public traffic
         shell: bash
         run: |

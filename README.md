@@ -1,4 +1,13 @@
 # TTworkshop
+
+> **Lab 5 current status (2026-11-21, ComGu):** Public Cloud Run is serving
+> `/health` at Ready revision `ttworkshop-c05d1121072250`; C-05 persistence
+> evidence passed. WIF and GitHub production Secret names are configured, but
+> the GitHub Actions production deployment has never run. A reviewed workflow
+> hardening [Issue #54](https://github.com/cottonlnwza/TTworkshop/issues/54)
+> is in progress. **Do not claim C-06 PASS** from CI, a merged release PR, or
+> manual Cloud Run deployments. Older dated snapshots below are historical.
+
 CPE334 Software Engineering project — A full-stack University Workshop Registration and Attendance System featuring event management, student registration, capacity control, check-in, and attendance reporting. Developed using Spec-Driven Development, TDD, and peer code reviews.
 
 ## Implemented feature slices

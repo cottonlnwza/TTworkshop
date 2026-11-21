@@ -33,6 +33,18 @@ class ReleaseProvenanceTest(unittest.TestCase):
         svc["status"]["traffic"].append({"revisionName": "old-tag", "percent": 0})
         self.check(svc, rev)
 
+    def test_tag_only_url_without_percent_is_ignored(self):
+        svc, rev = snapshots()
+        svc["status"]["traffic"].insert(0, {"revisionName": "old", "tag": "preflight",
+                                            "url": "https://old-tag.example.run.app"})
+        self.check(svc, rev)
+
+    def test_missing_percent_without_tag_is_rejected(self):
+        svc, rev = snapshots()
+        svc["status"]["traffic"].append({"revisionName": "old"})
+        with self.assertRaises(ProvenanceError):
+            self.check(svc, rev)
+
     def test_old_revision_receives_all_traffic(self):
         svc, rev = snapshots()
         svc["status"]["traffic"] = [{"revisionName": "old", "percent": 100}]
