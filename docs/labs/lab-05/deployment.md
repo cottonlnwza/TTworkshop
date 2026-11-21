@@ -1,22 +1,44 @@
-# Lab 5 — TTworkshop Deployment Procedure (private preflight deployed; public release pending)
+# Lab 5 — TTworkshop Deployment Procedure (public service verified; C-06 pending)
 
-> **Verified 2026-11-21 (ComGu read-only):** The current public Cloud Run service
-> `ttworkshop` is Ready at revision `ttworkshop-c05d1121072250`, receives 100%
-> of default traffic, uses `/health` and responds HTTPS 200 at `/health` and `/`.
-> C-05 persistence was proven separately across container start and redeploy.
-> GitHub WIF, the restricted deployer identity and the two production Secret
-> **names** are provisioned, but there is **no actual `deploy-main.yml` run**.
-> A new separately scoped [Issue #54](https://github.com/cottonlnwza/TTworkshop/issues/54)
-> proposes using a dedicated Cloud Build identity and a Ready zero-traffic
-> candidate before approved production promotion. This proposal is **not** a
-> new released main version, executed migration or finished C-06 pipeline.
-> Live PostgreSQL read-only audit confirmed four expected migration filenames,
-> runtime without schema CREATE/DDL and fully validated listed constraints.
-> Backups exist; PITR setting was not evidenced as enabled. Dates below are
-> historical snapshots and must not override these later findings.
+> **Verified 2026-11-21 (read-only snapshot):**
+> [Public HTTPS](https://ttworkshop-xue6vtucgq-as.a.run.app) serves `/` and
+> `/health` (both HTTP 200), and rejects anonymous `/api/v1/auth/me`
+> (HTTP 401). Cloud Run `ttworkshop-c05d1121072250` is Ready with 100%
+> traffic, serving the **operator-manually deployed** image
+> `sha256:ca8acac3445516a787efd782340b580b6a99440bab267e95824951bd6422f13c`.
+> [Issue #32](https://github.com/cottonlnwza/TTworkshop/issues/32) documents
+> actual Organizer publication, Participant registration/capacity rejection
+> (C-04) and independently hashed/snapshot-verified **same-record** survival
+> after new-container start and redeploy (C-05). No GitHub pipeline deployment
+> is claimed.
+>
+> **Source and release controls:** Independently approved
+> [PR #56](https://github.com/cottonlnwza/TTworkshop/pull/56) merged to
+> `main@e53be24a944ec0da10fcf2738a7d4b0c727c7f88`, with successful
+> [hosted CI #44904836406](https://github.com/cottonlnwza/TTworkshop/actions/runs/44904836406).
+> The new main-only workflow selects a dedicated Cloud Build identity, stages
+> a zero-traffic Ready candidate and checks immutable digest/traffic before
+> and after promotion. It has **never been dispatched**. WIF provider,
+> deployer identity and repository Secret **names** now exist; correct Secret
+> values and a successful Actions WIF exchange are **not verified**. The
+> GitHub `production` environment requires independent `thananun-7203`
+> approval and forbids self-review. Before any dispatch, the human operator
+> must inspect and explicitly approve exact migration Job, backup, cost and
+> production traffic operations under official Lab 5 §9.
+>
+> **Database and cost gates:** Earlier live read-only SQL evidence established
+> four migration filenames, runtime without DDL/CREATE and expected constraints.
+> Cloud SQL automated backups are enabled (seven retained); PITR/actual
+> restore are **not verified**. The THB 8,000 project budget is
+> **alerts-only**, not a hard spending cap; current Free Trial credit/balance
+> needs owner Console verification. See the [current evidence index](evidence-index.md)
+> and [original release Issue #33](https://github.com/cottonlnwza/TTworkshop/issues/33).
+> Historical entries below must not override this dated current snapshot.
+
+## Historical deployment/provisioning notes (2026-11-16 to 2026-11-19)
 
 
-**Latest verified live state (2026-11-19, Asia/Bangkok):** PR #43 was independently
+**Historical live state (2026-11-19, Asia/Bangkok; superseded):** PR #43 was independently
 approved and merged to `main@d9e9f99637c0511bc93b561f51fb34d2b913d71b`.
 Cloud Run service `ttworkshop` now exists **privately**: revision
 `ttworkshop-00001-hix` is receiving 100% of the default private traffic and
@@ -37,7 +59,7 @@ are complete. **Issue #49 is a separate new `main` release candidate,
 not yet merged, built into an image or deployed.** Preserve historical
 review evidence for the earlier `2026-11-16` `/healthz` source fix below.
 
-**Pre-deploy checklist for the `/health` fix (NOT EXECUTED):** obtain
+**Historical 2026-11-19 pre-deploy checklist for the `/health` fix (not executed then; later manual release verified):** obtain
 independent six-axis Review of the scoped **Issue #49 → new PR to `main`**,
 then a **separate explicit teammate Merge authorization** and verified main
 SHA; build that exact main commit into a
@@ -52,7 +74,7 @@ public-deploy/IAM approval, shift traffic and verify live synthetic business
 journeys and persistence. Never expose passwords, database URLs or identity
 tokens. Lab 5 p.8 §9 requires operator review of each real `gcloud` command.
 
-**Current release integration gate (Issue #49 / Period 2):** This Release PR
+**Historical release integration gate (Issue #49 / Period 2; superseded by merged PRs #50 and #56):** This Release PR
 preserves `main`'s manually gated `.github/workflows/deploy-main.yml`,
 `deploy/verify_serving_revision.py`, `tests/test_release_provenance.py`
 and existing Issue #33 release evidence. **The manual workflow is NOT safe
@@ -146,8 +168,8 @@ Submission deadline **Sunday 2026-11-15 23:59 Asia/Bangkok**; one PDF `lab5_sec<
 
 | Gate | State | Required evidence still missing |
 | --- | --- | --- |
-| AC-L5-10 | PARTIAL | Project, region, budget alerts and operator-created IAM/Secret metadata verified; current credit balance, reviewed remaining billable steps and real DB login remain outstanding |
-| AC-L5-11 | NOT VERIFIED | Public HTTPS URL and live UI/API/DB business workflow |
-| AC-L5-12 | NOT VERIFIED | Record IDs before/after restart and redeploy |
-| AC-L5-13 | PARTIAL | SA/Secret resource-level IAM exists, but real migrator authentication, SQL migrations, DML grants, runtime `cloudsqlsuperuser` removal and rollback proof are outstanding |
-| AC-L5-14 | PARTIAL | Verified live URL/digest/revision/SHA and redacted screenshots |
+| AC-L5-10 | PARTIAL | Project, region and alerts-only budget verified; current owner Free Trial balance/spending guard must be checked before more billable actions |
+| AC-L5-11 | PASS | C-04 public HTTPS, actual Organizer/Participant role workflow, capacity rejection and Cloud SQL persistence, Issue #32 evidence |
+| AC-L5-12 | PASS | C-05 same workshop/registration IDs and timestamps in baseline, new-container start and redeploy snapshots; independent hashes and Cloud Run revision read-back in Issue #32 |
+| AC-L5-13 | PARTIAL | SQL least-privilege and four migration entries audited read-only; backups enabled, but PITR/restore and full recovery/rollback exercise remain unverified |
+| AC-L5-14 | IN PROGRESS | Public URL/digest/revision documented; complete document correction/review and accepted evidence chain pending under Issue #57 |

@@ -1,4 +1,20 @@
-# Issue #54 — C-06 safe-builder release hardening candidate (NOT MERGED / NOT DEPLOYED)
+# Issue #54 — C-06 safe-builder hardening (source MERGED; workflow NOT RUN)
+
+**Post-merge update, verified 2026-11-21:** Independent Reviewer
+`thananun-7203` approved [PR #56](https://github.com/cottonlnwza/TTworkshop/pull/56)
+and merged it into `main@e53be24a944ec0da10fcf2738a7d4b0c727c7f88`.
+[Exact-main hosted CI](https://github.com/cottonlnwza/TTworkshop/actions/runs/44904836406)
+passed (134/134 PostgreSQL/Chromium Vitest, 36/36 Python
+cloud-smoke/provenance/candidate tests and build). The main-only workflow
+includes a dedicated Cloud Build identity, Ready zero-traffic candidate and
+fail-closed digest/traffic checks. It has **never been dispatched**: no
+pipeline migration, GitHub production approval or deployment of this newer
+source has been demonstrated. WIF provider/deployer and Secret names exist,
+but a real workflow WIF exchange remains unverified. The older manually
+deployed image and C-05 evidence are recorded under
+[Issue #32](https://github.com/cottonlnwza/TTworkshop/issues/32).
+See [current evidence index](../labs/lab-05/evidence-index.md).
+The notes below preserve **dated pre-merge history**, not the present HEAD.
 
 **As of 2026-11-21 (Asia/Bangkok), PR #56 pre-merge evidence.** Author `cottonlnwza`; independent Reviewer `thananun-7203`. Original base was `main@13ee9a19350dd06e614d3dc196d880c5275b489b`. The branch now integrates the reviewed governance release on `main@c652dfc68b2b5aaedab52a581b9f74e36ffc7441` (PR #55), preserving the dedicated-builder and no-traffic release workflow. Original Issue #33 / PR #43 and main Health Fix Issue #49 / PR #50 remain historical milestones.
 
@@ -8,7 +24,10 @@
 - Same-PR fix HEAD `ff6153d15d11aeb33c463958f7cbca5c59c5142c` fixed B1 by requiring an exact full resolved Cloud Run image@sha256 reference; added five negative cases. Author-local Python 36/36 and TypeScript/Vite build passed. **Hosted [CI 44900347168](https://github.com/cottonlnwza/TTworkshop/actions/runs/44900347168) SUCCESS on that exact commit**: Python cloud smoke 7/7, provenance 13/13, candidate 16/16; Vitest 134/134 in 20 files on isolated PostgreSQL/Chromium; TypeScript/Vite build PASS. No local full PostgreSQL/Chromium suite is claimed.
 - Independent [re-review 6005079978](https://github.com/cottonlnwza/TTworkshop/pull/56#pullrequestreview-6005079978) verified B1 **PASS** but issued `REQUEST_CHANGES` because the PR description/Completion Matrix was stale and the branch was behind newly merged `main`. This document is updated as a **dated audit of the last completed evidence before the main sync**. The final post-sync HEAD, latest hosted-CI outcome and any subsequent independent decision must be read from [live PR #56](https://github.com/cottonlnwza/TTworkshop/pull/56), not inferred from this dated file or a self-referential SHA. Those are mandatory fresh merge gates, not claims of an unexecuted or successful future run.
 
-**Current release state:** This is **NOT MERGED / NOT DEPLOYED**. No GitHub production workflow dispatch or GCP migration/traffic change is claimed. The root `AGENTS.md` on `main` is now canonical following PR #55; archived policies are historical only.
+**Historical pre-merge state:** At the time this note was originally written,
+PR #56 was **NOT MERGED / NOT DEPLOYED**. It has since been independently
+merged as described above; `deploy-main.yml` remains unexecuted. The root
+`AGENTS.md` on `main` is canonical following PR #55; archives are historical.
 
 ## Evidence and specific risks
 
