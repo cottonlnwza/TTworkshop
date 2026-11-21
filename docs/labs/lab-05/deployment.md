@@ -104,9 +104,12 @@ See [Issue #49 candidate evidence](../../releases/lab5-issue49-health-main-candi
 
 ## Architecture and deviations from Starter Kit
 
-**Note:** The resource inventory and rollout assumptions below are a 2026-11-16
-historical planning snapshot. The 2026-11-19 live state at the top supersedes
-conflicting older resource/release claims.
+**Historical planning note (2026-11-16):** The resource inventory and rollout
+assumptions below record the original pre-provisioning plan, **not current GCP
+state**. The verified **2026-11-21** public-service snapshot at the top of this
+runbook supersedes conflicting historical resource/release claims; see the
+[current Lab 5 evidence index](evidence-index.md) for what is complete or
+still blocked.
 
 Reference services are **recommended**, not a forced exact stack: Artifact Registry, Cloud Run, Cloud SQL PostgreSQL, Secret Manager, GitHub Actions with Workload Identity Federation. TTworkshop uses React/Vite + Express 5 + `pg` and SQL migrations, **not Prisma**. Its root `Dockerfile` builds the UI and runs an unprivileged Node API; `SERVE_WEB=true` serves static UI and `/api/v1` on one HTTPS origin, needed for strict browser Origin validation and session cookies. The existing Compose environment uses separate local frontend/backend and is unchanged.
 
@@ -152,7 +155,19 @@ git diff --check
 
 **New operator command review (2026-11-15):** The user approved continuing Cloud DB checks, migrations and Artifact Registry / Cloud Run preparations. The course handout §9 (p. 8) separately requires students to **read every exact gcloud command or Console change before running it**, and specifies that only independently reviewed `main` releases deploy. Therefore the exact proposed commands, preconditions, cost and IAM consequences are recorded in [`deploy/command-review.md`](../../../deploy/command-review.md); **they have not been run**. The offline `scripts/cloud-db-check.ts` makes a read-only PostgreSQL identity probe in a future Cloud Run Job with secret injection, not in the agent tool or test runner; it prints PASS/FAIL only. This does **not** validate the current Secret payload or database connectivity. No additional GCP service, Cloud Run Job, image push, permission or DB migration was created by this preparation.
 
-## Remaining provisioning and release gates (NOT EXECUTED)
+## Historical 2026-11-16 provisioning and release plan (not a current checklist)
+
+The following numbered steps preserve the original pre-public-deployment
+plan as **historical evidence**. Several steps were later executed: the
+operator published the public UI/API, demonstrated C-04/C-05 persistence,
+and merged the independently reviewed source PRs. Do **not** interpret
+old phrases such as `before deployment`, `not created`, or
+`NOT EXECUTED` within this archived plan as present-day blockers.
+For current actual state, the remaining protected C-06 pipeline gate,
+backups/recovery uncertainty and costs, use the
+[2026-11-21 verified snapshot](#lab-5--ttworkshop-deployment-procedure-public-service-verified-c-06-pending)
+and [current evidence index](evidence-index.md). This archived section
+does not authorize re-running any cloud, IAM, or database commands.
 
 1. Verify the project Free Trial and existing 8,000 THB alerts-only budget read-back. Check current credits/billing in the owner Console before new paid services; do not Upgrade. The basic APIs, Cloud SQL and runtime SA/Secret IAM already exist; **do not repeat creation of existing resources**. Read each proposed remaining GCP/IAM/database command and obtain human approval per Lab 5 handout p.8 / Student Guide p.1.
 2. **Both users, both SA/Secrets and their scoped IAM bindings were created by the operator.** Do not recreate any of them. Before deployment, prove the migrator's Secret-injected login with the separate `ttworkshop-migrator-db-check` SELECT-only Job from `deploy/command-review.md`, after reviewed `main` release and individual command authorization. The `ttworkshop_app` built-in login still has `cloudsqlsuperuser`; before public service deployment separately review/execute required app DML grants, restrict runtime privileges and verify no `cloudsqlsuperuser`, `CREATEDB`, `CREATEROLE` or schema `CREATE`. The course reference kit's Service Account IAM alone does **not** limit the PostgreSQL user's privileges.
