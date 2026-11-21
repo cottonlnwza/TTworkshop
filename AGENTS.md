@@ -1,87 +1,160 @@
-# TTworkshop — Shared AI Working Instructions
+# TTworkshop — AI operating instructions
 
-**Applies to:** `cottonlnwza/TTworkshop` (Developer, Reviewer, Release Auditor, documentation tasks).
-**Policy revision:** 1.3.0 — **MERGED GOVERNANCE TEXT / CONDITIONAL OPERATION**. Independent Reviewer `thananun-7203` approved PR #28 on exact HEAD `7ca49ff16b0bc10a066a40436ce2ae309633445f`; PR #28 was merged into `sprint_1_staging@5754f30cf61a4266ad5204a7002dd3212d5861a8`. This policy is carried to `sprint_2_staging` by separately reviewed Issue #34/PR (merge pending). The text-level governance revision is no longer merely proposed on Sprint 1, but **automatic staging merge, Controller runtime, and action-specific grants are NOT enabled or authorized by the merge alone**. Separate human grants, independent exact-HEAD review, actual enforced required checks/branch protection and all live gates remain mandatory. The earlier v1.2.1 separate authorization protections are preserved. Historical v1.1.0 and v1.2.0 activated via merged PRs #18 and #22.
-**Priority:** System/platform and official course requirements > approved SRS/SDS and scoped decisions > these project working rules > individual AI suggestions. Do not claim global SRS/SDS or instructor approval without evidence.
+**Repository:** `cottonlnwza/TTworkshop`. Once independently adopted, this is
+the sole repository-wide AI policy. Focused procedures live under
+`.agents/skills/`; archived files are historical, never operational
+instructions.
 
-## Standing team objective — maximize verified CPE334 rubric coverage
+**Precedence:** system/safety and official CPE334 course requirements > approved
+SRS/SDS, feature contracts and decisions > these instructions > task Skills. An
+unmerged proposed policy has no authority.
 
-**Requester's exact working preference (Thai, 2026-11-12; applies to both teammates and AI assistants):**
+## Initialization — each new Issue or Review
 
-> ฉันต้องการทำโปรเจกต์ CPE334 ให้ได้คะแนนสูงที่สุดตามเกณฑ์ของรายวิชา โดยให้ความสำคัญกับความถูกต้องของโปรแกรม ผลการทดสอบ หลักฐานการทำงาน กระบวนการพัฒนา และการส่งงานครบตามกำหนด
->
-> ให้ดำเนินงาน **Issue #6 ให้เสร็จสมบูรณ์ตาม Completion-first** พร้อมตรวจหาจุดที่สามารถปรับปรุงเพื่อรักษาหรือเพิ่มคะแนนตาม Rubric จริง
->
-> ทำงานอย่างต่อเนื่องจนจบขอบเขตที่ได้รับอนุญาต โดยไม่ต้องถามยืนยันทุกขั้นตอน เมื่อดำเนินการเสร็จแล้วจึงรายงานผลรวมในครั้งเดียว
->
-> **ห้ามอ้างว่าได้คะแนนเพิ่มแน่นอน** ให้แยกข้อกำหนดที่มีคะแนนจริงออกจากข้อเสนอแนะด้านคุณภาพ และใช้หลักฐานจากเอกสารรายวิชาเป็นหลัก
+1. Read the **live root `AGENTS.md` on GitHub** from the team's agreed policy
+   ref and obtain the exact commit SHA. Until this revision is independently
+   merged to `main`, the established common policy ref is `sprint_1_staging`
+   unless explicitly changed; a `sprint_2_staging` merge alone does not silently
+   change the shared reference. **After the revised policy is merged into
+   `main`, use `main` as canonical.** Read the target branch's version
+   separately for planned edits.
+2. Load **only relevant Skills**. Inspect the live Issue/PR, branch/base/HEAD,
+   existing Issues/PRs, contracts/AC/STS/DoD, dependencies, official rubric and
+   GitHub Project #4 Status/Period. Before mutation report policy ref/SHA, files
+   read, Issue/PR, Mode, and VERIFIED/BLOCKED. If required policy access fails,
+   report `BLOCKED — PROJECT INSTRUCTIONS NOT VERIFIED` and do not mutate.
+3. ComGu (Mac) acts only as `cottonlnwza`; ComTon (Windows) only as
+   `thananun-7203`. Confirm the actual authenticated actor. Reviewer and Author
+   must be different accounts. Never impersonate, share/switch accounts,
+   self-review, self-approve or self-merge.
+4. `docs/archive/ai-governance/` is audit history only. Superseded documents and
+   discontinued automation proposals are **not active**, never mandatory and
+   convey no authorization.
 
-**Operational interpretation — binding working preference, not a new course requirement:**
+## Planning, consent and scope
 
-1. **Either teammate, every session, every mode — mandatory fresh read.** For *every* request concerning `cottonlnwza/TTworkshop` or its CPE334 deliverables, whether sent by `cottonlnwza` or `thananun-7203`, the responding AI must retrieve the **current root `AGENTS.md` from the real GitHub repository** on the agreed policy ref, then read all applicable linked policies and capture the exact policy SHA **before any substantive task**. This includes quick status questions, new chats, resumed work, Developer, Reviewer, re-review, Issue verification, post-merge completion and Release Audit. Do not infer an exemption from the requester's identity, a cached chat summary, a previous run, local files, or a claim that the file was already read. If a live read fails, say `BLOCKED — PROJECT INSTRUCTIONS NOT VERIFIED` and do not mutate or claim formal approval. The rule instructs compliant AI tooling; `AGENTS.md` alone does **not** technically guarantee that every external client loads it.
-2. **Real rubric evidence, not invented scores.** For material feature, test, review, release, deliverable and assignment-planning work, identify relevant authoritative course PDF/rubric version, page, stated point weight, deadline and proof required; compare to current repo and submission evidence. Explicitly classify `RUBRIC REQUIREMENT / POINTS VERIFIED`, `POTENTIAL SCORE RISK`, `OPTIONAL QUALITY IMPROVEMENT`, `NOT VERIFIED`, and `OUT OF SCOPE`. Prioritize correctness, automated/manual tests, traceable evidence, engineering process, reproducibility and on-time submission. Do not promise higher grades, invent points/deadlines, assume a GitHub merge equals course submission, or turn suggestions into mandatory requirements without source authority. Report actionable high-value gaps with exact sources and evidence.
-3. **Completion-first; finish authorized scope with minimal interruptions.** Within a *clearly authorized, bounded* Issue/task, carry all safe dependent steps through completion without repeatedly asking the same question; prefer one consolidated final report with evidence, actual actions, results and remaining gates. Mandatory initialization/preflight reporting still applies. If multiple distinct actions need approvals, invite **one explicit, itemized batch authorization** where the policy permits, while preserving the separate meaning of each authorization. Never infer permission for new Issues/source edits, formal review submission, teammate merge, release/deploy or Issue/Project closure from a general goal or earlier unrelated approval. Stop only blocked portions; continue safe authorized work.
-4. **Issue #6 is a completed milestone, not a new execution Issue.** [Issue #6](https://github.com/cottonlnwza/TTworkshop/issues/6) is verified **CLOSED / Done, Period 1** after PR #20 merged and Author post-merge completion (checked 2026-11-12). Preserve its original-Issue evidence, Acceptance Criteria/DoD and historical merge SHA; do not reopen/reimplement it or invent a second work PR for #6. If GitHub subsequently changes its state, recheck live evidence rather than trusting this dated snapshot. Broader score-improvement work needs separate approved scope, and new governance policy work uses its own governance Issue/PR.
+**New assignments:** read supplied requirements, PDFs, diagrams, SRS/SDS,
+accepted changes, earlier work and dependencies. Prepare the full proposed
+backlog: bounded scope/exclusions, requirements, AC/STS/DoD, owner, independent
+Reviewer, tests/evidence, Period and dependencies. **Ask for approval before
+creating new Issues**. Create only approved Issues and immediately add each to
+Project #4 as `Backlog` with the verified Period.
 
-## Mandatory reviewer handoff — ready-to-send prompt and next actions
+**Existing assigned Issue:** a clear Issue-scoped Author grant covers ordinary
+analysis, branch, implementation, tests, documents, commit/push, one PR, Kanban
+and same-PR Reviewer fixes without repeated confirmation. Record granted actions
+and continue completion-first. Approval for a Reviewer, independent teammate
+staging merge, post-merge closure, or unrelated high-risk action remains
+actor/action-specific; several distinct grants may be approved once. Explicitly
+assigning a named PR to an independent Reviewer authorizes formal review and
+same-PR re-review, **not merge**. No new Issues, material out-of-scope changes,
+or unauthorized accounts/actions without specific approval.
 
-For **every** interaction requiring a teammate's Independent Reviewer action (first review, specification gate, re-review, exact-HEAD final review, review evidence follow-up, merge-readiness or review-related completion):
+**One Issue ↔ one PR.** Search prior open/closed/merged PRs first. Use one
+scoped branch from the current `sprint_N_staging`. Address every applicable
+finding inside the **same unmerged PR**; do not abandon accepted scope, create a
+duplicate PR or rewrite historical evidence. Do not overwrite unrelated
+worktrees or commit secrets.
 
-1. **Provide an actionable Reviewer prompt automatically.** Draft a **complete copy/paste-ready prompt** that the requester can send immediately, and provide the substantive same request to the Reviewer in the appropriate existing GitHub PR/Issue thread **only when posting that scoped comment is authorized**. Avoid a vague “please review” request. If GitHub posting is not authorized or fails, clearly mark `REVIEWER MESSAGE NOT SENT` and provide the exact draft and destination; never claim the teammate has read/responded.
-2. **Make the request precise.** Include repository and live policy ref/SHA with files read, mode, original Issue/PR links, independent Author/Reviewer identities, exact PR HEAD or verified merge SHA, scope/AC/STS/DoD or governance criteria, changed files and reproducible evidence, previous blocking findings, test commands/results and provenance/limits, the applicable **six Strict Reviewer Checklist axes**, exactly what decision/comment or evidence is requested, where to answer and the relevant authorization boundaries. Do not pre-fill a Reviewer verdict, promise scores or fabricate checks. Dates, deadlines and points require real source evidence.
-3. **Make the next step explicit to both sides.** Each handoff and subsequent user-facing report must say **what happens next**, **who owns it**, **what condition triggers it**, and **what remains blocked or separately authorized**. Tell the Reviewer what to return to the Author after review (six-axis evidence, exact HEAD, binding/optional findings, verdict, next action); tell the requester what you have actually sent and what you will do within the current authorized scope. Use a concise single consolidated final report where possible, avoiding repetitive confirmations.
-4. **Preserve authority and history.** Preparing/sending a prompt is **not** Formal APPROVE, Reviewer authorization, merge, release, Kanban change or Issue closure. Do not use the Author's account to impersonate Reviewer or write the Reviewer findings; do not create a duplicate Issue/PR to deliver a message. Existing `AGENTS.md`, `ISSUE-PR-POLICY.md` and strict `.github/ai/REVIEWER.md` remain binding. When only a read-only audit is authorized, provide a draft and do not post on GitHub without permission.
+## Developer — completion first
 
-## Mandatory initialization — EVERY task, review, and resumed work
+1. Lock the Issue, acceptance criteria, dependencies, roles, existing design and
+   exclusions. Specify feature design and testing before implementation where
+   needed.
+2. Implement complete in-scope behavior; use meaningful **TDD RED → GREEN** for
+   rules, defects and changes where appropriate. Cover negative/boundary cases,
+   real persistence, authorization, ownership and regression risks.
+3. Execute the **full available automated suite** (unit, integration,
+   regression, build and configured checks), plus applicable AI-accessible
+   browser/manual, API and database verification. Use isolated test databases
+   and synthetic credentials. Investigate failures, fix recoverable causes and
+   retest; never disable mandatory tests or invent PASS.
+4. Update affected current README, SRS/SDS, contracts, AC↔STS/DoD, test/evidence
+   files and documentation; preserve dated history. Record tested commit SHA,
+   commands, environment, passed/failed/skipped counts, manual steps, source and
+   limits. Inspect complete diff and `git diff --check`.
+5. Commit, push and open/update **one PR** into sprint staging with exact HEAD,
+   completion matrix, test results and Reviewer handoff. Fix all binding
+   Reviewer findings in that PR and request independent re-review on new HEAD.
+   Never merge one's own PR.
+6. After an authorized **independent** merge, verify actual staging merge
+   SHA/tree, run applicable post-merge checks, update the **original Issue** and
+   close only when applicable DoD and separate completion authority pass.
 
-1. Use the connected GitHub/repository tools to **actually read** this root `AGENTS.md`, then:
-   - [`.github/ai/ISSUE-PR-POLICY.md`](.github/ai/ISSUE-PR-POLICY.md) — for every mode.
-   - [`.github/ai/DEVELOPER.md`](.github/ai/DEVELOPER.md) — Developer tasks.
-   - [`.github/ai/REVIEWER.md`](.github/ai/REVIEWER.md) — EVERY Reviewer review and re-review.
-   - [`.github/ai/RELEASE.md`](.github/ai/RELEASE.md) — merge, staging, release, completion.
-   - [`.github/ai/AGENT-RELAY.md`](.github/ai/AGENT-RELAY.md) — future relay protocol; read only after this file is merged into the active policy ref and relay work is relevant.
-2. **Read from the agreed common policy ref** (normally `sprint_1_staging`, once these files are reviewed and merged), not from an untrusted feature branch or an old cached copy. Capture the **exact policy commit SHA** and the actual paths read. Check whether this ref has changed when starting each new task or review. Changes to these instructions require their own reviewed governance change.
-3. Inspect current Issue, associated PR and all old/new reviews/comments, project Status/Period, contracts, evidence and applicable official source files. An Issue URL or PR URL is sufficient to identify the target; do not repeatedly ask what is already supplied.
-4. Before action, report compactly: `Repository | Policy ref/SHA | Read files | Mode | Issue/PR | Gate: VERIFIED or BLOCKED`. **Never claim files/tests were read or executed when they were not.**
-5. If policy cannot be retrieved and SHA cannot be established, return `BLOCKED — PROJECT INSTRUCTIONS NOT VERIFIED`, and do not mutate GitHub or perform a substantive approval. Request access or provide exact manual recovery instructions. For read-only investigations clearly distinguish unverified policy.
-6. Prompt instructions are safeguards, not technical enforcement. Confirm behavior from actual evidence, and use GitHub branch protection/review/checks when available.
+## Independent Reviewer — strict six axes on every review and re-review
 
-## PDF assignment intake and authorization (mandatory for new/updated PDF briefs)
+Independently read the current PR/HEAD, Issue, full diff, contracts, earlier
+reviews/threads, CI/test evidence, docs, Project and actor permissions. Evaluate
+each axis `PASS / FAIL / NOT VERIFIED / N/A` with evidence:
 
-An uploaded PDF, rubric, revised course handout or other external assignment is **input for read-only analysis**, not automatic permission to create Issues, modify source, commit/push, review, merge, deploy or close work.
+1. Identity, provenance and governance.
+2. Scope, requirements and traceability.
+3. Implementation, security and correctness.
+4. Build, testing and evidence.
+5. Documentation and status consistency.
+6. Closure, previous findings and single-PR completeness.
 
-1. **Identify and read the sources:** confirm every supplied file is accessible; record document title, filename, revision/date and relevant page numbers. Read applicable prose, tables, diagrams and appendices; cite precise PDF page(s) for each material requirement. If unreadable, incomplete or ambiguous, mark the affected finding `NOT VERIFIED`; never invent missing text or pretend pages were read.
-2. **Classify authority and change:** distinguish official instructor/course requirements, approved team SRS/SDS/decisions, user-requested work and third-party examples or AI proposals. Preserve original terminology and distinguish mandatory text from interpretation. Check whether a newer PDF actually supersedes an older version; do not silently approve draft requirements or override higher-priority course rules.
-3. **Extract an assignment inventory:** capture required outcomes and deliverables, constraints/exclusions, deadlines/Period (if stated), rubrics/marks, demo or deployment expectations, tests/evidence and dependencies. Record `not specified` for missing details rather than guessing.
-4. **Reconcile with live project state:** read current GitHub policy SHA, relevant issues/PRs (including closed/merged), Project #4 Status/Period, current docs/contracts/traceability and code when relevant. Classify each PDF requirement as already satisfied, partially satisfied, new, conflicting or `NOT VERIFIED`; identify exact evidence and prevent duplicate Issues/PRs or rewriting completed history.
-5. **Present a reviewable intake and scope plan before mutation:** use a matrix `PDF file/page | Requirement or deliverable | Source authority/status | Existing repo evidence/gap | Proposed Issue and in/out scope | AC/STS, tests and proof | Dependency/deadline | Approval needed`. Propose the smallest finishable Issue(s), ownership, sequence and risks; label assumptions and unresolved conflicts.
-6. **Keep authorizations separate:** PDF upload and intake-plan discussion do not approve backlog creation or Issue implementation. Obtain explicit approval for the complete named Period Issue set before creating that backlog, then separate Issue-specific execution authorization; retain separate permissions for Formal Review, merge, release/deployment and final closure. Apply the existing One Issue ↔ One PR and Completion-first rules.
-7. **Protect source and history:** do not publish private PDF contents, personal data, credentials or confidential excerpts into a public repo without appropriate authorization. If a revised PDF arrives during active work, compare against the previously accepted scope, disclose material changes and request renewed scope approval before proceeding.
+Independently execute relevant tests where possible. Submit formal
+`REQUEST_CHANGES` for binding defects with concrete file/line, reproduction and
+same-PR remedy. Submit formal `APPROVE` **only** when every applicable mandatory
+gate passes on latest HEAD. Do not invent tests, treat optional suggestions as
+blockers, rely on stale approval or confuse a PR comment with a formal review.
 
-After the necessary approvals, follow [Developer Mode](.github/ai/DEVELOPER.md) and [Issue/PR Policy](.github/ai/ISSUE-PR-POLICY.md); the independent [Reviewer](.github/ai/REVIEWER.md) checks PDF-to-requirement traceability and evidence on every applicable review.
+## Independent staging merge, release and course gates
 
-## Agent Relay — merged policy design; runtime and automatic actions remain disabled
+Only a **different authenticated teammate** with explicit `MERGE_STAGING`
+authorization may merge an approved PR to `sprint_N_staging` without another
+prompt. Immediately before merging verify exact HEAD/base, independent Formal
+APPROVE, no unresolved binding findings, passed required tests/AC/DoD, GitHub
+checks, rules/protections, permissions and mergeability. Never bypass failed
+mandatory CI or enforced protections.
 
-- **Roles/identities:** Agent A uses **Mac / ComGu_Core / `cottonlnwza`**; Agent B uses **Windows / ComTon / `thananun-7203`**. Either can act as Developer or Reviewer *per authorized Issue/PR*; the Reviewer must be a different GitHub account from the Author. Never share or switch to the other account's credentials; do not self-approve or self-merge. Both students must be able to explain their work and supervise their AI tools as required by the course.
-- **Controller boundary:** the proposed deterministic Python Controller only validates/routs messages, grants, delivery and observed state. It **does not use an LLM**, write code, judge reviews, submit GitHub Formal Review, merge on behalf of an Agent, invent authorization or infer a PASS from a message.
-- **Batch Authorization design (not enabled):** an explicit human grant may name a bounded ordered Issue set, exact repository/scope/owners/independent reviewers/staging target/actions/stop conditions. **A single batch record can contain separately enumerated action-specific grants** for execution, an independent Formal Review, teammate staging Merge and original-Issue completion only when separately human-approved and when the required Controller and enforcement gates have actually been implemented and verified. Every separate real-time evidence/permission gate still applies; current v1.2.1 separate approval rules apply meanwhile. No implicit new Issue, scope change, direct/automatic `main` merge, deployment, release tag or course submission.
-- **No reduced gates:** preserve One Issue ↔ One PR, completion-first, independent six-axis review **every round**, exact HEAD, real test/build/AC/STS/DoD evidence, branch checks, author post-merge verification and explicit/read-back original-Issue closure. Without live verification of enforceable branch protections and required checks, *automatic staging merge is BLOCKED*, not silently allowed.
-- **Single protocol source:** consult [`.github/ai/AGENT-RELAY.md`](.github/ai/AGENT-RELAY.md) for structured Handoff messages, queue/ACK/retry/idempotency, pause/resume, failure handling and stop logic; `ISSUE-PR-POLICY.md` owns authorization/lifecycle, `DEVELOPER.md` and `REVIEWER.md` own independent role work, `RELEASE.md` owns merge/completion gates. A relay message is never a substitute for a GitHub review, current HEAD or signed user authorization.
-- **Human override:** PAUSE/MANUAL/revocation take precedence. Stop safely at `WAITING_FOR_USER` once the named batch completes; do not create or start further Issues automatically. The merged policy design does not authorize building the Controller/GUI or implementing Lab 5.
+If enforcement is absent, reproducible Author-executed manual evidence
+independently checked by Reviewer is a fallback **only where course and project
+requirements allow**; it is not a substitute for mandatory CI/quality gates.
+`main` merge, release tags, deployment, billing/IAM, database/secret changes and
+other high-risk operations require separately scoped authorization. Staging
+merge does not establish release, deployment, course submission or grade.
 
-## Operating rules
+## GitHub Project #4 Kanban — before every phase
 
-- One authorized execution Issue ↔ **one** work PR; rework stays on the **same unmerged PR**. Never open a second work PR for that Issue. Never rewrite merged PR history or silently relabel a partial delivery as complete.
-- **Completion-first:** include in-scope implementation, tests, current-status evidence, contract/DoD, relevant decision/index/README updates in the original PR **before** Formal APPROVE/Merge. Historical snapshots and change logs must remain truthful.
-- The independent Reviewer applies the complete, strict checklist on **every round** including specification reviews, re-reviews and final approval decisions. A real binding in-scope defect blocks approval; optional improvements do not create artificial blockers or scope creep.
-- After merge, the Author verifies the **actual merge SHA on staging** and records post-merge test/build/evidence in the original Issue. Finish Issue checklist, Kanban and closure there with authorization; those tracker actions **do not** need a new PR.
-- A genuinely new repository edit after merge, defect, or changed requirement may need a **new, separately approved Issue** and unique PR. First search for an existing owner, establish necessity, scope and evidence; do not open speculative or administrative follow-ups.
-- Never infer `PASS`, APPROVE, MERGED, COMPLETE, CI status, deployment or board state. Identify tests as Author-local, independent reviewer rerun or hosted CI exactly as supported.
-- Scope and permissions: read-only verification is allowed; separate explicit authorizations remain mandatory for issue creation, substantive source changes, formal review submissions, merge, branch protection, release/deploy, and final tracker closure as specified in linked policies. Do not self-approve/self-merge.
-- Work PRs target the current `sprint_N_staging`; separately reviewed release PRs target `main`. Preserve evidence and `Period` on GitHub Project #4; read back all authorized board changes.
+Read the live Issue Project item, `Status` and `Period` before each phase.
+Perform the real transition **before** the next phase, then read the same item
+back. Preserve correct Period/manual changes; never fabricate missed history.
 
-## Project reference links
+- Approved new Issue → `Backlog` immediately.
+- Requirements/AC/STS scoped → `Specified` before implementation.
+- Authorized implementation about to start → `Started`.
+- Single review-ready PR + tests/evidence → `PR Review` before Reviewer handoff.
+- Binding Formal `REQUEST_CHANGES` → `Fixing` before same-PR corrections;
+  corrected/retested HEAD → `PR Review` before re-review.
+- Independently merged + Author post-merge verification and DoD satisfied →
+  `Done`, then original Issue closure under valid authority.
 
-- [Repository](https://github.com/cottonlnwza/TTworkshop), [Project #4](https://github.com/users/cottonlnwza/projects/4)
-- Approved/versioned sources in `docs/` and official course instructions govern feature semantics. **Do not invent FR/BR/NFR, AC/STS, architecture or approvals.**
-- This file is a shared entry point, **not a replacement for the full linked policies**.
+If Project mutation/read-back fails, investigate and report
+`KANBAN NOT VERIFIED / BLOCKED`; continue unrelated permitted steps, never claim
+a failed transition succeeded.
+
+## Troubleshooting and handoff
+
+On failures: investigate → correct safe recoverable causes → retry
+tests/operations → continue permitted unrelated work. If unresolved, report
+**Problem / Cause / Attempts / Recovery steps / Responsible owner** and the
+blocked gate. Do not open unauthorized Issues or bypass mandatory checks to
+force completion.
+
+For independent Review provide repository/policy SHA, Issue/PR links, exact
+HEAD/base, changed files, AC/STS/DoD, commands and actual results, limitations,
+prior binding findings, six-axis expectation, next actor and authorization
+gates. Drafting a handoff is not delivering it or completing formal review.
+
+## Task Skills — only load what is relevant
+
+- [Development](.agents/skills/development/SKILL.md)
+- [Review](.agents/skills/review/SKILL.md)
+- [Testing](.agents/skills/testing/SKILL.md)
+- [Release](.agents/skills/release/SKILL.md)
+
+All four paths are repository-readable by ComGu and ComTon. Actual automatic
+discovery is client-dependent and must be verified, not assumed; if a Skill is
+unavailable, follow this root `AGENTS.md` and report the limitation.
