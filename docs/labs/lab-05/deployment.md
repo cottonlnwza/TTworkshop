@@ -1,5 +1,21 @@
 # Lab 5 — TTworkshop Deployment Procedure (private preflight deployed; public release pending)
 
+> **Verified 2026-11-21 (ComGu read-only):** The current public Cloud Run service
+> `ttworkshop` is Ready at revision `ttworkshop-c05d1121072250`, receives 100%
+> of default traffic, uses `/health` and responds HTTPS 200 at `/health` and `/`.
+> C-05 persistence was proven separately across container start and redeploy.
+> GitHub WIF, the restricted deployer identity and the two production Secret
+> **names** are provisioned, but there is **no actual `deploy-main.yml` run**.
+> A new separately scoped [Issue #54](https://github.com/cottonlnwza/TTworkshop/issues/54)
+> proposes using a dedicated Cloud Build identity and a Ready zero-traffic
+> candidate before approved production promotion. This proposal is **not** a
+> new released main version, executed migration or finished C-06 pipeline.
+> Live PostgreSQL read-only audit confirmed four expected migration filenames,
+> runtime without schema CREATE/DDL and fully validated listed constraints.
+> Backups exist; PITR setting was not evidenced as enabled. Dates below are
+> historical snapshots and must not override these later findings.
+
+
 **Latest verified live state (2026-11-19, Asia/Bangkok):** PR #43 was independently
 approved and merged to `main@d9e9f99637c0511bc93b561f51fb34d2b913d71b`.
 Cloud Run service `ttworkshop` now exists **privately**: revision

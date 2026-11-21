@@ -1,0 +1,42 @@
+# Issue #54 — C-06 safe-builder release hardening candidate (NOT MERGED / NOT DEPLOYED)
+
+**As of 2026-11-21 (Asia/Bangkok), Author-side preparation.** `cottonlnwza` authored the proposed Release PR against `main@13ee9a19350dd06e614d3dc196d880c5275b489b`. Original Issue #33 / PR #43 and main Health Fix Issue #49 / PR #50 remain immutable historical milestones. This new Issue exists because #43 is already merged and a new source edit cannot reuse its PR. This file is a **pre-merge candidate** and must be updated with actual tested PR HEAD before Formal Review; no Release or GCP deploy is claimed.
+
+## Evidence and specific risks
+
+- **Default Cloud Build identity:** `348518197526-compute@developer.gserviceaccount.com` retains `roles/editor`, so the previous plain `gcloud builds submit ... --tag=...` did not guarantee least privilege.
+- **Dedicated builder:** `ttworkshop-builder@cpe334-ttworkshop.iam.gserviceaccount.com` has repository-specific `roles/artifactregistry.writer`, project `roles/logging.logWriter`, and bucket-scoped object Creator/Viewer to `gs://cpe334-ttworkshop_cloudbuild`. It does **not** have `roles/editor` on project IAM. The new workflow invokes `gcloud builds submit ... --service-account=projects/cpe334-ttworkshop/serviceAccounts/ttworkshop-builder@... --gcs-log-dir=gs://cpe334-ttworkshop_cloudbuild/c06-logs`.
+- **Deployer:** `ttworkshop-deployer@cpe334-ttworkshop.iam.gserviceaccount.com` has `roles/cloudbuild.builds.editor` and `roles/run.developer` at project level, `roles/artifactregistry.reader` scoped to the `ttworkshop` repo, bucket object Creator/Viewer on `gs://cpe334-ttworkshop_cloudbuild`, and `roles/iam.serviceAccountUser` on precisely `ttworkshop-builder`, `ttworkshop-runner`, `ttworkshop-migrator-runner`. These project roles are broader than resource-specific custom roles and warrant independent review; they are **not** `roles/editor`. WIF conditions require GitHub repository ID `1444016727`, owner ID `102855472`, `refs/heads/main`, `production` environment.
+- **Regression defect fixed:** The old `deploy/verify_serving_revision.py` rejected Cloud Run tag-only traffic entries with no `percent` key. Actual production service currently has such entries. The proposed verifier ignores only valid tag-only entries; malformed or split active routes remain rejected.
+- **Startup probe:** Production currently uses `/health` and returns 200. `/healthz` is deliberately retired (404). Do not alter the probe as part of this PR.
+
+## Read-only database safety and backup findings
+
+The Author queried the actual `ttworkshop-pg` PostgreSQL 16.15 instance through Cloud SQL Auth Proxy with the real Runtime and Migrator identities using **read-only transactions** (no SQL mutations or credentials in logs). `schema_migrations` had exactly `001_auth.sql`, `002_workshops.sql`, `003_workshops_non_empty.sql`, `004_registrations.sql`. None of the four ordered SQL files includes a destructive `DROP TABLE`, `DELETE FROM`, `TRUNCATE` or irreversible data deletion statement; `003_workshops_non_empty.sql` validates an existing constraint. There is no pending versioned migration **by filename** at this candidate SHA. Because the history table does not persist checksums, original historical SQL bytes are not independently verifiable.
+
+`ttworkshop_app` and `ttworkshop_migrator` are not superuser, CREATEDB or CREATEROLE. Runtime lacks database-level and `public` schema CREATE. Migrator owns all five relevant tables; Runtime can SELECT migration history but cannot INSERT/UPDATE/DELETE the `schema_migrations` table. All checked constraints have `convalidated=true`. The current Migrator Job `ttworkshop-migrate` is Ready with `ttworkshop-migrator-runner` and distinct Secret `ttworkshop-migrator-url:1` and Cloud SQL attachment. Runtime uses `ttworkshop-database-url:3` through `ttworkshop-runner`.
+
+Cloud SQL is RUNNABLE, automated backups enabled with count retention 7; last observed successful backup ended `2026-11-20T16:22:06Z`. The returned `pointInTimeRecoveryEnabled` was absent and `transactionalLogStorageState` unspecified: **do not assert PITR is enabled**. A current successful backup and feasible recovery strategy must be confirmed and explicitly approved by Operator before any production migration or traffic-affecting release. Restoring a backup to the source instance is not an automatic rollback; restore plans need separate human approval and can affect data written after the snapshot.
+
+## Revised Workflow and rollback responsibilities
+
+1. The user provides an exact full 40-character `main` SHA to the manually dispatched `deploy-main.yml`. Also checks `operator_approved_migration_and_traffic=true` **only after reviewing exact commands, schema/backward compatibility, newest backup, PITR limitations, and traffic/rollback implications**.
+2. Independent `thananun-7203` must separately approve the actual GitHub Actions `production` deployment for the particular Run ID, after their own six-axis review and scoped permission. A PR `APPROVED` review is not this deploy permission.
+3. WIF binds GitHub OIDC to the restricted Deployer. The workflow asserts the actual checked-out `main` SHA equals the operator-expected SHA, builds with dedicated SA and resolves an immutable digest. Before production traffic moves, `ttworkshop-migrate` is updated to that digest and executed with `--wait`. **This changes the migration job and may commit SQL DDL even if a later stage fails**. Stop for backup/compatibility uncertainty; do not run automatically for an unreviewed schema change.
+4. Deploy to `ttworkshop` via `gcloud run deploy ... --image=<sha256 image> --no-traffic`, then verify candidate `latestCreated == latestReady`, exact digest, 0% candidate traffic, prior revision 100%, live service Ready. Only after those checks does `gcloud run services update-traffic ... --to-revisions=<candidate>=100` run. The original post-routing `verify_serving_revision.py` and read-only public `/health` and `/` smoke must pass. This traffic switch is included in the operator's explicit dispatch confirmation **and** protected production reviewer approval.
+5. **Rollback after a traffic/smoke failure** is an operator decision, not an automatic workflow mutation. Read current and previous revision/image digests, assess database schema compatibility, then request explicit traffic authorization before `gcloud run services update-traffic ttworkshop --project=cpe334-ttworkshop --region=asia-southeast1 --to-revisions=<verified-previous-ready-revision>=100`. Verify Ready, HTTPS smoke, and persistent business records. **Image/traffic rollback cannot undo committed migrations.** For incompatible DB changes, STOP and follow a separately authorized database recovery procedure.
+
+**Accepted baseline at drafting:** Ready revision `ttworkshop-c05d1121072250` image `sha256:ca8acac3445516a787efd782340b580b6a99440bab267e95824951bd6422f13c`, 100% traffic. **Not a fixed rollback target after subsequent authorized releases:** always inspect live state immediately before action.
+
+## Completion matrix (pre-merge only)
+
+| Surface | Status | Evidence | Remaining gate / owner |
+|---|---|---|---|
+| Deploy workflow + candidate verifier | Proposed source change | Issue #54 diff and isolated Python tests | Author exact HEAD tests, independent six-axis Reviewer |
+| Provenance security regression | Added tests for tag-only Cloud Run entries | Real read-only service snapshot and Python unit tests | Hosted CI on PR HEAD |
+| Current README + Lab 5 deployment runbook | Dated 2026-11-21 superseding note | Source file diff | Independent current-status review |
+| Immutable main build/deploy run | NOT EXECUTED | No GitHub `deploy-main.yml` runs as of preparation | After reviewed merge, distinct operator dispatch permission and real ComTon approval |
+| Production DB / PITR / rollback | Read-only schema and privilege evidence; PITR NOT VERIFIED | Cloud SQL/Proxy metadata audit | Operator reviews current backup+PITR+restore plan before any release |
+| Original Issue #33 / PDF / Project | Still OPEN; historical C-05 evidence elsewhere | Lab 5 R-07/C-06 | Post-deploy Author evidence and separately authorized closure |
+
+**Official Lab 5 Section 9** requires human inspection of each real `gcloud` command and forbids autonomous AI IAM, database and billing changes. This Release PR does **not** perform such operations. No new Cloud Run deployment or GitHub Run is claimed.

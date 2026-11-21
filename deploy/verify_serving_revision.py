@@ -61,7 +61,12 @@ def verify(service, revision, *, main_sha, image_ref, service_url):
     active = []
     for route in traffic:
         _require(isinstance(route, dict), "invalid Cloud Run traffic record")
-        percent = route.get("percent")
+        # Cloud Run returns tag-only URLs without a `percent` field. They do
+        # not receive default production traffic and must be ignored here.
+        if "percent" not in route:
+            _require(bool(route.get("tag")), "traffic route missing percent or tag")
+            continue
+        percent = route["percent"]
         _require(type(percent) is int and 0 <= percent <= 100,
                  "invalid reported traffic percentage")
         if percent:
