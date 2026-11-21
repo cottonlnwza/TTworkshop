@@ -1,12 +1,21 @@
 # TTworkshop
 
-> **Lab 5 current status (2026-11-21, ComGu):** Public Cloud Run is serving
-> `/health` at Ready revision `ttworkshop-c05d1121072250`; C-05 persistence
-> evidence passed. WIF and GitHub production Secret names are configured, but
-> the GitHub Actions production deployment has never run. A reviewed workflow
-> hardening [Issue #54](https://github.com/cottonlnwza/TTworkshop/issues/54)
-> is in progress. **Do not claim C-06 PASS** from CI, a merged release PR, or
-> manual Cloud Run deployments. Older dated snapshots below are historical.
+> **Lab 5 verified snapshot (2026-11-21):** The public
+> [TTworkshop service](https://ttworkshop-xue6vtucgq-as.a.run.app) runs
+> `/health` at Ready revision `ttworkshop-c05d1121072250` (100% traffic).
+> [Issue #32](https://github.com/cottonlnwza/TTworkshop/issues/32) records real
+> Organizer publication, Participant registration and capacity rejection
+> (C-04) and the **same persisted records after new-container start and
+> redeploy** (C-05). This is a **manually deployed older image**, not the current
+> source release. Independently reviewed
+> [PR #56](https://github.com/cottonlnwza/TTworkshop/pull/56) merged into
+> `main@e53be24a944ec0da10fcf2738a7d4b0c727c7f88`; its
+> [CI passed](https://github.com/cottonlnwza/TTworkshop/actions/runs/44904836406).
+> WIF and deployment Secret **names** exist, but `deploy-main.yml` has **zero
+> actual runs**: C-06 is **NOT VERIFIED**. See the
+> [current Lab 5 evidence index](docs/labs/lab-05/evidence-index.md) and
+> [operator-gated deployment runbook](docs/labs/lab-05/deployment.md).
+> Older dated snapshots below are historical.
 
 CPE334 Software Engineering project — A full-stack University Workshop Registration and Attendance System featuring event management, student registration, capacity control, check-in, and attendance reporting. Developed using Spec-Driven Development, TDD, and peer code reviews.
 
@@ -77,10 +86,17 @@ Issue #31 adds a local-development Docker Compose stack with three services: Pos
 
 The browser endpoint is for localhost development only; this stack is **not** an HTTPS production/GCP deployment and does not implement Lab 5 cloud/release Issues #32–#33. For exact test evidence and limitations, see [L5-02 Docker evidence](docs/evidence/l5-02-docker.md).
 
-## Lab 5 GCP private preflight and health fix (Issues #32 and #46; public release pending)
+## Lab 5 GCP public deployment and historical private preflight (Issues #32 and #46)
 
-**Latest verified live observation (2026-11-19; supersedes historical deployment
-snapshots below):** Cloud Run service `ttworkshop` exists **privately** in
+**Current (2026-11-21):** The public UI/API/Cloud SQL workflow and C-05
+record persistence are verified on the operator-manually deployed image.
+Reviewed [PR #50](https://github.com/cottonlnwza/TTworkshop/pull/50) and
+[PR #56](https://github.com/cottonlnwza/TTworkshop/pull/56) have **merged**.
+The protected GitHub Actions deployment has **not run**, so C-06 remains open.
+The following is a dated 19 November snapshot, not current state.
+
+**Historical observation (2026-11-19; superseded by public deployment):**
+Cloud Run service `ttworkshop` exists **privately** in
 `cpe334-ttworkshop/asia-southeast1`, backed by Cloud SQL and runtime Secret
 `ttworkshop-database-url:3`. Its independently reviewed `main` image digest
 is `sha256:4731ee4424ca08fe82e1c5de65b574f80aa151fadd96e1f883cc67c13eacded2`.
