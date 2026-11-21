@@ -9,8 +9,9 @@ cloud-smoke/provenance/candidate tests and build). The main-only workflow
 includes a dedicated Cloud Build identity, Ready zero-traffic candidate and
 fail-closed digest/traffic checks. It has **never been dispatched**: no
 pipeline migration, GitHub production approval or deployment of this newer
-source has been demonstrated. WIF provider/deployer and Secret names exist,
-but a real workflow WIF exchange remains unverified. The older manually
+source has been demonstrated. WIF provider/deployer exist and the two Secret
+names are configured on the GitHub `production` environment (not repository
+Secrets), but a real workflow WIF exchange remains unverified. The older manually
 deployed image and C-05 evidence are recorded under
 [Issue #32](https://github.com/cottonlnwza/TTworkshop/issues/32).
 See [current evidence index](../labs/lab-05/evidence-index.md).

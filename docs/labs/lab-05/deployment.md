@@ -19,8 +19,10 @@
 > The new main-only workflow selects a dedicated Cloud Build identity, stages
 > a zero-traffic Ready candidate and checks immutable digest/traffic before
 > and after promotion. It has **never been dispatched**. WIF provider,
-> deployer identity and repository Secret **names** now exist; correct Secret
-> values and a successful Actions WIF exchange are **not verified**. The
+> deployer identity and GitHub `production` environment Secret **names**
+> `GCP_WIF_PROVIDER` and `GCP_DEPLOYER_SA` now exist (the repository-level
+> Actions Secret list is empty, by design); correct Secret values and a
+> successful Actions WIF exchange are **not verified**. The
 > GitHub `production` environment requires independent `thananun-7203`
 > approval and forbids self-review. Before any dispatch, the human operator
 > must inspect and explicitly approve exact migration Job, backup, cost and
