@@ -54,18 +54,22 @@
   - `FAIL tests/auth.integration.test.ts > ... > STS-F01-08 / DEF-TTW-TH038-01`
   - `AssertionError: expected 500 to be 400 // Object.is equality` (`Expected: 400`, `Received: 500`)
 
-### 3.2 Step 2 — Code Fix (`api/app.ts`)
+### 3.2 Step 2 — Code Fix (`api/app.ts`) & Reviewer `R-01` Remediation
 
-Added Unicode-mode control-character and unpaired-surrogate rejection (`INVALID_EMAIL_CHARS = /[\u0000-\u001F\u007F\uD800-\uDFFF]/u`) inside `emailFrom()` in `api/app.ts` so malformed login emails fail closed before hitting PostgreSQL, returning `HTTP 400 {"error":{"code":"VALIDATION","message":"Email and password are required"}}` with `Cache-Control: no-store` and no `Set-Cookie`.
+Added Unicode-mode control-character and unpaired-surrogate rejection (`INVALID_EMAIL_CHARS = /[\u0000-\u001F\u007F\uD800-\uDFFF]/u`) inside `emailFrom()` in `api/app.ts` **before** `value.trim().toLowerCase()` normalization (updated per independent Reviewer `R-01` finding on `52771f9` so leading/trailing ASCII controls such as `\t`, `\r`, `\n`, `\u000b`, `\u000c` are rejected with `400 VALIDATION` before `trim()` can strip them, while ordinary ASCII surrounding spaces `0x20` remain compatible). Malformed login emails fail closed before hitting PostgreSQL, returning `HTTP 400 {"error":{"code":"VALIDATION","message":"Email and password are required"}}` with `Cache-Control: no-store` and no `Set-Cookie`.
 
-### 3.3 Step 3 — Targeted Verification (`GREEN`) & Full Automated Regression Suite
+- **Reviewer `R-01` Boundary TDD Proof (before moving check ahead of `trim()`):**
+  - `npm run test:api` on unfixed `52771f9` with leading/trailing `\t`/`\n`/`\r\n`/`\u000b`/`\u000c` test cases → **RED** (`1 failed | 11 passed (12)`, `AssertionError: expected 200 to be 400` because `\tparticipant.a@example.test` was trimmed and authenticated).
+  - After moving `INVALID_EMAIL_CHARS.test(value)` before `value.trim().toLowerCase()` → **GREEN** (`12/12 passed`), including ordinary surrounding space compatibility (`"  participant.a@example.test  "` → `200`).
+
+### 3.3 Step 3 — Targeted Verification (`GREEN`) & Full Automated Regression Suite (Latest PR HEAD)
 
 Executed by Author `thananun-7203` (ComTon, Windows, Node `v24.14.0`, Python `3.12.10`, isolated loopback `postgresql-x64-18` databases `ttworkshop_test` & `ttworkshop_seed_test`, local headless Chromium):
 
 | Check / Command | Provenance | Result & Exact Counts |
 |---|---|---|
-| `npm run test:api` (`tests/auth.integration.test.ts`) | Author-local (GREEN) | **PASS — 1/1 file, 12/12 tests passed, 0 failed, 0 skipped** (including `STS-F01-08 / DEF-TTW-TH038-01`) |
-| `npm run build` (`tsc --noEmit && vite build`) | Author-local | **PASS — 0 TS errors, 20 modules transformed (519ms)** |
+| `npm run test:api` (`tests/auth.integration.test.ts`) | Author-local (GREEN after `R-01` fix) | **PASS — 1/1 file, 12/12 tests passed, 0 failed, 0 skipped** (covers embedded `\u0000`/`\u001f`/`\uD800`, leading/trailing `\t`/`\r`/`\n`/`\u000b`/`\u000c`, and surrounding `0x20` space compatibility) |
+| `npm run build` (`tsc --noEmit && vite build`) | Author-local | **PASS — 0 TS errors, 20 modules transformed (452ms)** |
 | `npm test` (full Vitest suite: unit, API/DB integration, React UI, headless Chrome E2E) | Author-local | **PASS — 20/20 files, 135/135 tests passed, 0 failed, 0 skipped** |
 | `python -m unittest discover -s tests -p "test_*.py" -v` | Author-local | **PASS — 41/41 tests passed** (`test_cloud_smoke.py` 7, `test_release_candidate.py` 21, `test_release_provenance.py` 13) |
 
