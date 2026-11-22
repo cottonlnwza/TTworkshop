@@ -195,3 +195,11 @@ table/sequence grants and removal of `cloudsqlsuperuser` from the live app user.
 AI only verified their metadata and updated source/docs.** No migration job,
 schema DDL, production runtime privilege reduction, live connectivity test or
 Cloud Run deployment has occurred.
+
+## Lab 6 Part A — Sprint 1 UAT test plan and safe handoff (Issue #59, Period 2)
+
+[Issue #59](https://github.com/cottonlnwza/TTworkshop/issues/59) delivers the **Part A Sprint 1 UAT Test Plan and Safe Handoff Package** in [`docs/labs/lab-06/uat-plan-and-handoff.md`](docs/labs/lab-06/uat-plan-and-handoff.md). It defines six executable UAT test cases (`UAT-S1-01` through `UAT-S1-06`) mapped to the Sprint 1 feature contracts (`F-01`–`F-04`, 43 AC ↔ 43 STS) across all four required Lab 6 §3.1 categories (normal domain journey, business-rule/boundary, forbidden role/ownership, and state/history/persistence), along with deployed Cloud Run revision provenance (`https://ttworkshop-xue6vtucgq-as.a.run.app`, Ready revision `ttworkshop-c05d1121072250`), safe synthetic test account labels (zero passwords or secrets in Git), execution ordering, non-destructive setup/cleanup instructions, and recording templates for independent partner UAT execution (Part B), defect reporting/triage (Part C), and retest/acceptance (Part D). Independent partner UAT execution, defect triage, and final Sprint 1 acceptance remain pending partner handoff exchange.
+
+## Lab 6 Parts B–D — Independent UAT Defect Triage & TDD Resolution (Issue #63, Period 2; Staging PR Pending Review/Deploy/Retest)
+
+[Issue #63](https://github.com/cottonlnwza/TTworkshop/issues/63) records the completed reciprocal Part B UAT exchange with partner team **TH-038** (`chaproi/club-expense-approval`), Part C triage of genuine defect **`DEF-TTW-TH038-01`** (`POST /api/v1/auth/login` returning `HTTP 500` on NUL byte / malformed control characters in `email`, violating `AC-F01-08`), and the Part D TDD **RED → GREEN** fix in `api/app.ts` and `tests/auth.integration.test.ts` (see [`docs/labs/lab-06/defect-triage-and-resolution.md`](docs/labs/lab-06/defect-triage-and-resolution.md)). Independent teammate PR review/merge, `main` release, Cloud Run deployment of the corrected image, and TH-038's independent retest and final acceptance decision remain pending.
