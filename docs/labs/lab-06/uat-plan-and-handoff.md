@@ -529,3 +529,26 @@ Executed by Author `thananun-7203` (ComTon, Windows / Node.js `v24.14.0` / npm `
 | Actual `sprint_2_staging` merge SHA, Author post-merge verification, Project #4 `Done` transition & Issue #59 closure | **Post-merge only** (never claimed prior to merge) | To be recorded on [Issue #59](https://github.com/cottonlnwza/TTworkshop/issues/59) after independent review and authorized teammate merge | Independent `APPROVE` + `MERGE_STAGING` by `cottonlnwza`, then Author post-merge verification | `cottonlnwza` / `thananun-7203` |
 | Partner UAT execution results (Part B), defect triage (Part C), TDD defect resolution or Section 3.5 controlled exercise (Part D), and LEB2 PDF submission | **Future / Out-of-scope for Issue #59** | Templates provided in §5; actual partner execution occurs after Part A handoff delivery | Separate partner UAT exchange and subsequent bounded Lab 6 Issue/PR | Both students & Partner UAT Team |
 
+---
+
+## 7. Dated Execution Addendum — Partner Scope Additions & Serving Baseline Reconciliation (2026-11-22, Issue #63)
+
+> **Preservation Notice:** Sections 1–6 above preserve the immutable Part A preparation baseline merged under [Issue #59](https://github.com/cottonlnwza/TTworkshop/issues/59) / [PR #60](https://github.com/cottonlnwza/TTworkshop/pull/60). This addendum records subsequent agreed partner UAT refinements and live serving provenance under [Issue #63](https://github.com/cottonlnwza/TTworkshop/issues/63); see [`defect-triage-and-resolution.md`](defect-triage-and-resolution.md) for Part B/C/D triage and TDD resolution evidence.
+
+### 7.1 Partner-Requested UAT Scope Refinements Agreed Before Execution (TH-038 ↔ TH-033_P3)
+
+In accordance with Lab 6 guidance that the independent UAT Team review coverage against Sprint 1 contracts, partner team **TH-038** (`chaproi`) proposed five clarifications/additional checks, all accepted and executed during `RUN: TH038-20261122-01`:
+
+1. **`UAT-S1-02C` (Concurrent last-seat race):** Two Participants (`PARTICIPANT_A` & `PARTICIPANT_B`) submit simultaneous `POST /api/v1/workshops/:id/registrations` against a `capacity = 1` published workshop → exactly one `201 Created` (`ACTIVE`), one `409 CAPACITY_FULL`, `remaining_seats = 0`, zero overbooking.
+2. **`UAT-S1-06A` / `UAT-S1-06B` (Split session persistence vs. operator container restart):** `06A` verifies logout revocation (`204`/`401`) and re-login readback; `06B` verifies exact pre/post-restart readback across an operator-executed Cloud Run same-image redeploy while preserving Cloud SQL data.
+3. **Invalid capacity boundary probe (`BR-03`):** Creating/updating drafts with `capacity` = `0`, `-1`, `1.5`, or `"two"` returns `400 VALIDATION` (`"Capacity must be a positive integer"`).
+4. **`UAT-S1-03E` (Default deadline = `starts_at` when `registration_deadline` is `null`):** A published workshop with `registration_deadline: null` and a past `starts_at` displays `registration_open: false` and rejects registration with `409 DEADLINE_PASSED`.
+5. **Cursor pagination & bounds (`WD-F04-02`):** `GET /api/v1/organizer/workshops/:id/registrations?limit=1` returns `next_cursor`, page 2 fetches the next distinct record with `next_cursor: null` (no overlap), and invalid bounds (`limit=0`, `limit=51`, malformed cursor) return `400 INVALID_PAGINATION`.
+
+### 7.2 Live Serving Baseline Reconciliation
+
+- Section 1 recorded the pre-C06 revision `ttworkshop-c05d1121072250` (`sha256:ca8acac3445516a787efd782340b580b6a99440bab267e95824951bd6422f13c`).
+- Before TH-038 began UAT, independently reviewed [PR #62](https://github.com/cottonlnwza/TTworkshop/pull/62) merged to `main@454596917d421ad4299be4fc346bde38fe0d6842` (deploy workflow/doc files only; zero changes to `api/`, `web/`, `db/`, or `Dockerfile`), and [Deploy Run #44931017791](https://github.com/cottonlnwza/TTworkshop/actions/runs/44931017791) (`2026-11-22 00:36:56–00:41:35 Asia/Bangkok`) deployed revision **`ttworkshop-00013-doh`** (`sha256:4475102ac594d83e513835964dc2bdab460c4296bc270b12c5d414b8d70d559d`) more than 12 hours prior to TH-038's first UAT action (`12:52:52 Asia/Bangkok`).
+- Both teams confirmed `ttworkshop-00013-doh` / `main@454596917d421ad4299be4fc346bde38fe0d6842` / `sha256:4475102ac594d83e513835964dc2bdab460c4296bc270b12c5d414b8d70d559d` as the actual tested UAT baseline, and verified `UAT-S1-06B` post-restart persistence on same-digest revision **`ttworkshop-uat06b-20261122134604`** (`2026-11-22 20:46:04–20:46:34 Asia/Bangkok`, `RUNTIME_CONFIG_MATCH=true`, `/health` HTTP `200`).
+- Live synthetic accounts used for partner execution are `issue32-004b8d84b9f246-{organizer-1,organizer-2,participant-1,participant-2}@example.test` (passwords exchanged privately only; never committed to Git or PDF).
+

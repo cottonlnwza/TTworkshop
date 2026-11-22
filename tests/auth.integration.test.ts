@@ -120,6 +120,25 @@ describe("F-01 acceptance / actual real PostgreSQL API", () => {
     expect(malformed.headers["cache-control"]).toContain("no-store");
     expect((await pool.query("SELECT count(*)::int AS n FROM sessions")).rows[0].n).toBe(0);
   });
+  it("STS-F01-08 / DEF-TTW-TH038-01: NUL byte, ASCII control char, and unpaired surrogate in login email return 400 VALIDATION without issuing a session", async () => {
+    const payloads = [
+      JSON.stringify({ email: "a\u0000b@example.test", password: "x" }),
+      JSON.stringify({ email: "a\u001fb@example.test", password: "x" }),
+      '{"email":"a\\uD800b@example.test","password":"x"}'
+    ];
+    for (const raw of payloads) {
+      const res = await request(app)
+        .post("/api/v1/auth/login")
+        .set("Origin", origin)
+        .set("Content-Type", "application/json")
+        .send(raw);
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({ error: { code: "VALIDATION", message: "Email and password are required" } });
+      expect(res.headers["cache-control"]).toContain("no-store");
+      expect(res.headers["set-cookie"]).toBeUndefined();
+    }
+    expect((await pool.query("SELECT count(*)::int AS n FROM sessions")).rows[0].n).toBe(0);
+  });
   it("STS-F01-07 / R-01: synthetic CLI seed generates distinct salts per account", async () => {
     execFileSync(process.execPath, ["--import", "tsx", resolve("scripts/seed.ts")], {
       cwd: resolve("."), env: { ...process.env, DATABASE_URL: testDatabaseUrl,

@@ -9,9 +9,11 @@ type Identity = { id: string; email: string; role: Role };
 type Options = { appOrigin: string; production: boolean; sessionHours: number; now?: () => Date };
 const COOKIE = "ttw_session";
 const fail = (code: string, message: string) => ({ error: { code, message } });
+const INVALID_EMAIL_CHARS = /[\u0000-\u001F\u007F\uD800-\uDFFF]/u;
 function emailFrom(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const email = value.trim().toLowerCase();
+  if (INVALID_EMAIL_CHARS.test(email)) return null;
   return email.length <= 254 && email.length >= 3 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
 }
 function hashToken(value: string): string { return createHash("sha256").update(value).digest("hex"); }
