@@ -1,7 +1,7 @@
 # F-08 — Event Attendance Check-in
 
-> **PROPOSED pre-implementation contract v0.1.1 — PENDING INDEPENDENT PEER REVIEW — 2026-11-23** · Contracts [Issue #70 (`P2-C2`)](https://github.com/cottonlnwza/TTworkshop/issues/70) · Planned Implementation [Issue #71 (`P2-07`)](https://github.com/cottonlnwza/TTworkshop/issues/71) · Sprint 3 (started in `Period 2` for D2 Part B)
-> Source: `docs/srs.md` FR-13, BR-01, BR-14, NFR-01, NFR-02; `docs/features.md` F-08; `docs/system-sds.md` §§3–6; proposed scoped policy [`DEC-09`](../decisions/dec-09-checkin-reporting-filtering.md) and accepted [`DEC-04`](../decisions/dec-04-workshop-time.md), [`DEC-06`](../decisions/dec-06-cancellation-policy.md). **No `F-08` application code has been written and zero `F-08` STS have been executed.** This draft does not assert global SRS/SDS or instructor approval.
+> **IMPLEMENTED ON STAGING PR CANDIDATE v0.2.0 — AUTHOR-LOCAL 9/9 STS PASS ON `69d19937`; PENDING HOSTED CI, INDEPENDENT PEER REVIEW & STAGING MERGE — 2026-11-23** · Contracts [Issue #70 (`P2-C2`)](https://github.com/cottonlnwza/TTworkshop/issues/70) (Merged [PR #78](https://github.com/cottonlnwza/TTworkshop/pull/78) `sprint_2_staging@35b7ad24`, CLOSED) · Implementation [Issue #71 (`P2-07`)](https://github.com/cottonlnwza/TTworkshop/issues/71) · Sprint 3 (started in `Period 2` for D2 Part B)
+> Source: `docs/srs.md` FR-13, BR-01, BR-14, NFR-01, NFR-02; `docs/features.md` F-08; `docs/system-sds.md` §§3–6; accepted scoped policy [`DEC-09`](../decisions/dec-09-checkin-reporting-filtering.md) (`v0.1.1`) and accepted [`DEC-04`](../decisions/dec-04-workshop-time.md), [`DEC-06`](../decisions/dec-06-cancellation-policy.md). **Author-local execution evidence:** [`docs/evidence/p2-07-f08.md`](../evidence/p2-07-f08.md) (TDD RED `f18435d7` → TDD GREEN `69d19937`, `9/9` `STS-F08-01`–`09`, `187/187` Vitest, `41/41` Python, `npm run build` PASS). Hosted CI, independent Reviewer Formal `APPROVE`, staging merge, `main` release, and GCP deployment remain pending. This document does not assert global SRS/SDS or instructor approval.
 
 ## 1. Purpose, dependencies, and boundaries
 
@@ -87,7 +87,7 @@ Base `/api/v1`. All responses include `Cache-Control: no-store`. Success envelop
 | **AC-F08-08** | Organizer UI (`RegistrationViews.tsx`) renders `Check in` only for unchecked `ACTIVE` rows, transitions cleanly to `Checked in` + timestamp after success, and displays `role="alert"` errors for `CHECKIN_WINDOW_CLOSED`/`ALREADY_CHECKED_IN`/`INVALID_STATE`; Participant UI shows `Checked in` and disables `Cancel registration` (`FR-13`). |
 | **AC-F08-09** | End-to-end Chromium journey: Organizer checks in an eligible Participant from `/organizer/workshops/:id/registrations`, reloads to confirm persistence, and Participant observes `Checked in` on `/my-registrations` (`FR-13`, `NFR-02`). |
 
-## 7. Software Test Specification (STS) — PLANNED, NOT EXECUTED
+## 7. Software Test Specification (STS) — AUTHOR-LOCAL PASS ON `69d19937` (PENDING HOSTED CI & INDEPENDENT REVIEW)
 
 | Test ID | AC | Level | Preconditions & inputs → action → expected outcome |
 |---|---|---|---|
@@ -103,14 +103,15 @@ Base `/api/v1`. All responses include `Cache-Control: no-store`. Success envelop
 
 **Planned TDD strategy (for [Issue #71](https://github.com/cottonlnwza/TTworkshop/issues/71)):** Commit failing `tests/f08.*` tests first (**RED** — check-in endpoint returns `404` and `checked_in_at` is absent from roster/UI), then implement transactional check-in API, DTO updates (expanding `tests/f04.integration.test.ts` key allowlist cleanly per `DEC-09` §1.5), and UI controls until targeted and full suites pass (**GREEN**).
 
-## 8. Feature Definition of Done — NOT MET (Pre-Implementation Contract)
+## 8. Feature Definition of Done — IN PROGRESS (Staging PR Candidate)
 
-- [ ] Pre-implementation contract and `DEC-09` independently reviewed (`Formal APPROVE`) and merged to `sprint_2_staging` via [Issue #70](https://github.com/cottonlnwza/TTworkshop/issues/70).
-- [ ] TDD **RED → GREEN** evidence recorded on exact commits in [Issue #71](https://github.com/cottonlnwza/TTworkshop/issues/71).
-- [ ] All 9 criteria (`AC-F08-01`–`AC-F08-09` ↔ `STS-F08-01`–`STS-F08-09`) implemented and passing against isolated loopback PostgreSQL (`ttworkshop_test`) and headless Chromium.
-- [ ] Full automated regression (`npm run build`, `npm test`, Python `unittest`, hosted CI `build-test`) passes with zero unintended regressions to Sprints 1–2 and zero real secrets.
-- [ ] Evidence ledger (`docs/evidence/p2-07-f08.md`), contract execution record, and `docs/traceability.md` updated; independent Reviewer (`cottonlnwza`) Formal `APPROVE`, teammate merge to `sprint_2_staging`, and Author post-merge verification complete.
+- [x] Pre-implementation contract and `DEC-09` independently reviewed (`Formal APPROVE`) and merged to `sprint_2_staging` via [Issue #70](https://github.com/cottonlnwza/TTworkshop/issues/70) / [PR #78](https://github.com/cottonlnwza/TTworkshop/pull/78) (`35b7ad24`, CLOSED).
+- [x] TDD **RED → GREEN** evidence recorded on exact commits in [Issue #71](https://github.com/cottonlnwza/TTworkshop/issues/71) (RED `f18435d7` → GREEN `69d19937`).
+- [x] All 9 criteria (`AC-F08-01`–`AC-F08-09` ↔ `STS-F08-01`–`STS-F08-09`) implemented and passing Author-locally against isolated loopback PostgreSQL (`ttworkshop_test`) and headless Chromium.
+- [ ] Full automated regression (`npm run build`, `npm test` `187/187`, Python `unittest` `41/41` passed Author-locally on `69d19937`; hosted CI `build-test` on PR HEAD pending).
+- [ ] Evidence ledger ([`docs/evidence/p2-07-f08.md`](../evidence/p2-07-f08.md)), contract execution record, and `docs/traceability.md` updated; independent Reviewer (`cottonlnwza`) Formal `APPROVE`, teammate merge to `sprint_2_staging`, and Author post-merge verification pending.
 
 **Change record:**
 - `v0.1` (2026-11-23, [Issue #70](https://github.com/cottonlnwza/TTworkshop/issues/70)): Initial pre-implementation Sprint 3 contract authored by `thananun-7203`; `PENDING INDEPENDENT PEER REVIEW` by `cottonlnwza`. Zero code or tests executed.
-- `v0.1.1` (2026-11-23, [PR #78](https://github.com/cottonlnwza/TTworkshop/pull/78) Round 1 `R-01` & `R-02` remediation): Standardized outside-window check-in error code on authoritative **`409 CHECKIN_WINDOW_CLOSED`** matching [Issue #71](https://github.com/cottonlnwza/TTworkshop/issues/71) (`R-02`), and specified controlled gap/boundary/lock-order clock fixtures in `AC-F08-05` / `STS-F08-05` respecting `F-05`'s `now < effective_deadline` cutoff (`R-01`). Still `PROPOSED / NOT EXECUTED`.
+- `v0.1.1` (2026-11-23, [PR #78](https://github.com/cottonlnwza/TTworkshop/pull/78) Round 1 `R-01` & `R-02` remediation): Standardized outside-window check-in error code on authoritative **`409 CHECKIN_WINDOW_CLOSED`** matching [Issue #71](https://github.com/cottonlnwza/TTworkshop/issues/71) (`R-02`), and specified controlled gap/boundary/lock-order clock fixtures in `AC-F08-05` / `STS-F08-05` respecting `F-05`'s `now < effective_deadline` cutoff (`R-01`). Merged via [PR #78](https://github.com/cottonlnwza/TTworkshop/pull/78) (`35b7ad24`) and [Issue #70](https://github.com/cottonlnwza/TTworkshop/issues/70) CLOSED.
+- `v0.2.0` (2026-11-23, [Issue #71 (`P2-07`)](https://github.com/cottonlnwza/TTworkshop/issues/71)): Implemented `F-08` transactional check-in API, `checked_in_at` DTO visibility (preserving `WD-F04-01`), and Organizer/Participant UI controls (TDD RED `f18435d7` → TDD GREEN `69d19937`, `9/9` STS + `187/187` Vitest + `41/41` Python + build Author-local PASS; [`docs/evidence/p2-07-f08.md`](../evidence/p2-07-f08.md)). Hosted CI, independent peer review, and staging merge remain pending.
