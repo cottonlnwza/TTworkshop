@@ -57,8 +57,11 @@ describe("F-05 Cancellation UI states", () => {
     const cancelBtn = await screen.findByRole("button", { name: "Cancel registration" });
     fireEvent.click(cancelBtn);
 
-    expect(await screen.findByText(/CANCELLED/)).toBeTruthy();
+    expect(await screen.findByText("Registration cancelled · CANCELLED")).toBeTruthy();
     await waitFor(() => expect(screen.queryByRole("button", { name: "Cancel registration" })).toBeNull());
+    expect(screen.getByText((_, element) =>
+      element?.tagName === "P" && element.textContent?.includes("Status: CANCELLED") === true
+    )).toBeTruthy();
     expect(screen.getByText(/Cancelled:/)).toBeTruthy();
     expect(fetcher).toHaveBeenCalledTimes(3);
     expect(fetcher.mock.calls[1]![0]).toBe("/api/v1/me/registrations/601/cancel");

@@ -159,7 +159,7 @@ export function ParticipantApp() {
           <p>Seats remaining: {workshop.remaining_seats} / {workshop.capacity}</p>
           <button type="button" onClick={() => { void viewDetails(workshop); }}>View details</button>
         </li>)}</ul>}
-      <button type="button" className="secondary" onClick={() => { setSelected(null); void loadWorkshops(); }} disabled={loading}>
+      <button type="button" className="secondary" onClick={() => { setSelected(null); setRegisteredWorkshopIds(new Set()); void loadWorkshops(); }} disabled={loading}>
         Refresh workshops
       </button>
     </section>
