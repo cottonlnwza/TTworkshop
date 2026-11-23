@@ -1,23 +1,23 @@
 # TTworkshop — System-Level Software Design Specification (SDS)
 
-> **DRAFT full-product SDS v0.1.4 — NOT GLOBALLY APPROVED — 2026-11-05** · [Issue #11 reconciliation](https://github.com/cottonlnwza/TTworkshop/issues/11)
+> **DRAFT full-product SDS v0.2.0 — Deliverable 2 checkpoint — 23 November 2026.** [Issue #73](https://github.com/cottonlnwza/TTworkshop/issues/73). Architecture and implementation read-back are scoped to the referenced versions.
 > [P1-01 / Issue #1](https://github.com/cottonlnwza/TTworkshop/issues/1) · Deliverable 1 Part C
-> Requirements: `docs/srs.md` v0.1.6; inventory/ownership: `docs/features.md` v0.1.5. F-02 scoped design choices were peer-approved/merged in [PR #10](https://github.com/cottonlnwza/TTworkshop/pull/10), but global architecture remains DRAFT. **No new Workshop code, migration, API, container, test, cloud resource or deployment exists by virtue of this design.** See [decision ledger](decisions/p1-ex01-working-acceptance-ledger.md).
+> Requirements [SRS](srs.md), [feature roles](features.md), [test traceability](traceability.md#5e-deliverable-2-requirement-to-evidence-matrix), and [release evidence](releases/d2-integrated-candidate.md). The working scope on staging `bcac8e76` is F-01–F-08. The F-09 design is accepted scope for later implementation. Full-product approval remains open.
 
 ## 1. Purpose, design constraints and decision status
 
 COURSE §5 requires a **real UI → API/application layer → persistent database** workflow, meaningful domain transactions, server-side authentication and authorization starting in Sprint 1, reproducible seed/migrations, and a Docker/GCP-compatible architecture. A modular monolith is permitted; three logical tiers do not require three servers.
 
-**Proposed stack (team must approve):**
+**Implemented stack and evidence scope**
 
 | Layer | Candidate | Rationale | Status |
 |---|---|---|---|
-| Web UI | React 19 + TypeScript + Vite 8 | Existing F-01 implementation precedent; role-specific views and form state | **F-01 IMPLEMENTED; F-02 scoped stack choice accepted in PR #10; F-02 not implemented** |
-| API / domain | Node.js + TypeScript + Express 5 | Existing F-01 implementation precedent; HTTP controllers, services and permission middleware | **F-01 IMPLEMENTED; F-02 scoped stack choice accepted; F-02 not implemented** |
-| Persistence | PostgreSQL 15+ with `pg` parameterized SQL and explicit transactions; no ORM selected | Matches F-01 migration/query approach; preserves relational constraints and PostgreSQL transaction semantics | **F-01 IMPLEMENTED; F-02 scoped stack choice accepted; Workshop schema not implemented** |
-| Auth | Reuse F-01 server-side session and `HttpOnly` cookie middleware; derive identity/role server-side | Avoids parallel auth; Workshop owner comes from authenticated Organizer session | **F-01 IMPLEMENTED; F-02 scoped reuse accepted; integration untested** |
-| Deployment | Docker image, Cloud Run app/API and durable managed PostgreSQL (e.g., Cloud SQL) on GCP | Repeatable deployment, persistent data outside ephemeral containers | **PROPOSED**, pending Lab 5 instructions/resources |
-| Tests | Unit + real PostgreSQL/API integration + selected browser E2E; applicable build/automated-test checks on relevant PRs from Sprint 1; hosted CI/CD automation expanded in Lab 5 | Covers rule, persistence, ownership, PR quality gate and end-user journey | **PROPOSED** tooling to be selected in contracts; no CI or test execution asserted |
+| Web UI | React 19 + TypeScript + Vite 8 | Existing F-01 implementation precedent; role-specific views and form state | F-01–F-08 role-specific flows verified on staging |
+| API / domain | Node.js + TypeScript + Express 5 | Existing F-01 implementation precedent; HTTP controllers, services and permission middleware | Express 5 routes, authorization and domain rules verified on staging |
+| Persistence | PostgreSQL 15+ with `pg` parameterized SQL and explicit transactions; no ORM selected | Matches F-01 migration/query approach; preserves relational constraints and PostgreSQL transaction semantics | Migrations 001–005 and durability checks verified on staging |
+| Auth | Reuse F-01 server-side session and `HttpOnly` cookie middleware; derive identity/role server-side | Avoids parallel auth; Workshop owner comes from authenticated Organizer session | Session and role/owner guards verified; TH-038 retested deployed Lab 6 fix |
+| Deployment | Docker image, Cloud Run app/API and durable managed PostgreSQL (e.g., Cloud SQL) on GCP | Repeatable deployment, persistent data outside ephemeral containers | Cloud Run + Cloud SQL, Lab 6 baseline verified. D2 release pending. |
+| Tests | Unit + real PostgreSQL/API integration + selected browser E2E; applicable build/automated-test checks on relevant PRs from Sprint 1; hosted CI/CD automation expanded in Lab 5 | Covers rule, persistence, ownership, PR quality gate and end-user journey | Hosted build-test and isolated PostgreSQL/Chromium tests passed on staging |
 
 **Design principle:** enforce authorization and business invariants in the backend and transactionally in the database, not through UI-only checks or mock-only persistence.
 
@@ -44,7 +44,7 @@ Relational repository / migrations
 Persistent PostgreSQL (users, sessions, workshops, registrations)
 ```
 
-Deployment may serve UI and API via **one** image/service if appropriate; these are **logical** layers. Separation is for reasoning, not mandated infrastructure. Any actual stack deviation requires updated SDS, approved decision and appropriate tests.
+Production uses one Docker image and one Cloud Run service for the built web UI and Express API. PostgreSQL persists externally in Cloud SQL. The migration job runs separately before candidate promotion; local Compose uses separate web, API and database services.
 
 ### Responsibilities
 
@@ -54,7 +54,7 @@ Deployment may serve UI and API via **one** image/service if appropriate; these 
 - **Database:** authoritative identity/ownership, persistent workshop and registration history, referential integrity, transactional exclusion/locks and migration tracking.
 - **Background jobs:** **not needed by baseline**; elapsed deadline can be computed at request time. Do not add external messaging or schedulers without an approved requirement.
 
-## 3. Major domain model (logical, not final migration)
+## 3. Major domain model and persistence
 
 ```text
 User (1) --------- (many) Workshop        [Workshop.owner_user_id]
@@ -71,19 +71,19 @@ User (1) --------- (many) Session  [if server-stored sessions adopted]
 |---|---|---|
 | **User** | `id`, `email` (unique), `password_hash`, `role` {PARTICIPANT, ORGANIZER}, `created_at` | Exactly one role/account in proposed initial model; no plaintext password |
 | **Session** | F-01 implementation: opaque random token in `ttw_session` HttpOnly cookie; PostgreSQL stores SHA-256 token digest, `user_id`, `expires_at`, `revoked_at`, `created_at` | F-02 reuses the existing F-01 session middleware under DEC-10-F02; broader session-policy changes remain out of this Issue |
-| **Workshop** | `id`, `owner_user_id`, nullable-during-DRAFT `title`, `description`, `location`, `starts_at`, `ends_at`, `capacity`, `status` {DRAFT, PUBLISHED}, optional `registration_deadline`, `registration_closed` (bool), timestamps | FK owner→User; Publish requires DEC-02 fields, positive integer capacity and end>start; configured deadline ≤ start. Partial-DRAFT policy is an **accepted F-02 scoped working choice (DEC-03, PR #10)**; later post-publication editing remains OPEN |
+| **Workshop** | `id`, `owner_user_id`, nullable-during-DRAFT `title`, `description`, `location`, `starts_at`, `ends_at`, `capacity`, `status` {DRAFT, PUBLISHED}, optional `registration_deadline`, `registration_closed` (bool), timestamps | FK owner→User; Publish requires DEC-02 fields, positive integer capacity and end>start; configured deadline ≤ start. Partial-DRAFT policy is an **accepted F-02 scoped working choice (DEC-03, PR #10)**; published editing follows accepted DEC-07/08 |
 | **Registration** | `id`, `workshop_id`, `participant_user_id`, `status` {ACTIVE, CANCELLED}, `registered_at`, `cancelled_at`, `checked_in_at` (nullable), timestamps | FKs to Workshop and User; one ACTIVE record per Participant/workshop; cancellation retained, check-in only for eligible ACTIVE row |
 
 **Important schema/DB constraints (candidate):**
 
 1. Foreign keys for owner and participant references; unique normalized account login identifier; positive published capacity and ordered valid dates.
-2. Unique ACTIVE registration per (`workshop_id`, `participant_user_id`). PostgreSQL **partial unique index** (`WHERE status = 'ACTIVE'`) is a possible enforcement option. The current F-01/F-02 proposal uses versioned SQL migrations and `pg`; no ORM is selected.
-3. Workshop capacity cannot be violated during concurrent inserts. **Proposed transaction:** lock the corresponding workshop row (`SELECT … FOR UPDATE` or equivalent), check eligibility/ACTIVE count against capacity, insert in the *same* database transaction, commit; database uniqueness guard handles duplicate races. A read-check-write sequence without a lock/isolation guarantee is unsafe.
-4. Restrict `checked_in_at` to one successful check-in; server-level time/ownership checks and transactional update. If a DB constraint is practical, add it as defense in depth.
-5. F-02 **scoped working** DEC-04: API timestamps carry explicit ISO 8601 offsets; store instants in PostgreSQL `timestamptz`; UI uses configured university timezone. If `registration_deadline` is null, effective deadline = `starts_at`; `now >= effective_deadline` is closed. **PR #10 peer-accepted/merged/Author-verified; actual timezone configuration and executable validation remain outstanding.**
+2. Unique ACTIVE registration per (`workshop_id`, `participant_user_id`). Migration 004 implements a PostgreSQL **partial unique index** (`WHERE status = 'ACTIVE'`). The current F-01/F-02 proposal uses versioned SQL migrations and `pg`; no ORM is selected.
+3. Workshop capacity cannot be violated during concurrent inserts. **Implemented registration transaction:** lock the corresponding workshop row (`SELECT … FOR UPDATE` or equivalent), check eligibility/ACTIVE count against capacity, insert in the *same* database transaction, commit; database uniqueness guard handles duplicate races. A read-check-write sequence without a lock/isolation guarantee is unsafe.
+4. F-08 checks owner, workshop status, registration status and check-in window, then updates `checked_in_at` under the workshop → registration row locks. The update is conditional on ACTIVE status and a null check-in. F-05 rejects cancellation after check-in.
+5. F-02 **scoped working** DEC-04: API timestamps carry explicit ISO 8601 offsets; store instants in PostgreSQL `timestamptz`; UI uses configured university timezone. If `registration_deadline` is null, effective deadline = `starts_at`; `now >= effective_deadline` is closed. PR #10 peer-accepted, then F-02/F-03/F-06/F-07 exercised the timestamp and deadline rules in their test suites.
 6. Persist cancellation and timestamps so status and summaries can be reproduced after restart. Whether an additional immutable status-history table is needed is **OPEN**; do not add it by default.
 
-**Migration/seed plan:** versioned schema migrations; deterministic synthetic users (one per role, ideally multiple Participants/Organizers for ownership tests), seed workshop with known capacity/time and registrations for negative tests. Provide a documented reset procedure for local/test DB only. Production data must survive new application containers/redeployment. Migration files and seed commands are **not created by P1-01**.
+**Migration and seed:** migrations 001–004 create identity, workshop and registration structures. Migration 005 adds `registration_closed` with default false. F-08 reuses `checked_in_at` from migration 004. [Local setup](../README.md) documents isolated test databases, migrations and synthetic seeding.
 
 ## 4. Domain workflows and invariant ownership
 
@@ -94,33 +94,38 @@ User (1) --------- (many) Session  [if server-stored sessions adopted]
 | Discover / register | Published/eligible list; same-transaction deadline, duplicate, capacity and status checks | ACTIVE uniqueness + workshop row lock; no seat oversell |
 | View registrations | Participant sees own; Organizer sees registrants for owned workshop | Ownership checked in every API read |
 | Cancel / close / reopen | Separate new-registration gate from timely cancellation; preserve cancelled row | Validate role, ownership, timestamps and allowed state changes |
-| Edit / capacity | Validate allowed fields, deadlines and capacity vs ACTIVE count | Owner check, atomic validation/update; edit policy unresolved |
-| Check-in | Once per eligible ACTIVE registration within workshop time bounds | Owner check, one-time timestamp update |
-| Attendance/report | Compute owner-only counts and rate from authoritative DB data | Avoid frontend-derived financial-like counters; no personally identifying public report |
+| Edit / capacity | Validate allowed fields, deadlines and capacity vs ACTIVE count | Owner-only F-07 transaction, DEC-07 schedule/ended guards and DEC-08 capacity check under workshop lock |
+| Check-in | Once per eligible ACTIVE registration within workshop time bounds | F-08 scoped to owning Organizer and matching ACTIVE registration. Evaluate the inclusive window in PostgreSQL after both row locks, then return the saved timestamp. The roster exposes the six permitted fields. |
+| Attendance/report | Compute owner-only counts and rate from authoritative DB data | F-09 planned under DEC-09. Implement server-side aggregates and bounded filtering before performance/responsive verification. |
 
 **Business-rule source mapping:** BR-01–BR-16 are in `docs/srs.md`. Each feature's detailed validation/errors/API/data contracts are intentionally deferred to the respective **P1-02 or later feature engineering contract**, not invented here.
 
-## 5. UI structure and conventions (proposed)
+## 5. UI structure and conventions
 
-| Route/view (illustrative only) | Audience | Key action and state handling |
+| Route/view | Audience | Current action and state |
 |---|---|---|
-| `/login` | All users | Validation, invalid login feedback, pending state, safe logout transition |
-| `/workshops` / `/workshops/:id` | Participant (and published browsing policy to approve) | Published list/detail, loading/empty/error state, eligibility shown, registration action |
-| `/my-registrations` / `/my-registrations/:id` | Participant | Own saved status and later cancellation |
-| `/organizer/workshops` | Organizer | Own draft/published listing, create draft and publish |
-| `/organizer/workshops/:id/registrations` | Organizer-owner | Own registration list; later check-in and event report |
-| `/organizer/workshops/:id/edit` | Organizer-owner | Later Sprint 2: deadline/closure/allowed edits/capacity |
+| `/` sign-in state | Unauthenticated | Validates login and shows pending or safe error feedback |
+| `/` Participant workspace | Participant | Published list and detail, registration, availability and rule feedback |
+| `/my-registrations` and `/my-registrations/:id` | Participant | Persisted own registration status, cancellation and attendance |
+| `/` Organizer workspace | Organizer | Owned workshop list, draft/edit/publish, deadline, closure/reopen and published capacity changes |
+| `/organizer/workshops/:id/registrations` | Owning Organizer | Authorized roster, F-08 check-in action and persisted timestamps |
 
-**UI conventions:** accessible labels; field-level validation plus server error; disable repeat submits while pending but still handle backend duplicates; show skeleton/loading or progress, empty list state, safe 401 session-expired handling, 403/404 access message, and explicit success with persisted-result retrieval. No hidden control is considered authorization. Target viewports 375px and 1280px are **provisional** NFR-05, not an implemented feature.
+UI protects against repeat submissions and presents safe errors and the persisted outcome. The API enforces authorization and rules. Formal responsive verification at 375px and 1280px remains planned under NFR-05.
 
-## 6. API approach (proposed top-level resource conventions)
+## 6. API approach
 
-- Versioned REST under `/api/v1`, JSON requests/responses, ISO 8601 timestamps after time-zone policy approval.
-- Indicative groups only: `/auth/login`, `/auth/logout`, `/auth/me`; `/workshops`, `/workshops/:id`; `/workshops/:id/registrations`, `/registrations/:id`; later cancellation/closure/check-in/report routes.
-- **Not a Feature-Level API contract:** exact methods, response DTOs, status names, route paths, validation field limits and transaction semantics must be finalized in P1-02 (F-01–F-04) and later contracts before implementation.
-- Success shape (candidate): `{ "data": { ... } }`; failure shape (candidate): `{ "error": { "code": "INVALID_STATE", "message": "..." } }`; never include credential fields or internal stack traces.
-- Representative failure categories: `400` malformed request, `401` unauthenticated, `403` forbidden, `404` not found or owner-hidden resource, `409` duplicate/full/invalid transition. Choose consistent distinctions and prevent existence disclosure in private lookups.
-- Validate both type/shape and server-side domain rules; use DB constraints/transactions for race safety. Avoid client-set `owner_user_id`, `role`, or authoritative seat counts.
+All paths below are under `/api/v1`. See the [feature contracts](contracts/README.md) for exact request and response shapes.
+
+| Domain | Current endpoints |
+|---|---|
+| Session | `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` |
+| Organizer workshop management | `POST /workshops`, `GET /organizer/workshops`, `GET/PATCH /organizer/workshops/:id`, `POST /organizer/workshops/:id/publish` |
+| Participant discovery and registration | `GET /workshops`, `GET /workshops/:id`, `POST /workshops/:id/registrations` |
+| Registration views and cancellation | `GET /me/registrations`, `GET /me/registrations/:id`, `GET /organizer/workshops/:id/registrations`, `POST /me/registrations/:id/cancel` |
+| Deadline and closure | `PATCH /organizer/workshops/:id/registration-deadline`, `POST /organizer/workshops/:id/close-registration`, `POST /organizer/workshops/:id/reopen-registration` |
+| Attendance | `POST /organizer/workshops/:workshopId/registrations/:registrationId/check-in` |
+
+Requests use JSON and timestamps use explicit ISO 8601 offsets. The API returns a success `data` envelope or a safe `error.code` and `error.message`. Standard outcomes include 400 validation, 401 unauthenticated, 403 forbidden, 404 owner-hidden/private resource and 409 rule conflicts. Check-in and protected registration responses use `Cache-Control: no-store`. F-09 filters and reporting are planned in their own contract.
 
 ## 7. Role/operation and ownership matrix (backend-enforced)
 
@@ -128,34 +133,31 @@ User (1) --------- (many) Session  [if server-stored sessions adopted]
 |---|---|---|---|
 | Login | Yes (credential check) | Yes (already authenticated behavior as decided) | Yes (same) |
 | Current identity / logout | No | Own session | Own session |
-| View PUBLISHED workshops | **OPEN policy** (default deny until approved) | Yes | Policy OPEN / likely Yes |
+| View PUBLISHED workshops via Participant discovery | No | Yes | No for Participant discovery API. Organizer uses the separate own-workshop view. |
 | Create/edit/publish workshop | No | No | **Own** workshops only |
 | View Organizer DRAFT | No | No | **Own** drafts only |
 | Register for a workshop | No | **Own** new registration only | No |
 | View detailed Participant registration | No | **Own** registrations only | Own workshop registrants only |
 | Cancel registration | No | **Own ACTIVE** registration subject to rules | No by default; approval required for overrides |
 | Close/reopen registration, edit capacity | No | No | **Own** workshop only |
-| Check-in / attendance report | No | No | **Own** workshop only |
+| Check-in | No | No | Owning Organizer only; ACTIVE registration during its window |
+| Attendance report (F-09 planned) | No | No | Owning Organizer only under the accepted contract |
 
 **Negative/ownership tests:** bad credential, anonymous protected reads/writes, Participant publishing, Organizer performing Participant-only registration, Participant accessing another's detail, Organizer accessing another Organizer's workshop/registrants. Newly added routes in Sprint 2/3 must repeat relevant checks.
 
 ## 8. Credential/session lifecycle and security
 
-**Proposed lifecycle:** seeded `User` stores only a password hash using a standard password-hashing algorithm; login verifies hash, starts a random opaque server session; cookie marked `HttpOnly`, `SameSite` appropriate to the actual UI/API origin, and `Secure` on HTTPS deployments; protected API resolves identity and role on server. Session expires at a defined time and logout revokes/invalidate it; `/auth/me` returns safe minimal identity. **Session duration, rotation, storage strategy and user deactivation policy remain OPEN.**
+**Implemented lifecycle:** seeded users store password hashes. Login issues an opaque `HttpOnly` same-site cookie backed by a server-side session; production adds `Secure`. Session expiry and logout revoke access. The server resolves identity and role, and checks the configured Origin on protected writes.
 
 With cookie auth, protect state-changing routes against CSRF using a suitable validated Origin/CSRF-token strategy; escape rendered content to mitigate XSS; parameterize all DB access; do not expose stack traces. Use HTTPS in GCP, least-privilege DB access, parameterized environment configuration, synthetic demo accounts, no real secrets committed. Detailed controls/tests are to be specified/verified before release.
 
 ## 9. Configuration, local operation and GCP delivery plan
 
-**Illustrative environment-variable names (not credentials):** `NODE_ENV`, `PORT`, `DATABASE_URL`, `SESSION_SECRET` or session-key reference, `APP_BASE_URL`, `CORS_ORIGIN` if applicable. Actual config contract and env example must be versioned before running. The required exact list is **OPEN** until stack approval; do not create production values in Git.
+The [local environment example](../.env.example) and [README](../README.md) document `DATABASE_URL`, `APP_ORIGIN`, `PORT` and the browser and test settings. Configure credentials outside Git.
 
-**Local reproducibility plan:** documented tool versions → obtain synthetic example config → start local DB → execute schema migrations/seed → start UI/API → run build, unit/API integration and selected E2E tests; record commands/commit/test counts. No actual commands or passing test logs exist yet.
-
-**Sprint 1 PR quality gate (required delivery process, not yet implemented):** for every PR that affects a runnable application, run the applicable build and automated tests **before review/merge**, record exact commands, outcomes and tested commit SHA in the PR, and reject integration into sprint staging or release to `main` if any required check fails. For this documentation-only P1-01 PR, no application build/test exists or is claimed; verify the document diff and coverage. Until hosted required checks are actually configured, the gate must be demonstrated by explicit reviewer inspection of recorded results; do not present this as an enforced GitHub branch-protection rule. This requirement does **not** wait until Lab 5 (COURSE §5.3; §8.3 allows local evidence before mandatory CI).
-
-**Lab 5 onward (plan, not implementation):** establish/expand hosted CI/CD to run relevant PR build/automated tests as required status checks, demonstrate deliberate failed-check rejection, package Docker images from reviewed accepted release, and deploy from `main` via a repeatable pipeline to GCP (e.g., Cloud Run) with durable external DB (e.g., Cloud SQL), external secrets/config and post-deployment workflow/persistence verification. These automate and extend, **not replace or postpone**, the Sprint 1 PR checks. Lab handout may mandate different resources; update plan accordingly.
-
-**D1 boundary:** GCP URL, completed Docker/CI/CD and demo video are **not** required for 8 November D1. Sprint 1 must run locally and be deployment-ready, with **applicable build/automated-test evidence for relevant PRs, failed-check exclusion**, and reviewed Git history at submission time.
+- **Local:** Use `npm ci`, migrations 001–005 and synthetic seed data. Run build, Vitest and Python on isolated PostgreSQL/Chromium. [Dockerfile](../Dockerfile) defines the application image. The [Docker evidence](evidence/l5-02-docker.md) documents Compose persistence and health checks.
+- **Hosted quality gate:** `build-test` in [CI](../.github/workflows/ci.yml) checks exact commit, build, PostgreSQL and browser tests plus deployment test helpers. Staging `bcac8e76` passed [hosted CI](https://github.com/cottonlnwza/TTworkshop/actions/runs/45200353851).
+- **Cloud:** [deploy-main.yml](../.github/workflows/deploy-main.yml) binds reviewed main SHA to image digest, verifies a zero-traffic candidate, promotes the approved revision and performs a smoke check. Current public revision `ttworkshop-00017-poy` serves the Lab 6 baseline only. D2 requires a newly reviewed release and fresh production persistence evidence. See the [release manifest](releases/d2-integrated-candidate.md).
 
 ## 10. Architectural risks and decisions to confirm
 
@@ -165,12 +167,12 @@ With cookie auth, protect state-changing routes against CSRF using a suitable va
 | `ARCH-02` Session approach | Cookie + CSRF vs bearer tokens; expiry/logout semantics | F-01 implements opaque server-side sessions and Origin validation; **F-02 scoped reuse accepted in DEC-10-F02 (PR #10)**; broader lifecycle/security policy remains OPEN |
 | `ARCH-03` UTC/storage timezone | Accurate deadline/check-in windows; time-zone input and output | F-02 scoped DEC-04 accepted in PR #10; explicit-offset ISO API, UTC instants in `timestamptz`, configured university display timezone and closed-at-equality; **actual zone identifier remains config** |
 | `ARCH-04` DRAFT required fields/update | Nullability/migrations and create/update/publish screens | F-02 scoped DEC-03 accepted in PR #10; incomplete DRAFT allowed, owner-only partial updates while DRAFT, required fields at Publish, no edits after PUBLISHED; **code not implemented** |
-| `ARCH-05` Editing after publishing | Active registrations vs changed times/deadlines; transaction checks | **OPEN**, SRS DEC-07 |
-| `ARCH-06` Registration history/privacy | Retain cancelled history with partial uniqueness; whether more audit records needed | **OPEN**, SRS DEC-06 |
-| `ARCH-07` Runtime/test infrastructure | DB service on local and cloud, runner setup, role of staging branch | **OPEN**, Lab 5 guidance pending |
-| `ARCH-08` Team review / working acceptance | Historical PR #10 Author `thananun-7203` / Reviewer `cottonlnwza`; substantive peer review, actual staging merge and Author post-merge verification establish **scoped** working acceptance, not global or instructor approval | **F-02 docs PR #10 complete**, this Issue #11 reconciliation still awaits separate peer review/merge |
+| `ARCH-05` Editing after publishing | Active registrations vs changed times/deadlines; transaction checks | DEC-07/08 accepted and F-07 verified on staging |
+| `ARCH-06` Registration history/privacy | Retain cancelled history with partial uniqueness; whether more audit records needed | DEC-06 and DEC-09 implemented for F-05/F-08. F-09 aggregation remains planned. |
+| `ARCH-07` Runtime/test infrastructure | DB service on local and cloud, runner setup, role of staging branch | Lab 5 pipeline operational and Lab 6 deployed. D2 deployment and production verification pending. |
+| `ARCH-08` Team review / working acceptance | Historical PR #10 Author `thananun-7203` / Reviewer `cottonlnwza`; substantive peer review, actual staging merge and Author post-merge verification establish **scoped** working acceptance, not global or instructor approval | F-02 choices accepted through PR #10. Issue #73 is awaiting independent review. |
 
-**Design acceptance boundary:** DEC-02/03/04/10-F02 are **accepted for F-02 scoped working use**, supported by PR #10 peer APPROVE, staging merge and Author verification. They are **not implemented** and do not approve the **full System SDS**, other features' decisions, CI/GCP architecture, or instructor sign-off. Remaining global architecture and later-sprint design choices are still DRAFT / NOT APPROVED.
+**Design acceptance:** PR #10 accepted the F-02 working choices. PR #14 implemented F-02. PRs #74 and #78 approved the scoped Sprint 2 and 3 designs. Full-product System SDS approval remains open.
 
 | Version | Date | Description | Approval |
 |---|---|---|---|
@@ -179,3 +181,4 @@ With cookie auth, protect state-changing routes against CSRF using a suitable va
 | v0.1.2 | 2026-11-04 | Align stack proposal with implemented F-01 precedent; add F-02-scoped DEC-02/03/04/10 proposal references for Workshop fields, incomplete DRAFT and timestamps | **Pending peer review; global architecture remains not approved** |
 | v0.1.3 | 2026-11-04 | Address PR #10 R-03 by aligning ARCH-08 working-document acceptance with SRS DEC-13; update SRS reference and reflect DEC-03 DRAFT-only update proposal | **Pending peer review; global architecture remains not approved** |
 | v0.1.4 | 2026-11-05 | Issue #11 correct historical PR #10 status, accept only F-02 scoped DEC-03/04/10 choices, update SRS/Features references and separate future Issue #12 implementation | Pending this Issue #11 peer review; global SDS remains DRAFT |
+| v0.2.0 | 2026-11-23 | Issue #73 reconciles the F-01–F-08 staging architecture, tested behavior and live Lab 6 baseline. | Pending independent review. |

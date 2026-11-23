@@ -154,7 +154,7 @@ describe("F-04 Organizer registration roster", () => {
     expect(response.body.data).toHaveLength(2);
     expect(response.body.data.map((row: { registration_id: string }) => row.registration_id)).toContain(own);
     expect(Object.keys(response.body.data[0]).sort()).toEqual(
-      ["cancelled_at", "participant_id", "registered_at", "registration_id", "status"].sort()
+      ["cancelled_at", "checked_in_at", "participant_id", "registered_at", "registration_id", "status"].sort()
     );
     expect(JSON.stringify(response.body)).not.toContain(emails.participantA);
     expect(JSON.stringify(response.body)).not.toContain(emails.participantB);

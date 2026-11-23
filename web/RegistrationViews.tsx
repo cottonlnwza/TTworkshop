@@ -5,6 +5,7 @@ type Registration = {
   status: string;
   registered_at: string;
   cancelled_at?: string | null;
+  checked_in_at?: string | null;
   workshop: { workshop_id: string; title: string; starts_at: string };
 };
 type RosterRow = {
@@ -13,6 +14,7 @@ type RosterRow = {
   status: string;
   registered_at: string;
   cancelled_at?: string | null;
+  checked_in_at?: string | null;
 };
 type ViewError = "expired" | "forbidden" | "unavailable" | "general";
 const api = "/api/v1";
@@ -153,10 +155,11 @@ export function ParticipantRegistrationViews({ registrationId }: { registrationI
         <p><strong>Workshop starts:</strong> {displayTime(detail.workshop.starts_at)}</p>
         <p><strong>Registered:</strong> {displayTime(detail.registered_at)}</p>
         {detail.cancelled_at && <p><strong>Cancelled:</strong> {displayTime(detail.cancelled_at)}</p>}
+        {detail.checked_in_at && <p><strong>Attendance:</strong> Checked in ({displayTime(detail.checked_in_at)})</p>}
         {detail.status === "ACTIVE" && (
           <button
             type="button"
-            disabled={cancellingId === detail.registration_id}
+            disabled={cancellingId === detail.registration_id || Boolean(detail.checked_in_at)}
             onClick={() => { void cancelRegistration(detail.registration_id); }}
           >
             {cancellingId === detail.registration_id ? "Cancelling..." : "Cancel registration"}
@@ -172,10 +175,11 @@ export function ParticipantRegistrationViews({ registrationId }: { registrationI
           <p><strong>Workshop starts:</strong> {displayTime(row.workshop.starts_at)}</p>
           <p><strong>Registered:</strong> {displayTime(row.registered_at)}</p>
           {row.cancelled_at && <p><strong>Cancelled:</strong> {displayTime(row.cancelled_at)}</p>}
+          {row.checked_in_at && <p><strong>Attendance:</strong> Checked in ({displayTime(row.checked_in_at)})</p>}
           {row.status === "ACTIVE" && (
             <button
               type="button"
-              disabled={cancellingId === row.registration_id}
+              disabled={cancellingId === row.registration_id || Boolean(row.checked_in_at)}
               onClick={() => { void cancelRegistration(row.registration_id); }}
             >
               {cancellingId === row.registration_id ? "Cancelling..." : "Cancel registration"}
@@ -198,8 +202,48 @@ export function OrganizerRegistrationRoster({ workshopId }: { workshopId: string
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [checkingInId, setCheckingInId] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState("");
+  const [actionError, setActionError] = useState("");
   const [error, setError] = useState("");
   const [errorKind, setErrorKind] = useState<ViewError | null>(null);
+
+  async function checkInRegistration(targetId: string) {
+    if (checkingInId) return;
+    setCheckingInId(targetId);
+    setActionError("");
+    setActionMessage("");
+    try {
+      const response = await fetch(
+        api + "/organizer/workshops/" + encodeURIComponent(workshopId) +
+        "/registrations/" + encodeURIComponent(targetId) + "/check-in",
+        {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json", Origin: window.location.origin },
+          body: "{}"
+        }
+      );
+      const body: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        if (response.status === 401) {
+          setActionError("Your session has expired. Please sign in again.");
+          return;
+        }
+        setActionError(apiErrorMessage(body, "Unable to check in participant. Please try again."));
+        return;
+      }
+      if (body && typeof body === "object" && "data" in body && body.data) {
+        const updated = body.data as RosterRow;
+        setRows(previous => previous.map(r => r.registration_id === updated.registration_id ? updated : r));
+      }
+      setActionMessage("Participant checked in");
+    } catch {
+      setActionError("Unable to check in participant. Please try again.");
+    } finally {
+      setCheckingInId(null);
+    }
+  }
 
   async function load(cursor?: string, append = false) {
     if (append) setLoadingMore(true);
@@ -245,6 +289,8 @@ export function OrganizerRegistrationRoster({ workshopId }: { workshopId: string
       <h1>Workshop registrations</h1>
       {loading ? <p role="status">Loading workshop roster...</p> : null}
       {error && <p role="alert" className="error" data-error-kind={errorKind}>{error}</p>}
+      {actionError && <p role="alert" className="error">{actionError}</p>}
+      {actionMessage && <p role="status" className="success">{actionMessage}</p>}
       {!loading && !error && rows.length === 0 &&
         <p className="muted">No registrations for this workshop yet.</p>}
       {rows.length > 0 && <ul className="workshop-list">
@@ -254,6 +300,17 @@ export function OrganizerRegistrationRoster({ workshopId }: { workshopId: string
           <p><strong>Status:</strong> {row.status}</p>
           <p><strong>Registered:</strong> {displayTime(row.registered_at)}</p>
           {row.cancelled_at && <p><strong>Cancelled:</strong> {displayTime(row.cancelled_at)}</p>}
+          {row.checked_in_at ? (
+            <p><strong>Attendance:</strong> Checked in ({displayTime(row.checked_in_at)})</p>
+          ) : row.status === "ACTIVE" ? (
+            <button
+              type="button"
+              disabled={checkingInId !== null}
+              onClick={() => { void checkInRegistration(row.registration_id); }}
+            >
+              {checkingInId === row.registration_id ? "Checking in..." : "Check in"}
+            </button>
+          ) : null}
         </li>)}
       </ul>}
       {nextCursor && !error &&
