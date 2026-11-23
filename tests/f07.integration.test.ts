@@ -645,6 +645,99 @@ describe("F-07 Published Workshop Editing & Atomic Capacity Guard (PostgreSQL in
     expect(afterNull.ends_us).toBe("2026-12-15T12:00:00.654321Z");
   });
 
+  it("R-03: samples now() AFTER acquiring FOR UPDATE lock so edits waiting across ends_at or starts_at fail closed with 409", async () => {
+    const orgCookie = await login(emails.organizerA);
+
+    const waitUntilPatchBlockedOnLock = async (lockerPid: number) => {
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline) {
+        const res = await pool.query<{ waiting: number }>(
+          "SELECT count(*)::int AS waiting FROM pg_stat_activity " +
+          "WHERE datname = current_database() AND pid <> $1 AND wait_event_type = 'Lock' " +
+          "AND query ILIKE '%FROM workshops%' AND query ILIKE '%FOR UPDATE%'",
+          [lockerPid]
+        );
+        if ((res.rows[0]?.waiting ?? 0) > 0) return;
+        await new Promise(resolveDelay => setTimeout(resolveDelay, 15));
+      }
+      throw new Error("Timed out waiting for PATCH transaction to block on workshops FOR UPDATE lock");
+    };
+
+    // 1. Crossing ends_at while blocked on FOR UPDATE -> 409 WORKSHOP_ENDED
+    const endWsId = await seedWorkshop({
+      location: "Before-End-Lock",
+      startsAt: "2026-12-15T10:00:00.000000Z",
+      endsAt: "2026-12-15T12:00:00.000000Z",
+      deadline: null
+    });
+    fakeNow = new Date("2026-12-15T11:59:59.000Z");
+
+    const lockClient1 = await pool.connect();
+    try {
+      await lockClient1.query("BEGIN");
+      const pidRes = await lockClient1.query<{ pid: number }>("SELECT pg_backend_pid() AS pid");
+      await lockClient1.query("SELECT id FROM workshops WHERE id = $1 FOR UPDATE", [endWsId]);
+
+      const patchPromise = request(app)
+        .patch(`/api/v1/organizer/workshops/${endWsId}`)
+        .set("Origin", origin)
+        .set("Cookie", orgCookie)
+        .send({ location: "After-End-Lock" })
+        .then(r => r);
+
+      await waitUntilPatchBlockedOnLock(pidRes.rows[0]!.pid);
+      // Advance clock to exact ends_at while PATCH is waiting for the row lock
+      fakeNow = new Date("2026-12-15T12:00:00.000Z");
+      await lockClient1.query("COMMIT");
+
+      const res = await patchPromise;
+      expect(res.status).toBe(409);
+      expect(res.body.error.code).toBe("WORKSHOP_ENDED");
+      const dbRow = await pool.query("SELECT location FROM workshops WHERE id = $1", [endWsId]);
+      expect(dbRow.rows[0].location).toBe("Before-End-Lock");
+    } finally {
+      await lockClient1.query("ROLLBACK").catch(() => undefined);
+      lockClient1.release();
+    }
+
+    // 2. Crossing starts_at while blocked on FOR UPDATE for a schedule edit -> 409 SCHEDULE_LOCKED
+    const startWsId = await seedWorkshop({
+      location: "Before-Start-Lock",
+      startsAt: "2026-12-15T10:00:00.000000Z",
+      endsAt: "2026-12-15T12:00:00.000000Z",
+      deadline: null
+    });
+    fakeNow = new Date("2026-12-15T09:59:59.000Z");
+
+    const lockClient2 = await pool.connect();
+    try {
+      await lockClient2.query("BEGIN");
+      const pidRes = await lockClient2.query<{ pid: number }>("SELECT pg_backend_pid() AS pid");
+      await lockClient2.query("SELECT id FROM workshops WHERE id = $1 FOR UPDATE", [startWsId]);
+
+      const patchPromise = request(app)
+        .patch(`/api/v1/organizer/workshops/${startWsId}`)
+        .set("Origin", origin)
+        .set("Cookie", orgCookie)
+        .send({ ends_at: "2026-12-15T13:00:00Z" })
+        .then(r => r);
+
+      await waitUntilPatchBlockedOnLock(pidRes.rows[0]!.pid);
+      // Advance clock to exact starts_at while PATCH is waiting for the row lock
+      fakeNow = new Date("2026-12-15T10:00:00.000Z");
+      await lockClient2.query("COMMIT");
+
+      const res = await patchPromise;
+      expect(res.status).toBe(409);
+      expect(res.body.error.code).toBe("SCHEDULE_LOCKED");
+      const dbRow = await pool.query("SELECT ends_at FROM workshops WHERE id = $1", [startWsId]);
+      expect(new Date(dbRow.rows[0].ends_at).toISOString()).toBe("2026-12-15T12:00:00.000Z");
+    } finally {
+      await lockClient2.query("ROLLBACK").catch(() => undefined);
+      lockClient2.release();
+    }
+  });
+
   it("STS-F07-09: edited PUBLISHED workshop persists across a real API process restart while DRAFT updates and double-publish 409 stay intact", async () => {
     const workshopId = await seedWorkshop({ title: "Before Restart", location: "Room Old", capacity: 4 });
     const draftId = await seedWorkshop({ title: "Draft Intact", status: "DRAFT", capacity: 3 });

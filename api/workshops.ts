@@ -151,7 +151,6 @@ export function createWorkshopRouter(
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
-      const nowIso = now().toISOString();
       const current = await client.query<{
         id: string;
         owner_user_id: string;
@@ -164,15 +163,11 @@ export function createWorkshopRouter(
         status: string;
         registration_deadline: Date | null;
         registration_closed: boolean;
-        has_ended: boolean;
-        has_started: boolean;
       }>(
         `SELECT id, owner_user_id, title, description, location, starts_at, ends_at,
-                capacity, status, registration_deadline, registration_closed,
-                (ends_at IS NOT NULL AND $3::timestamptz >= ends_at) AS has_ended,
-                (starts_at IS NOT NULL AND $3::timestamptz >= starts_at) AS has_started
+                capacity, status, registration_deadline, registration_closed
          FROM workshops WHERE id = $1 AND owner_user_id = $2 FOR UPDATE`,
-        [id, identity.id, nowIso]
+        [id, identity.id]
       );
       if (!current.rowCount) {
         await client.query("ROLLBACK");
@@ -258,7 +253,19 @@ export function createWorkshopRouter(
         }
       }
 
-      if (w.has_ended) {
+      // Sample time AFTER acquiring the FOR UPDATE row lock and evaluate start/end guards
+      // directly in PostgreSQL TIMESTAMPTZ precision against the locked row (R-03).
+      const lockedNowIso = now().toISOString();
+      const timeGuardRes = await client.query<{ has_ended: boolean; has_started: boolean }>(
+        `SELECT
+          (ends_at IS NOT NULL AND $2::timestamptz >= ends_at) AS has_ended,
+          (starts_at IS NOT NULL AND $2::timestamptz >= starts_at) AS has_started
+         FROM workshops WHERE id = $1`,
+        [id, lockedNowIso]
+      );
+      const timeGuard = timeGuardRes.rows[0]!;
+
+      if (timeGuard.has_ended) {
         await client.query("ROLLBACK");
         return res.status(409).json(fail("WORKSHOP_ENDED", "Workshop has already ended"));
       }
@@ -376,7 +383,7 @@ export function createWorkshopRouter(
       const check = checkRes.rows[0]!;
       const activeCount = Number(check.active_count ?? 0);
 
-      if ((check.starts_changed || check.ends_changed) && (activeCount > 0 || w.has_started)) {
+      if ((check.starts_changed || check.ends_changed) && (activeCount > 0 || timeGuard.has_started)) {
         await client.query("ROLLBACK");
         return res.status(409).json(fail("SCHEDULE_LOCKED", "Workshop schedule cannot be changed after registrations exist or after start time"));
       }
