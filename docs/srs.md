@@ -78,7 +78,7 @@ Backend and DB checks must handle invalid inputs and concurrency. **TEAM-REPORTE
 | **BR-13** | Capacity may not be reduced below the number of current ACTIVE registrations; changes are authorized to the workshop owner. | COURSE capacity management; TEAM-REPORTED specific rejection |
 | **BR-14** | The owning Organizer may check in an ACTIVE registration **at most once**, during its workshop's start–end window; invalid role, event ownership, duplicate check-in, and outside-window attempts are rejected. | COURSE check-in; TEAM-REPORTED window |
 | **BR-15** | Organizer summary is calculated from authoritative stored records: remaining = capacity − ACTIVE; attendance rate = checked-in ACTIVE / ACTIVE × 100, and if ACTIVE = 0, rate = 0%. Count no-shows only after the workshop ends. | TEAM-REPORTED metric convention; calculation detail PROPOSED |
-| **BR-16** | Changes to a published workshop must preserve the approved deadline, ownership, and attendance invariants; DEC-07 locks schedule edits once registrations are ACTIVE or the workshop has started, and locks published edits at the end. | COURSE validation need; policy OPEN |
+| **BR-16** | Changes to a published workshop must preserve the approved deadline, ownership, and attendance invariants; DEC-07 locks schedule edits once registrations are ACTIVE or the workshop has started, and locks published edits at the end. | COURSE validation need; DEC-07 and REV-S2-01 accepted for scoped F-07; verified in PR #77 |
 
 ## 6. Measurable non-functional requirements (NFR)
 
@@ -138,12 +138,11 @@ These narratives are **not themselves acceptance criteria**. Historical P1-02 [P
 | v0.1.9 | 2026-11-09 | Issue #16: reconcile F-03 current status to PR #15 Formal APPROVE, staging merge and Author post-merge verification; update scoped DEC-11/12 status without changing FR/BR/NFR text or global baseline approval | F-03 scoped staging acceptance recorded; full-product SRS remains DRAFT / NOT GLOBALLY APPROVED |
 | v0.2.0 | 2026-11-23 | Issue #66 (`P2-C1`): link proposed Sprint 2 scoped decision records `DEC-05`–`DEC-08` (including `REV-S2-01`) in §8 without altering normative FR/BR/NFR IDs or historical Sprint 1 records | Sprint 2 decisions subsequently accepted on `sprint_2_staging@292e4b59` ([PR #74](https://github.com/cottonlnwza/TTworkshop/pull/74)); full-product SRS remains DRAFT / NOT GLOBALLY APPROVED |
 | v0.2.1 | 2026-11-23 | Issue #70 (`P2-C2`): reconcile accepted Sprint 2 `DEC-05`–`DEC-08` status and link proposed Sprint 3 decision record `DEC-09` in §8 without altering normative FR/BR/NFR IDs or historical records | Sprint 3 `DEC-09` PROPOSED / PENDING INDEPENDENT PEER REVIEW; full-product SRS remains DRAFT / NOT GLOBALLY APPROVED |
-
 | v0.2.2 | 2026-11-23 | Issue #73 records accepted DEC-09 scope, the tested staging version and open release/NFR gates. | Pending independent review; full-product SRS remains DRAFT. |
 
 **Deliverable 2 implementation and evidence snapshot (23 November 2026):**
 
-- Original Sprint 1 release `3f5ec15a` remains in main history. Current main `4efbcfa` contains the Lab 6 login correction and was independently retested by TH-038.
+- Original Sprint 1 release `3f5ec15a` remains in main history. [Sprint 2 release PR #81](https://github.com/cottonlnwza/TTworkshop/pull/81) brought F-05–F-07 to current `main@a6210a5`. Public Cloud Run serves the Lab 6 baseline `4efbcfa` on revision `ttworkshop-00017-poy`, [independently retested by TH-038](https://github.com/cottonlnwza/TTworkshop/issues/63#issuecomment-7094316414).
 - F-05, F-06 and F-07 implement the accepted Sprint 2 rules. F-08 check-in passed staging regression at `bcac8e76`, including ownership, inclusive time boundaries, duplicate rejection and persistence. The exact D2 main/deployed result is pending.
 - F-09, NFR-04 measurement and complete NFR-05 responsive verification remain planned. See the [D2 matrix](traceability.md#5e-deliverable-2-requirement-to-evidence-matrix) and [release manifest](releases/d2-integrated-candidate.md).
 
