@@ -569,9 +569,9 @@ describe("F-05 Registration Cancellation & Re-registration Integration", () => {
     expect(roster.body.data[1]).toMatchObject({
       registration_id: r1, participant_id: ids.participantA, status: "CANCELLED", cancelled_at: r1CancelledAt
     });
-    // Strict WD-F04-01 privacy minimization preserved
+    // Strict WD-F04-01 privacy minimization preserved (6 authorized keys per DEC-09 §1.5)
     expect(Object.keys(roster.body.data[0]).sort()).toEqual(
-      ["cancelled_at", "participant_id", "registered_at", "registration_id", "status"].sort()
+      ["cancelled_at", "checked_in_at", "participant_id", "registered_at", "registration_id", "status"].sort()
     );
     expect(JSON.stringify(roster.body)).not.toContain(emails.participantA);
 

@@ -33,11 +33,14 @@ export function createApp(pool: Pool, options: Options) {
   const app = express();
   app.disable("x-powered-by");
   // Must run BEFORE body parsing: malformed JSON can fail in express.json and
-  // still requires no-store on all auth responses (including error status 400).
-  app.use("/api/v1/auth", (_req, res, next) => {
-    res.setHeader("Cache-Control", "no-store");
-    next();
-  });
+  // still requires no-store on all auth & registration/check-in responses (including 400).
+  app.use(
+    ["/api/v1/auth", "/api/v1/me/registrations", "/api/v1/organizer/workshops/:workshopId/registrations"],
+    (_req, res, next) => {
+      res.setHeader("Cache-Control", "no-store");
+      next();
+    }
+  );
   app.use(express.json({ limit: "8kb" }));
   const requireOrigin = (req: Request, res: Response, next: NextFunction) => {
     if (req.headers.origin !== options.appOrigin) {
@@ -114,6 +117,7 @@ export function createApp(pool: Pool, options: Options) {
   app.use("/api/v1", registrationRouter);
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (err && typeof err === "object" && "type" in err && err.type === "entity.parse.failed") {
+      res.setHeader("Cache-Control", "no-store");
       res.status(400).json(fail("VALIDATION", "Invalid JSON payload"));
       return;
     }
