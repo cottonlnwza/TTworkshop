@@ -1,4 +1,6 @@
 # TTworkshop
+
+**Deliverable 2:** See the [versioned evidence and readiness record](docs/releases/d2-integrated-candidate.md) for staging, the current Cloud Run baseline and the D2 release gates. [Traceability](docs/traceability.md#5e-deliverable-2-requirement-to-evidence-matrix) identifies the test files and results for each requirement.
 CPE334 Software Engineering project — A full-stack University Workshop Registration and Attendance System featuring event management, student registration, capacity control, check-in, and attendance reporting. Developed using Spec-Driven Development, TDD, and peer code reviews.
 
 ## Implemented feature slices
