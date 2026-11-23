@@ -350,7 +350,7 @@ describe("F-02 Workshop Draft & Publish Integration", () => {
     expect(finalState.body.data.status).toBe("PUBLISHED");
   });
 
-  it("STS-F02-12c: PATCH returns 409 when workshop is no longer DRAFT", async () => {
+  it("STS-F02-12c (REV-S2-01): PATCH on PUBLISHED workshop enforces F-07 published rules instead of legacy F-02 409", async () => {
     const cookie = await login("organizer.a@example.test");
     const create = await request(app).post("/api/v1/workshops")
       .set("Origin", origin).set("Cookie", cookie)
@@ -365,12 +365,19 @@ describe("F-02 Workshop Draft & Publish Integration", () => {
       .set("Origin", origin).set("Cookie", cookie);
     expect(publish.status).toBe(200);
 
+    // REV-S2-01 (DEC-07 / F-07): Valid published edit succeeds (200), while blanking a required published field is rejected (400 VALIDATION)
     const patch = await request(app).patch(`/api/v1/organizer/workshops/${id}`)
       .set("Origin", origin).set("Cookie", cookie)
       .send({ title: "Updated" });
-    expect(patch.status).toBe(409);
-    expect(patch.body.error.code).toBe("INVALID_STATE");
-    expect(patch.body.error.message).toBe("Cannot update a published workshop");
+    expect(patch.status).toBe(200);
+    expect(patch.body.data.title).toBe("Updated");
+    expect(patch.body.data.status).toBe("PUBLISHED");
+
+    const blankTitle = await request(app).patch(`/api/v1/organizer/workshops/${id}`)
+      .set("Origin", origin).set("Cookie", cookie)
+      .send({ title: "" });
+    expect(blankTitle.status).toBe(400);
+    expect(blankTitle.body.error.code).toBe("VALIDATION");
   });
 
   it("STS-F02-08: Publish fails separately for each missing required field", async () => {
@@ -566,7 +573,7 @@ describe("F-02 Workshop Draft & Publish Integration", () => {
     expect(pub.body.data.status).toBe("PUBLISHED");
   });
 
-  it("STS-F02-12: Foreign Organizer, Participant, and post-publish updates are denied", async () => {
+  it("STS-F02-12: Foreign Organizer, Participant, and immutable post-publish transitions are denied (REV-S2-01)", async () => {
     const cookieA = await login("organizer.a@example.test");
     const cookieB = await login("organizer.b@example.test");
     const cookieP = await login("participant.a@example.test");
@@ -588,8 +595,13 @@ describe("F-02 Workshop Draft & Publish Integration", () => {
     const publish = await request(app).post(`/api/v1/organizer/workshops/${id}/publish`)
       .set("Origin", origin).set("Cookie", cookieA);
     expect(publish.status).toBe(200);
-    const afterPublish = await request(app).patch(`/api/v1/organizer/workshops/${id}`)
-      .set("Origin", origin).set("Cookie", cookieA).send({ title: "Post-publish update" });
-    expect(afterPublish.status).toBe(409);
+    // REV-S2-01 (DEC-07 / F-07): Broad post-publish editing is now governed by F-07 (tests/f07.integration.test.ts).
+    // Preserved F-02 invariants: PATCH cannot revert PUBLISHED to DRAFT (400 VALIDATION) and double-publish remains 409.
+    const revertAttempt = await request(app).patch(`/api/v1/organizer/workshops/${id}`)
+      .set("Origin", origin).set("Cookie", cookieA).send({ status: "DRAFT" });
+    expect(revertAttempt.status).toBe(400);
+    const doublePublish = await request(app).post(`/api/v1/organizer/workshops/${id}/publish`)
+      .set("Origin", origin).set("Cookie", cookieA);
+    expect(doublePublish.status).toBe(409);
   });
 });

@@ -4,6 +4,7 @@ type Registration = {
   registration_id: string;
   status: string;
   registered_at: string;
+  cancelled_at?: string | null;
   workshop: { workshop_id: string; title: string; starts_at: string };
 };
 type RosterRow = {
@@ -11,9 +12,20 @@ type RosterRow = {
   participant_id: string;
   status: string;
   registered_at: string;
+  cancelled_at?: string | null;
 };
 type ViewError = "expired" | "forbidden" | "unavailable" | "general";
 const api = "/api/v1";
+
+function apiErrorMessage(body: unknown, fallback: string): string {
+  if (body && typeof body === "object" && "error" in body) {
+    const error = body.error;
+    if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+      return error.message;
+    }
+  }
+  return fallback;
+}
 
 function displayTime(value: string): string {
   return new Date(value).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" });
@@ -42,8 +54,44 @@ export function ParticipantRegistrationViews({ registrationId }: { registrationI
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState("");
+  const [actionError, setActionError] = useState("");
   const [error, setError] = useState("");
   const [errorKind, setErrorKind] = useState<ViewError | null>(null);
+
+  async function cancelRegistration(targetId: string) {
+    if (cancellingId) return;
+    setCancellingId(targetId);
+    setActionError("");
+    setActionMessage("");
+    try {
+      const response = await fetch(
+        api + "/me/registrations/" + encodeURIComponent(targetId) + "/cancel",
+        {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json", Origin: window.location.origin },
+          body: "{}"
+        }
+      );
+      const body: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        if (response.status === 401) {
+          setActionError("Your session has expired. Please sign in again.");
+          return;
+        }
+        setActionError(apiErrorMessage(body, "Unable to cancel registration. Please try again."));
+        return;
+      }
+      setActionMessage("Registration cancelled · CANCELLED");
+      await load();
+    } catch {
+      setActionError("Unable to cancel registration. Please try again.");
+    } finally {
+      setCancellingId(null);
+    }
+  }
 
   async function load(cursor?: string, append = false) {
     if (append) setLoadingMore(true);
@@ -96,12 +144,24 @@ export function ParticipantRegistrationViews({ registrationId }: { registrationI
       <h1>{registrationId ? "Registration details" : "My registrations"}</h1>
       {loading ? <p role="status">Loading registrations...</p> : null}
       {error && <p role="alert" className="error" data-error-kind={errorKind}>{error}</p>}
+      {actionError && <p role="alert" className="error">{actionError}</p>}
+      {actionMessage && <p role="status" className="success">{actionMessage}</p>}
       {!loading && !error && registrationId && detail && <>
         <h2>{detail.workshop.title}</h2>
         <p><strong>Registration:</strong> {detail.registration_id}</p>
         <p><strong>Status:</strong> {detail.status}</p>
         <p><strong>Workshop starts:</strong> {displayTime(detail.workshop.starts_at)}</p>
         <p><strong>Registered:</strong> {displayTime(detail.registered_at)}</p>
+        {detail.cancelled_at && <p><strong>Cancelled:</strong> {displayTime(detail.cancelled_at)}</p>}
+        {detail.status === "ACTIVE" && (
+          <button
+            type="button"
+            disabled={cancellingId === detail.registration_id}
+            onClick={() => { void cancelRegistration(detail.registration_id); }}
+          >
+            {cancellingId === detail.registration_id ? "Cancelling..." : "Cancel registration"}
+          </button>
+        )}
       </>}
       {!loading && !error && !registrationId && rows.length === 0 &&
         <p className="muted">You do not have any registrations yet.</p>}
@@ -111,6 +171,16 @@ export function ParticipantRegistrationViews({ registrationId }: { registrationI
           <p><strong>Status:</strong> {row.status}</p>
           <p><strong>Workshop starts:</strong> {displayTime(row.workshop.starts_at)}</p>
           <p><strong>Registered:</strong> {displayTime(row.registered_at)}</p>
+          {row.cancelled_at && <p><strong>Cancelled:</strong> {displayTime(row.cancelled_at)}</p>}
+          {row.status === "ACTIVE" && (
+            <button
+              type="button"
+              disabled={cancellingId === row.registration_id}
+              onClick={() => { void cancelRegistration(row.registration_id); }}
+            >
+              {cancellingId === row.registration_id ? "Cancelling..." : "Cancel registration"}
+            </button>
+          )}
           <a href={"/my-registrations/" + encodeURIComponent(row.registration_id)}>View registration</a>
         </li>)}
       </ul>}
@@ -183,6 +253,7 @@ export function OrganizerRegistrationRoster({ workshopId }: { workshopId: string
           <p><strong>Participant ID:</strong> {row.participant_id}</p>
           <p><strong>Status:</strong> {row.status}</p>
           <p><strong>Registered:</strong> {displayTime(row.registered_at)}</p>
+          {row.cancelled_at && <p><strong>Cancelled:</strong> {displayTime(row.cancelled_at)}</p>}
         </li>)}
       </ul>}
       {nextCursor && !error &&
