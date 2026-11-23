@@ -1,16 +1,16 @@
 # F-06 — Registration Deadline Management and Manual Closure/Reopen
 
-> **PROPOSED pre-implementation contract v0.1 — PENDING INDEPENDENT PEER REVIEW — 2026-11-23** · Contracts [Issue #66 (`P2-C1`)](https://github.com/cottonlnwza/TTworkshop/issues/66) · Planned Implementation [Issue #68 (`P2-04`)](https://github.com/cottonlnwza/TTworkshop/issues/68) · Sprint 2 (`Period 2`)
+> **PROPOSED pre-implementation contract v0.1.1 — ROUND 2 RE-REVIEW PENDING — 2026-11-23** · Contracts [Issue #66 (`P2-C1`)](https://github.com/cottonlnwza/TTworkshop/issues/66) · Planned Implementation [Issue #68 (`P2-04`)](https://github.com/cottonlnwza/TTworkshop/issues/68) · Sprint 2 (`Period 2`)
 > Source: `docs/srs.md` FR-11, BR-01, BR-07, BR-08, BR-10, BR-11, NFR-01, NFR-02; `docs/features.md` F-06; `docs/system-sds.md` §§3–6; proposed scoped policy [`DEC-05`](../decisions/dec-05-manual-closure.md) and [`DEC-04`](../decisions/dec-04-workshop-time.md). **No `F-06` application code or migration `005` has been written and zero `F-06` STS have been executed.** This draft does not assert global SRS/SDS or instructor approval.
 
 ## 1. Purpose, dependencies, and boundaries
 
 An authenticated owning `ORGANIZER` can control registration availability for their own `PUBLISHED` workshop by (1) manually closing new registrations, (2) manually reopening registrations while still before the effective deadline, and (3) updating the workshop's `registration_deadline` subject to `BR-08` (`deadline <= starts_at`). Manual closure follows **Closure A** (`DEC-05` / `BR-10`): it blocks new registrations without blocking timely cancellation of already-`ACTIVE` registrations, and cancellation never automatically reopens registration.
 
-**Depends on:**
+**Depends on (non-circular sequence — PR #74 `R-02`):**
 - Accepted Sprint 1 slices: `F-01` session/role auth, `F-02` workshop ownership & `DRAFT`/`PUBLISHED` lifecycle, `F-03` registration eligibility & `FOR UPDATE` transaction, `DEC-04` explicit-offset ISO 8601 timestamp rules.
 - Independent peer review (`Formal APPROVE`) and staging merge of [Issue #66 (`P2-C1`)](https://github.com/cottonlnwza/TTworkshop/issues/66) including [`DEC-05`](../decisions/dec-05-manual-closure.md).
-- Coordinates with `F-05` ([Issue #67](https://github.com/cottonlnwza/TTworkshop/issues/67)) on `BR-10` cancellation independence.
+- **Mandatory staging merge dependency for final `F-06` PR review/CI:** [Issue #67 (`F-05` Stage A core PR)](https://github.com/cottonlnwza/TTworkshop/issues/67) must be merged into `sprint_2_staging` before `F-06` ([Issue #68](https://github.com/cottonlnwza/TTworkshop/issues/68)) enters final PR review so that `POST /api/v1/me/registrations/:id/cancel` exists on `sprint_2_staging` when `STS-F06-03` and the deferred cross-feature `STS-F05-06` execute. (`cottonlnwza` may prepare migration `005` and `F-06` core implementation locally in parallel, then rebase onto `sprint_2_staging` after `#67` merges to execute the complete 9/9 `F-06` + `STS-F05-06` suite.)
 
 **Exclusions (out of `F-06` scope):**
 - Participant self-cancellation & re-registration workflows belong to `F-05` ([Issue #67](https://github.com/cottonlnwza/TTworkshop/issues/67)).
@@ -100,7 +100,7 @@ Base `/api/v1`. Success envelope `{"data": ...}`; failure envelope `{"error": {"
 |---|---|---|---|
 | **STS-F06-01** | AC-F06-01 | Unit + DB migration | Apply migrations `001`–`005` twice on isolated `ttworkshop_test` → idempotent pass, existing workshop defaults `registration_closed=false`; `verifyProductionSchema` passes with `001`–`005` and rejects missing `005`. |
 | **STS-F06-02** | AC-F06-02 | API+DB | Seed `PUBLISHED` workshop owned by Organizer A → `POST /organizer/workshops/:id/close-registration` → `200`, `registration_closed=true`; Participant `GET /workshops/:id` shows `registration_closed=true, registration_open=false`; `POST /workshops/:id/registrations` returns `409 REGISTRATION_CLOSED`, zero rows added. |
-| **STS-F06-03** | AC-F06-03 | API+DB cross-feature | Seed `PUBLISHED` workshop with Participant A `ACTIVE`, then Organizer A manually closes registration → Participant A cancels before deadline (`F-05` endpoint) → `200 CANCELLED`, `workshops.registration_closed` remains `true`, and Participant B `POST /workshops/:id/registrations` still returns `409 REGISTRATION_CLOSED`. |
+| **STS-F06-03** | AC-F06-03 *(also satisfies deferred `STS-F05-06`)* | API+DB cross-feature *(requires `#67` F-05 merged on `sprint_2_staging`)* | Seed `PUBLISHED` workshop with Participant A `ACTIVE`, then Organizer A manually closes registration → Participant A calls `POST /me/registrations/:id/cancel` (`F-05`) before deadline → `200 CANCELLED` with `cancelled_at` persisted, `workshops.registration_closed` remains `true` (no auto-reopen), and both Participant A re-registration and Participant B new registration return `409 REGISTRATION_CLOSED`. |
 | **STS-F06-04** | AC-F06-04 | API+DB | Closed `PUBLISHED` workshop with `now < effective_deadline` and free seats → Organizer A `POST /organizer/workshops/:id/reopen-registration` → `200`, `registration_closed=false`; Participant `POST /workshops/:id/registrations` returns `201 ACTIVE`. |
 | **STS-F06-05** | AC-F06-05 | API+DB boundary | Closed `PUBLISHED` workshop with injectable `now` at `effective_deadline` (both explicit deadline and null fallback `starts_at`) and `effective_deadline + 1s` → `POST /organizer/workshops/:id/reopen-registration` → `409 DEADLINE_PASSED`, DB remains `registration_closed=true`. |
 | **STS-F06-06** | AC-F06-06 | API+DB | `PUBLISHED` workshop → `PATCH /organizer/workshops/:id/registration-deadline` moving deadline earlier (into past) → `200`, Participant registration now returns `409 DEADLINE_PASSED`; update deadline to `null` (future `starts_at`) → `200`, registration succeeds (`201`); `registration_closed` untouched throughout. |
@@ -113,10 +113,12 @@ Base `/api/v1`. Success envelope `{"data": ...}`; failure envelope `{"error": {"
 ## 8. Feature Definition of Done — NOT MET (Pre-Implementation Contract)
 
 - [ ] Pre-implementation contract and `DEC-05` independently reviewed (`Formal APPROVE`) and merged to `sprint_2_staging` via [Issue #66](https://github.com/cottonlnwza/TTworkshop/issues/66).
+- [ ] **Upstream staging prerequisite (`R-02`):** [Issue #67 (`F-05` Stage A core PR)](https://github.com/cottonlnwza/TTworkshop/issues/67) is merged into `sprint_2_staging` and rebased/integrated into `#68`'s branch before final PR review/CI.
 - [ ] TDD **RED → GREEN** evidence recorded on exact commits in [Issue #68](https://github.com/cottonlnwza/TTworkshop/issues/68).
-- [ ] Migration `005_workshop_manual_closure.sql` and all 9 criteria (`AC-F06-01`–`AC-F06-09` ↔ `STS-F06-01`–`STS-F06-09`) implemented and passing against isolated loopback PostgreSQL (`ttworkshop_test`, `ttworkshop_seed_test`) and headless Chromium.
-- [ ] Full automated regression (`npm run build`, `npm test`, Python `unittest`, hosted CI `build-test`) passes with zero regressions to Sprint 1 and `F-05` (if already merged) and zero real secrets.
-- [ ] Evidence ledger (`docs/evidence/p2-04-f06.md`), contract execution record, and `docs/traceability.md` updated; independent Reviewer (`thananun-7203`) Formal `APPROVE`, teammate merge to `sprint_2_staging`, and Author post-merge verification complete.
+- [ ] Migration `005_workshop_manual_closure.sql`, all 9 `F-06` criteria (`AC-F06-01`–`AC-F06-09` ↔ `STS-F06-01`–`STS-F06-09`), **and** the shared `BR-10` cross-feature check (`STS-F06-03` / deferred `STS-F05-06`) pass against isolated loopback PostgreSQL (`ttworkshop_test`, `ttworkshop_seed_test`) and headless Chromium.
+- [ ] Full automated regression (`npm run build`, `npm test`, Python `unittest`, hosted CI `build-test`) passes with zero regressions to Sprint 1 and `F-05`, and zero real secrets.
+- [ ] Evidence ledger (`docs/evidence/p2-04-f06.md`), contract execution record, and `docs/traceability.md` updated; independent Reviewer (`thananun-7203`) Formal `APPROVE`, teammate merge to `sprint_2_staging`, and Author post-merge verification complete (unlocking Stage B closure of Issue #67 once `thananun-7203` verifies `STS-F05-06` on the merged `sprint_2_staging` SHA).
 
 **Change record:**
 - `v0.1` (2026-11-23, [Issue #66](https://github.com/cottonlnwza/TTworkshop/issues/66)): Initial pre-implementation Sprint 2 contract authored by `thananun-7203` for planned implementation by `cottonlnwza` (`Issue #68`); `PENDING INDEPENDENT PEER REVIEW` by `cottonlnwza`. Zero code, migrations, or tests executed.
+- `v0.1.1` (2026-11-23, [PR #74](https://github.com/cottonlnwza/TTworkshop/pull/74) Round 1 Reviewer `R-02` remediation): Made `#67` (`F-05` Stage A staging merge) an explicit upstream prerequisite for `#68` final PR review/CI, aligned `STS-F06-03` to also execute and satisfy deferred `STS-F05-06` (`BR-10`), and documented how `#68` staging merge unlocks `#67` Stage B closure. Zero code, migrations, or tests executed.

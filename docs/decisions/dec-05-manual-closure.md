@@ -35,6 +35,7 @@ TTworkshop adopts **Closure A** semantics for manual registration closure on `PU
 
 - `F-06` (`Issue #68`) owns migration `005_workshop_manual_closure.sql`, the `/close-registration`, `/reopen-registration`, and `/registration-deadline` endpoints, and updating `GET /workshops`, `GET /workshops/:id`, and `POST /workshops/:id/registrations` to enforce `registration_closed`.
 - `F-05` (`Issue #67`) cancellation checks must deliberately **not** reject cancellation due to `registration_closed = true` and must never modify `workshops.registration_closed`.
+- **Non-circular delivery & cross-feature `BR-10` verification gate (`PR #74 R-02`):** `Issue #67` (`F-05` Stage A core: 9 STS) merges into `sprint_2_staging` first with `STS-F05-06` explicitly `DEFERRED` (Issue #67 remains OPEN). `Issue #68` (`F-06`, migration `005`) then integrates `#67`, runs all 9 `F-06` STS including `STS-F06-03` **plus** deferred `STS-F05-06` on `sprint_2_staging`, and upon `#68` merge unlocks `#67` Stage B verification of `STS-F05-06` and closure of Issue #67.
 - `api/runtime-schema.ts` (`verifyProductionSchema`) and Cloud Run `ttworkshop-migrate` Job will apply `005_workshop_manual_closure.sql` cleanly using existing table privileges (column `ALTER TABLE`, no new tables or sequences).
 
 ## Status & Review Gate
