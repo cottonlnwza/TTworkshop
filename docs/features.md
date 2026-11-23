@@ -19,7 +19,7 @@
 
 **Numbering note:** F-09 is a **single feature** with two proposed implementation Issues. F-08 remains the **same** feature if its Sprint 3 work continues after the D2 progress checkpoint. Do not silently create a replacement feature or duplicate Issue.
 
-Current D2 build scope is F-01–F-08 at staging `bcac8e76`. The [D2 evidence matrix](traceability.md#5e-deliverable-2-requirement-to-evidence-matrix) traces actual test files and retained F-09/NFR work. The [release manifest](releases/d2-integrated-candidate.md) records owner handoff, the separate Sprint 2 release and the D2 production gates.
+Current D2 build scope is F-01–F-08 at staging `bcac8e76`. The [D2 evidence matrix](traceability.md#5e-deliverable-2-requirement-to-evidence-matrix) traces actual test files and retained F-09/NFR work. The [release manifest](releases/d2-integrated-candidate.md) records owner handoff, the separate Sprint 2 release and the D2 production gates. Sprint 2 F-05–F-07 were released separately at [main a6210a5](https://github.com/cottonlnwza/TTworkshop/commit/a6210a50e9a63217e0f7413c780eed5218537f9f) through [PR #81](https://github.com/cottonlnwza/TTworkshop/pull/81).
 
 ## 2. Cross-cutting system responsibilities
 
