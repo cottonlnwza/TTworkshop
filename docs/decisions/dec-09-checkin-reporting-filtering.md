@@ -1,6 +1,6 @@
 # DEC-09 — Sprint 3 Check-in Window, Attendance Reporting, Filtering & NFR-04/05 Measurement Policy
 
-> **PROPOSED Sprint 3 scoped working decision v0.1 — PENDING INDEPENDENT PEER REVIEW — 2026-11-23**
+> **PROPOSED Sprint 3 scoped working decision v0.1.1 — PENDING INDEPENDENT PEER REVIEW — 2026-11-23**
 > Owner scope: [Issue #70 (`P2-C2`)](https://github.com/cottonlnwza/TTworkshop/issues/70) · Planned Implementations: [Issue #71 (`P2-07` / `F-08`)](https://github.com/cottonlnwza/TTworkshop/issues/71) and planned Sprint 3 `P3-01` / `P3-02` (`F-09`)
 > Linked requirements: `FR-13`, `FR-14`, `FR-15`; `BR-01`, `BR-14`, `BR-15`; `NFR-01`, `NFR-02`, `NFR-04`, `NFR-05`
 
@@ -11,16 +11,16 @@
 1. **Nested owner route:** Check-in is executed exclusively by the authenticated owning `ORGANIZER` via `POST /api/v1/organizer/workshops/:workshopId/registrations/:registrationId/check-in` with same-origin `Origin`. Nesting under `:workshopId` binds registration check-in strictly to an owned `PUBLISHED` workshop and prevents cross-workshop mismatches (`404 NOT_FOUND` if the registration does not belong to `:workshopId` or the workshop is foreign/missing).
 2. **Inclusive check-in window evaluated post-lock in PostgreSQL `TIMESTAMPTZ`:**
    - The valid check-in window is inclusive at both endpoints: **`starts_at <= now <= ends_at`**.
-   - Time `now()` **must** be sampled **after** acquiring the PostgreSQL `FOR UPDATE` row locks (preserving the `workshops → registrations` lock order established by `F-03`/`F-05`/`F-07` to prevent deadlocks and lock-wait TOCTOU races), and evaluated directly in PostgreSQL `TIMESTAMPTZ` precision:
-     - `now < starts_at` → **`409 CHECKIN_NOT_OPEN`** (`"Check-in has not opened yet"`).
-     - `now > ends_at` → **`409 CHECKIN_CLOSED`** (`"Check-in window has closed"`).
+   - Time `now()` **must** be sampled **after** acquiring the PostgreSQL `FOR UPDATE` row locks (preserving the `workshops → registrations` lock order established by `F-03`/`F-05`/`F-07` to prevent deadlocks and lock-wait TOCTOU races), and evaluated directly in PostgreSQL `TIMESTAMPTZ` precision.
+   - **Authoritative outside-window error code (reconciled with [Issue #71](https://github.com/cottonlnwza/TTworkshop/issues/71)):** Both before-start (`now < starts_at`) and after-end (`now > ends_at`) requests return **`409 CHECKIN_WINDOW_CLOSED`** with distinct human-readable messages (`"Check-in has not opened yet"` when `now < starts_at`, and `"Check-in window has closed"` when `now > ends_at`).
 3. **One-time check-in invariant (`BR-14`) & schema reuse:**
    - Reuses existing `registrations.checked_in_at TIMESTAMPTZ` column from [`db/migrations/004_registrations.sql`](../../db/migrations/004_registrations.sql) (**zero new SQL migrations**).
    - Only `status = 'ACTIVE'` registrations on a `PUBLISHED` workshop may be checked in (`DRAFT` workshop or `CANCELLED` registration → `409 INVALID_STATE`).
    - If `checked_in_at IS NOT NULL`, return **`409 ALREADY_CHECKED_IN`** (`"Registration is already checked in"`) without modifying the original `checked_in_at` timestamp.
    - `UPDATE registrations SET checked_in_at = $now::timestamptz WHERE id = $1 AND workshop_id = $2 AND status = 'ACTIVE' AND checked_in_at IS NULL` enforces one-time execution atomically under the row lock.
-4. **Cross-feature `F-05` cancellation compatibility (`BR-09`):**
-   - `POST /api/v1/me/registrations/:id/cancel` already rejects rows where `checked_in_at IS NOT NULL` with `409 ALREADY_CHECKED_IN` and acquires `workshops → registrations` `FOR UPDATE` locks in the same order. Concurrent check-in and cancellation serialize cleanly so a row can never be both `CANCELLED` and checked in.
+4. **Cross-feature `F-05` cancellation compatibility (`BR-09` / `BR-14` disjoint windows & lock-order serialization):**
+   - `F-05` permits cancellation strictly before `effective_deadline = COALESCE(registration_deadline, starts_at)` (`now < effective_deadline <= starts_at`), whereas `F-08` permits check-in during `[starts_at, ends_at]`. Therefore, at any fixed instant, cancellation and check-in windows are disjoint (and in the gap `[registration_deadline, starts_at)` for an earlier custom deadline, both operations must fail with `409`).
+   - `POST /api/v1/me/registrations/:id/cancel` already rejects rows where `checked_in_at IS NOT NULL` with `409 ALREADY_CHECKED_IN` (checked before the cancellation deadline) and acquires `workshops → registrations` `FOR UPDATE` locks in the same order as `F-08`. Controlled boundary/lock-wait tests verify both deadlock-free serialization across `starts_at` and the strict DB invariant that no row can ever have both `status = 'CANCELLED'` and `checked_in_at IS NOT NULL`.
 5. **Privacy-minimized DTO exposure (`WD-F04-01`):**
    - Organizer roster (`GET /api/v1/organizer/workshops/:id/registrations`) and Participant views (`GET /api/v1/me/registrations`, `GET /api/v1/me/registrations/:id`) expose `checked_in_at: string | null` (formatted in microsecond UTC ISO via `to_char(... AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`, matching `registered_at`/`cancelled_at`), without exposing participant email or name PII.
    - *Explicit test update note for `#71`:* `tests/f04.integration.test.ts` asserts an exact key allowlist on organizer roster items; when `F-08` is implemented in `#71`, that allowlist expands cleanly from 5 keys to 6 keys adding authorized `checked_in_at` while retaining zero PII assertions.

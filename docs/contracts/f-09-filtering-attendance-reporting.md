@@ -1,6 +1,6 @@
 # F-09 — Workshop Filtering and Attendance Reporting
 
-> **PROPOSED pre-implementation contract v0.1 — PENDING INDEPENDENT PEER REVIEW — 2026-11-23** · Contracts [Issue #70 (`P2-C2`)](https://github.com/cottonlnwza/TTworkshop/issues/70) · Planned Sprint 3 Implementations **`P3-01`** (Filtering & Search) and **`P3-02`** (Attendance Summary & NFR-04/05 Verification)
+> **PROPOSED pre-implementation contract v0.1.1 — PENDING INDEPENDENT PEER REVIEW — 2026-11-23** · Contracts [Issue #70 (`P2-C2`)](https://github.com/cottonlnwza/TTworkshop/issues/70) · Planned Sprint 3 Implementations **`P3-01`** (Filtering & Search) and **`P3-02`** (Attendance Summary & NFR-04/05 Verification)
 > Source: `docs/srs.md` FR-14, FR-15, BR-01, BR-15, NFR-01, NFR-04, NFR-05; `docs/features.md` F-09; `docs/system-sds.md` §§3–6; proposed scoped policy [`DEC-09`](../decisions/dec-09-checkin-reporting-filtering.md) and accepted [`DEC-04`](../decisions/dec-04-workshop-time.md), [`DEC-11`](../decisions/dec-11-published-workshop-discovery-access.md). **No `F-09` application code has been written and zero `F-09` STS have been executed.** This draft does not assert global SRS/SDS or instructor approval.
 
 ## 1. Purpose, dependencies, and boundaries
@@ -22,7 +22,8 @@
 1. **Participant Discovery Filtering (`GET /api/v1/workshops`):**
    - Authenticate `PARTICIPANT` (`401`/`403`, preserving `DEC-11`).
    - Parse optional query parameters:
-     - `q`: trim; if length > 100 → `400 VALIDATION`. Escape SQL wildcard characters (`\`, `%`, `_`) and filter `w.title ILIKE $p ESCAPE '\' OR w.location ILIKE $p ESCAPE '\' OR w.description ILIKE $p ESCAPE '\'`.
+     - `q`: trim; if length > 100 → `400 VALIDATION`. Escape literal backslash (`\`), percent (`%`), and underscore (`_`) in the bound parameter (`%` + `q.replace(/([\\_%])/g, "\\$1")` + `%`) and filter with a **single-character** PostgreSQL `ESCAPE` literal under default `standard_conforming_strings = on`:
+       - Raw SQL: `w.title ILIKE $p ESCAPE '\' OR w.location ILIKE $p ESCAPE '\' OR w.description ILIKE $p ESCAPE '\'` *(note: PostgreSQL requires a 1-character SQL escape literal; in TypeScript/JavaScript source strings this is written `"ESCAPE '\\\\'"` so the SQL sent to PostgreSQL contains a single `\`; sending raw SQL `ESCAPE '\\'` is rejected by PostgreSQL 15+ with `invalid escape string`)*.
      - `availability`: optional `all` (default) | `open` | `full` | `closed`; any other value → `400 VALIDATION`.
        - `open`: `registration_open = true`.
        - `full`: `remaining_seats = 0`.
@@ -90,7 +91,7 @@ Base `/api/v1`. Success envelope `{"data": ...}`; failure envelope `{"error": {"
 
 | Test ID | AC | Level | Preconditions & inputs → action → expected outcome |
 |---|---|---|---|
-| **STS-F09-01** | AC-F09-01 | API+DB | Seed multiple published workshops (open, full, closed, varied titles/dates including `%` literal) → query `GET /workshops` with `q`, `availability`, `from`/`to`, wildcard `q=%`, and unmatched query → exact expected subsets and safe `[]` empty result. |
+| **STS-F09-01** | AC-F09-01 | API+DB | Seed multiple published workshops (open, full, closed, varied titles/dates including literal `%`, `_`, and `\` characters alongside look-alike non-matching titles) → query `GET /workshops` with `q`, `availability`, `from`/`to`, literal `q=%`, `q=_`, `q=\`, and unmatched query → exact expected subsets (never wildcard-matching look-alikes) and safe `[]` empty result. |
 | **STS-F09-02** | AC-F09-02 | API+DB | Seed Organizer A (`DRAFT` + `PUBLISHED` workshops, mixed `ACTIVE`/`CANCELLED`/checked-in roster) and Organizer B workshops → filter `GET /organizer/workshops?status=DRAFT&q=...` and `GET /organizer/workshops/:id/registrations?status=ACTIVE&attendance=CHECKED_IN&limit=1` → accurate subsets, stable cursor traversal, zero Organizer B leakage. |
 | **STS-F09-03** | AC-F09-03 | API+DB negative | Send invalid `availability=invalid`, `status=BAD`, `attendance=MAYBE`, 101-char `q`, naive `from=2026-12-01T10:00:00`, and `from > to` → all return `400 VALIDATION`. |
 | **STS-F09-04** | AC-F09-04 | API+DB | Seed `PUBLISHED` workshop `capacity=10` with 3 `ACTIVE` (2 checked in, 1 unchecked) and 1 `CANCELLED` while `now <= ends_at` (including exact `now === ends_at`) → `GET /attendance-summary` returns `active_count=3`, `cancelled_count=1`, `checked_in_count=2`, `remaining_seats=7`, `attendance_rate_percent=66.67`, `no_show_count=0`, `workshop_ended=false`. |
@@ -110,3 +111,4 @@ Base `/api/v1`. Success envelope `{"data": ...}`; failure envelope `{"error": {"
 
 **Change record:**
 - `v0.1` (2026-11-23, [Issue #70](https://github.com/cottonlnwza/TTworkshop/issues/70)): Initial pre-implementation Sprint 3 contract authored by `thananun-7203`; `PENDING INDEPENDENT PEER REVIEW` by `cottonlnwza`. Zero code or tests executed.
+- `v0.1.1` (2026-11-23, [PR #78](https://github.com/cottonlnwza/TTworkshop/pull/78) Round 1 `R-03` remediation): Explicitly distinguished single-character raw SQL `ESCAPE '\'` under PostgreSQL 15+ `standard_conforming_strings = on` from host-language JS/TS string escaping (`"ESCAPE '\\\\'"`), and expanded `STS-F09-01` to cover literal `%`, `_`, and `\` searches against look-alike non-matches. Still `PROPOSED / NOT EXECUTED`.
