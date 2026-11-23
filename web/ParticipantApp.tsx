@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 type WorkshopSummary = {
   id: string; title: string; location: string; starts_at: string;
   capacity: number; remaining_seats: number; registration_open: boolean;
+  registration_closed?: boolean;
 };
 type Workshop = WorkshopSummary & {
   description: string; ends_at: string; registration_deadline: string | null; status: "PUBLISHED";
@@ -146,7 +147,7 @@ export function ParticipantApp() {
         <p><strong>Starts:</strong> {displayTime(selected.starts_at)}</p>
         <p><strong>Ends:</strong> {displayTime(selected.ends_at)}</p>
         <p><strong>Seats remaining:</strong> {selected.remaining_seats} / {selected.capacity}</p>
-        <p><strong>Registration:</strong> {selected.remaining_seats <= 0 ? "Full" : selected.registration_open ? "Open" : "Closed"}</p>
+        <p><strong>Registration:</strong> {selected.registration_closed ? "Closed" : selected.remaining_seats <= 0 ? "Full" : selected.registration_open ? "Open" : "Closed"}</p>
         <button type="button" disabled={registering || registeredWorkshopIds.has(selected.id) ||
           selected.remaining_seats <= 0 || !selected.registration_open} onClick={register}>
           {registering ? "Registering…" : registeredWorkshopIds.has(selected.id) ? "Already registered" : "Register for workshop"}
