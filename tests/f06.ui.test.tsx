@@ -36,7 +36,10 @@ describe("F-06 Manual Closure & Deadline UI states", () => {
     vi.stubGlobal("fetch", fetcher);
 
     render(<OrganizerApp />);
-    fireEvent.click(await screen.findByRole("button", { name: "Manage Registration" }));
+    // R-02: Organizer My Workshops list displays registration control state and deadline before opening details
+    expect(await screen.findByText(/Registration:/)).toBeTruthy();
+    expect(screen.getByText(/Deadline:/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Manage Registration" }));
 
     const closeBtn = await screen.findByRole("button", { name: "Close registration" });
     fireEvent.click(closeBtn);
@@ -50,7 +53,100 @@ describe("F-06 Manual Closure & Deadline UI states", () => {
     expect(fetcher.mock.calls[3]![0]).toBe("/api/v1/organizer/workshops/71/reopen-registration");
   });
 
-  it("STS-F06-02: Participant discovery distinguishes manually Closed from Full and disables registration", async () => {
+  it("R-01: rejects nonempty invalid or badInput deadline without calling PATCH, updates valid deadline, and allows intentional blank reset to null", async () => {
+    const updatedWorkshop = { ...publishedWorkshop, registration_deadline: "2026-12-18T08:00:00.000Z" };
+    const resetWorkshop = { ...publishedWorkshop, registration_deadline: null };
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: [publishedWorkshop] }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: publishedWorkshop }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: updatedWorkshop }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: resetWorkshop }) });
+    vi.stubGlobal("fetch", fetcher);
+
+    render(<OrganizerApp />);
+    fireEvent.click(await screen.findByRole("button", { name: "Manage Registration" }));
+
+    const input = await screen.findByLabelText(/Update Registration Deadline/i) as HTMLInputElement;
+    // 1) Simulate fallback text input with invalid nonempty datetime (e.g., Feb 30)
+    input.setAttribute("type", "text");
+    input.value = "2026-02-30T10:00";
+    expect(input.value).toBe("2026-02-30T10:00");
+    fireEvent.click(screen.getByRole("button", { name: "Update deadline" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("valid registration deadline");
+    // Must NOT send PATCH reset for invalid nonempty input
+    expect(fetcher).toHaveBeenCalledTimes(2);
+
+    // 2) Whitespace-only input is not genuinely blank -> rejected without PATCH
+    input.setAttribute("type", "text");
+    input.value = "   ";
+    expect(input.value).toBe("   ");
+    fireEvent.click(screen.getByRole("button", { name: "Update deadline" }));
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(fetcher).toHaveBeenCalledTimes(2);
+
+    // 3) Simulate native incomplete input (validity.badInput = true while value is "")
+    input.setAttribute("type", "datetime-local");
+    input.value = "";
+    Object.defineProperty(input, "validity", {
+      configurable: true,
+      value: { badInput: true }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Update deadline" }));
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(fetcher).toHaveBeenCalledTimes(2);
+
+    // 4) Valid nonempty input submits exact ISO timestamp via PATCH
+    Object.defineProperty(input, "validity", {
+      configurable: true,
+      value: { badInput: false }
+    });
+    fireEvent.change(input, { target: { value: "2026-12-18T15:00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Update deadline" }));
+    expect(await screen.findByText("Registration deadline updated")).toBeTruthy();
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(fetcher.mock.calls[2]![0]).toBe("/api/v1/organizer/workshops/71/registration-deadline");
+    expect((fetcher.mock.calls[2]![1] as RequestInit).body).toBe(
+      JSON.stringify({ registration_deadline: "2026-12-18T08:00:00.000Z" })
+    );
+
+    // 5) Intentional genuinely blank input (badInput = false, value = "") sends PATCH { registration_deadline: null }
+    const syncedInput = await screen.findByLabelText(/Update Registration Deadline/i) as HTMLInputElement;
+    Object.defineProperty(syncedInput, "validity", {
+      configurable: true,
+      value: { badInput: false }
+    });
+    fireEvent.change(syncedInput, { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Update deadline" }));
+
+    expect(await screen.findByText("Registration deadline updated")).toBeTruthy();
+    expect(fetcher).toHaveBeenCalledTimes(4);
+    expect(fetcher.mock.calls[3]![0]).toBe("/api/v1/organizer/workshops/71/registration-deadline");
+    expect((fetcher.mock.calls[3]![1] as RequestInit).body).toBe(JSON.stringify({ registration_deadline: null }));
+    // R-02: Published detail shows Default (start time) rather than N/A for null deadline
+    expect(screen.getByText(/Default \(start time\)/)).toBeTruthy();
+  });
+
+  it("R-02: Organizer My Workshops list shows Manually Closed and Default (start time) for a closed default-deadline workshop", async () => {
+    const closedDefaultWorkshop = {
+      ...publishedWorkshop,
+      registration_closed: true,
+      registration_deadline: null
+    };
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: [closedDefaultWorkshop] }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: closedDefaultWorkshop }) }));
+
+    render(<OrganizerApp />);
+    expect(await screen.findByText(/Manually Closed/)).toBeTruthy();
+    expect(screen.getByText(/Default \(start time\)/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Manage Registration" }));
+    expect(await screen.findByText(/Default \(start time\)/)).toBeTruthy();
+  });
+
+  it("STS-F06-02 / R-02: Participant discovery list AND detail show manually Closed state and detail disables registration", async () => {
     const summary = {
       id: "71",
       title: "F06 Closed Workshop",
@@ -73,7 +169,12 @@ describe("F-06 Manual Closure & Deadline UI states", () => {
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: detail }) }));
 
     render(<ParticipantApp />);
-    fireEvent.click(await screen.findByRole("button", { name: "View details" }));
+    // R-02: Assert Closed state directly in discovery list BEFORE opening details
+    expect(await screen.findByText((_, el) =>
+      el?.tagName === "P" && el.textContent === "Registration: Closed"
+    )).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "View details" }));
     expect(await screen.findByText((_, el) =>
       el?.tagName === "P" && el.textContent === "Registration: Closed"
     )).toBeTruthy();

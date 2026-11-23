@@ -158,6 +158,7 @@ export function ParticipantApp() {
         <ul className="workshop-list">{workshops.map(workshop => <li key={workshop.id}>
           <h2>{workshop.title}</h2><p className="muted">{workshop.location} · {displayTime(workshop.starts_at)}</p>
           <p>Seats remaining: {workshop.remaining_seats} / {workshop.capacity}</p>
+          <p><strong>Registration:</strong> {workshop.registration_closed ? "Closed" : workshop.remaining_seats <= 0 ? "Full" : workshop.registration_open ? "Open" : "Closed"}</p>
           <button type="button" onClick={() => { void viewDetails(workshop); }}>View details</button>
         </li>)}</ul>}
       <button type="button" className="secondary" onClick={() => { setSelected(null); setRegisteredWorkshopIds(new Set()); void loadWorkshops(); }} disabled={loading}>

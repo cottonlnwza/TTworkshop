@@ -170,13 +170,14 @@ describe("F-06 real Chrome UI -> Express API -> PostgreSQL", () => {
       await page.waitForSelector('text=Manually Closed');
       await page.click('button:has-text("Sign out")');
 
-      // 2. Participant sees Closed with disabled register button
+      // 2. Participant sees Closed in discovery list AND in details with disabled register button (R-02)
       await page.waitForSelector('input[type="email"]');
       await page.fill('input[type="email"]', participantEmail);
       await page.fill('input[type="password"]', password);
       await page.click('button:has-text("Sign in")');
 
       await page.waitForSelector('text=F06 Browser Workshop');
+      await page.waitForSelector('text=Registration: Closed');
       await page.click('button:has-text("View details")');
       await page.waitForSelector('text=Registration: Closed');
       expect(await page.isDisabled('button:has-text("Register for workshop")')).toBe(true);

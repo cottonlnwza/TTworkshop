@@ -235,6 +235,10 @@ export function OrganizerApp() {
                   )}
                   {w.status === "PUBLISHED" && (
                     <>
+                      <p className="muted">
+                        Registration: {w.registration_closed ? "Manually Closed" : "Open"} · Deadline:{" "}
+                        {w.registration_deadline ? formatDisplay(w.registration_deadline) : "Default (start time)"}
+                      </p>
                       <a href={"/organizer/workshops/" + encodeURIComponent(w.id) + "/registrations"}>
                         View registrations
                       </a>
@@ -375,12 +379,27 @@ function WorkshopDetail({ id, onPublish, onBack }: { id: string; onPublish: (id:
   async function handleDeadlineUpdate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!workshop || workshop.status !== "PUBLISHED" || saving) return;
+    const inputEl = event.currentTarget.elements.namedItem("registration_deadline") as HTMLInputElement | null;
+    if (inputEl?.validity?.badInput) {
+      setSuccess("");
+      setError("Please enter a valid registration deadline date and time.");
+      return;
+    }
+    const rawFromInput = inputEl ? inputEl.value : new FormData(event.currentTarget).get("registration_deadline");
+    const raw = typeof rawFromInput === "string" ? rawFromInput : "";
+    let registration_deadline: string | null = null;
+    if (raw !== "") {
+      const converted = localDateTimeToIso(raw.trim());
+      if (!converted) {
+        setSuccess("");
+        setError("Please enter a valid registration deadline date and time.");
+        return;
+      }
+      registration_deadline = converted;
+    }
     setSaving(true);
     setError("");
     setSuccess("");
-    const values = new FormData(event.currentTarget);
-    const raw = values.get("registration_deadline");
-    const registration_deadline = typeof raw === "string" && raw ? localDateTimeToIso(raw) : null;
     try {
       const res = await fetch(`${apiUrl}/organizer/workshops/${workshop.id}/registration-deadline`, {
         method: "PATCH",
@@ -441,7 +460,7 @@ function WorkshopDetail({ id, onPublish, onBack }: { id: string; onPublish: (id:
           <p><strong>Start:</strong> {workshop.starts_at ? formatDisplay(workshop.starts_at) : "N/A"}</p>
           <p><strong>End:</strong> {workshop.ends_at ? formatDisplay(workshop.ends_at) : "N/A"}</p>
           <p><strong>Capacity:</strong> {workshop.capacity ?? "N/A"}</p>
-          <p><strong>Deadline:</strong> {workshop.registration_deadline ? formatDisplay(workshop.registration_deadline) : "N/A"}</p>
+          <p><strong>Deadline:</strong> {workshop.registration_deadline ? formatDisplay(workshop.registration_deadline) : workshop.status === "PUBLISHED" ? "Default (start time)" : "N/A"}</p>
           {workshop.status === "DRAFT" && (
             <>
               <button type="button" onClick={() => { setIsEditing(true); setError(""); }}>Edit Draft</button>
@@ -464,6 +483,7 @@ function WorkshopDetail({ id, onPublish, onBack }: { id: string; onPublish: (id:
               <form onSubmit={handleDeadlineUpdate} style={{ marginTop: "1rem" }} noValidate>
                 <label htmlFor="published-deadline">Update Registration Deadline (optional, blank = start time)</label>
                 <input
+                  key={`${workshop.id}:${workshop.registration_deadline ?? ""}`}
                   id="published-deadline"
                   name="registration_deadline"
                   type="datetime-local"
