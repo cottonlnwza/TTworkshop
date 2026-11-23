@@ -305,7 +305,7 @@ export function OrganizerRegistrationRoster({ workshopId }: { workshopId: string
           ) : row.status === "ACTIVE" ? (
             <button
               type="button"
-              disabled={checkingInId === row.registration_id}
+              disabled={checkingInId !== null}
               onClick={() => { void checkInRegistration(row.registration_id); }}
             >
               {checkingInId === row.registration_id ? "Checking in..." : "Check in"}

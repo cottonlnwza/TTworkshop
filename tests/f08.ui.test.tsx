@@ -115,4 +115,74 @@ describe("F-08 Event Check-in UI states", () => {
     const detailCancelBtn = screen.getByRole("button", { name: "Cancel registration" }) as HTMLButtonElement;
     expect(detailCancelBtn.disabled).toBe(true);
   });
+
+  it("R-01: disables all eligible Check in buttons while one request is pending and submits the second row cleanly after the first settles", async () => {
+    const row1 = {
+      registration_id: "301",
+      participant_id: "21",
+      status: "ACTIVE",
+      registered_at: "2026-12-10T08:00:00.000000Z",
+      cancelled_at: null,
+      checked_in_at: null
+    };
+    const row2 = {
+      registration_id: "302",
+      participant_id: "22",
+      status: "ACTIVE",
+      registered_at: "2026-12-10T08:05:00.000000Z",
+      cancelled_at: null,
+      checked_in_at: null
+    };
+
+    let resolveFirst!: (val: unknown) => void;
+    const firstPost = new Promise(resolve => { resolveFirst = resolve; });
+
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: [row1, row2], pagination: { next_cursor: null } })
+      })
+      .mockImplementationOnce(() => firstPost)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { ...row2, checked_in_at: "2026-12-15T10:12:00.000000Z" } })
+      });
+    vi.stubGlobal("fetch", fetcher);
+
+    render(<OrganizerRegistrationRoster workshopId="71" />);
+    const buttons = await screen.findAllByRole("button", { name: "Check in" }) as HTMLButtonElement[];
+    expect(buttons).toHaveLength(2);
+    expect(buttons[0]!.disabled).toBe(false);
+    expect(buttons[1]!.disabled).toBe(false);
+
+    // Trigger first row check-in and hold it pending:
+    // active row shows progress and BOTH buttons must be disabled so no enabled button silently drops clicks.
+    fireEvent.click(buttons[0]!);
+    const activePendingBtn = await screen.findByRole("button", { name: "Checking in..." }) as HTMLButtonElement;
+    const secondRowBtn = screen.getByRole("button", { name: "Check in" }) as HTMLButtonElement;
+    expect(activePendingBtn.disabled).toBe(true);
+    expect(secondRowBtn.disabled).toBe(true);
+
+    // Resolve first check-in -> row 1 transitions to Checked in, row 2 re-enables and submits cleanly
+    resolveFirst({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: { ...row1, checked_in_at: "2026-12-15T10:10:00.000000Z" } })
+    });
+
+    await screen.findByText(/Participant checked in/i);
+    const enabledSecond = screen.getByRole("button", { name: "Check in" }) as HTMLButtonElement;
+    expect(enabledSecond.disabled).toBe(false);
+
+    fireEvent.click(enabledSecond);
+    await vi.waitFor(() => {
+      expect(screen.queryByRole("button", { name: /Check in|Checking in/i })).toBeNull();
+      expect(screen.getAllByText(/Checked in \(/i)).toHaveLength(2);
+    });
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(fetcher.mock.calls[1]![0]).toBe("/api/v1/organizer/workshops/71/registrations/301/check-in");
+    expect(fetcher.mock.calls[2]![0]).toBe("/api/v1/organizer/workshops/71/registrations/302/check-in");
+  });
 });

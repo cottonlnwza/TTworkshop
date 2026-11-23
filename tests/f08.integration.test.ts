@@ -597,4 +597,30 @@ describe("F-08 Event Attendance Check-in (PostgreSQL integration)", () => {
       await stopApiProcess(apiProc);
     }
   });
+
+  it("R-02: malformed JSON on F-08 check-in returns 400 VALIDATION with Cache-Control: no-store", async () => {
+    const wsId = await seedWorkshop({
+      startsAt: "2026-12-15T10:00:00.000Z",
+      endsAt: "2026-12-15T12:00:00.000Z",
+      deadline: null
+    });
+    const regId = await seedRegistration(wsId, ids.participantA, "ACTIVE");
+    fakeNow = new Date("2026-12-15T10:30:00.000Z");
+    const cookieOrg = await login(emails.organizerA);
+
+    const badJson = await request(app)
+      .post(`/api/v1/organizer/workshops/${wsId}/registrations/${regId}/check-in`)
+      .set("Cookie", cookieOrg)
+      .set("Origin", origin)
+      .set("Content-Type", "application/json")
+      .send("{invalid-json");
+    expect(badJson.status).toBe(400);
+    expect(badJson.body.error?.code).toBe("VALIDATION");
+    expect(badJson.headers["cache-control"]).toBe("no-store");
+
+    const dbRow = await pool.query<{ checked_in_at: Date | null }>(
+      "SELECT checked_in_at FROM registrations WHERE id=$1", [regId]
+    );
+    expect(dbRow.rows[0]?.checked_in_at).toBeNull();
+  });
 });
