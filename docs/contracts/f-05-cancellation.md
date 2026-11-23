@@ -1,7 +1,7 @@
 # F-05 — Registration Cancellation and Re-registration
 
-> **PROPOSED pre-implementation contract v0.1.1 — ROUND 2 RE-REVIEW PENDING — 2026-11-23** · Contracts [Issue #66 (`P2-C1`)](https://github.com/cottonlnwza/TTworkshop/issues/66) · Planned Implementation [Issue #67 (`P2-03`)](https://github.com/cottonlnwza/TTworkshop/issues/67) · Sprint 2 (`Period 2`)
-> Source: `docs/srs.md` FR-10 (plus F-04 read-surface continuity FR-08/09), BR-01, BR-05, BR-06, BR-09, BR-10 (cancellation side), BR-12, NFR-01, NFR-02, NFR-03; `docs/features.md` F-05; `docs/system-sds.md` §§3–6; proposed scoped policy [`DEC-06`](../decisions/dec-06-cancellation-policy.md) and [`DEC-05`](../decisions/dec-05-manual-closure.md). **No `F-05` application code has been written and zero `F-05` STS have been executed.** This draft does not assert global SRS/SDS or instructor approval.
+> **F-05 contract v0.2.0 — STAGE A IMPLEMENTED ON PR BRANCH (`9/10` CORE STS AUTHOR-LOCAL PASS; `STS-F05-06` DEFERRED TO `#68`; PENDING INDEPENDENT REVIEW & STAGING MERGE) — 2026-11-23** · Contracts [Issue #66 (`P2-C1`)](https://github.com/cottonlnwza/TTworkshop/issues/66) (merged [PR #74](https://github.com/cottonlnwza/TTworkshop/pull/74)) · Implementation [Issue #67 (`P2-03`)](https://github.com/cottonlnwza/TTworkshop/issues/67) · Evidence [`docs/evidence/p2-03-f05.md`](../evidence/p2-03-f05.md) · Sprint 2 (`Period 2`)
+> Source: `docs/srs.md` FR-10 (plus F-04 read-surface continuity FR-08/09), BR-01, BR-05, BR-06, BR-09, BR-10 (cancellation side), BR-12, NFR-01, NFR-02, NFR-03; `docs/features.md` F-05; `docs/system-sds.md` §§3–6; accepted staging scoped policy [`DEC-06`](../decisions/dec-06-cancellation-policy.md) and [`DEC-05`](../decisions/dec-05-manual-closure.md). Author-local Stage A implementation commit `32ff4066cad6e1023eca6cbcf7365ff724ffef2c` passes 9/10 core STS (`13/13` F-05 tests; `148/148` full suite); `STS-F05-06` remains `DEFERRED` pending `#68` migration `005`. Independent review, staging merge, and `main` release remain pending.
 
 ## 1. Purpose, dependencies, and boundaries
 
@@ -86,7 +86,7 @@ Base `/api/v1`. Success envelope `{"data": ...}`; failure envelope `{"error": {"
 | **AC-F05-09** | Persisted `CANCELLED` record (`cancelled_at`), freed seat count, and subsequent re-registered `ACTIVE` record survive a full API process restart against durable PostgreSQL (`NFR-02`). |
 | **AC-F05-10** | End-to-end UI flow: Participant registers → cancels from `/my-registrations` → sees `CANCELLED` status and `cancelled_at` → returns to discovery seeing freed seat and re-registers cleanly; safe error feedback shown on conflict (`FR-10`). |
 
-## 7. Software Test Specification (STS) — PLANNED, NOT EXECUTED
+## 7. Software Test Specification (STS) — STAGE A EXECUTED LOCALLY (9/10 PASS; `STS-F05-06` DEFERRED)
 
 | Test ID | AC | Level | Preconditions & inputs → action → expected outcome |
 |---|---|---|---|
@@ -101,15 +101,17 @@ Base `/api/v1`. Success envelope `{"data": ...}`; failure envelope `{"error": {"
 | **STS-F05-09** | AC-F05-09 | Process restart integration | Start real API process A → cancel `r1`, verify seat freed, re-register `r2` → kill process A, start process B on same isolated PostgreSQL DB → `GET /me/registrations` & `GET /organizer/workshops/:id/registrations` return identical `r1` (`CANCELLED` + `cancelled_at`) and `r2` (`ACTIVE`). |
 | **STS-F05-10** | AC-F05-10 | React UI + Chromium E2E | Real browser journey: Participant signs in → registers → opens `/my-registrations` → clicks `Cancel registration` → verifies `CANCELLED` + timestamp → navigates back to `/` → verifies freed seat and re-registers cleanly; also verify UI alert on `409` conflict without false success. |
 
-**Planned TDD strategy (for [Issue #67](https://github.com/cottonlnwza/TTworkshop/issues/67)):** Commit failing tests covering `STS-F05-01..07` first (**RED** — route `POST /api/v1/me/registrations/:id/cancel` returns `404`), then implement service/router/UI changes until targeted and full suites pass (**GREEN**).
+**Actual TDD evidence (Issue #67 Stage A, Author-local — see [`docs/evidence/p2-03-f05.md`](../evidence/p2-03-f05.md)):**
+- **RED (`6abd5eded7fedb2aaf2510db0bb56ca7ab958859`):** `vitest run tests/f05.integration.test.ts tests/f05.ui.test.tsx` → **12/12 failed** (`404` on unimplemented cancel endpoint; missing UI controls).
+- **GREEN (`32ff4066cad6e1023eca6cbcf7365ff724ffef2c`):** Targeted `F-05` (`13/13`) + `F-04` (`8/8`) PASS; `npm run build` PASS (372ms); Python `unittest` **41/41** PASS; full `npm test` **23/23 files, 148/148 tests PASS** (97.64s). `STS-F05-06` remains **`DEFERRED`** until `#68` adds migration `005`.
 
-## 8. Feature Definition of Done — NOT MET (Pre-Implementation Contract)
+## 8. Feature Definition of Done — STAGE A PR CANDIDATE (PENDING REVIEW & MERGE; STAGE B DEFERRED TO `#68`)
 
 ### Stage A — Issue #67 Staging PR Gate (Core `F-05`, before `F-06` migration `005`)
-- [ ] Pre-implementation contract and `DEC-06` independently reviewed (`Formal APPROVE`) and merged to `sprint_2_staging` via [Issue #66](https://github.com/cottonlnwza/TTworkshop/issues/66).
-- [ ] TDD **RED → GREEN** evidence recorded on exact commits in [Issue #67](https://github.com/cottonlnwza/TTworkshop/issues/67).
-- [ ] All **9 core criteria** (`AC-F05-01`–`05` and `AC-F05-07`–`10` ↔ `STS-F05-01`–`05`, `07`–`10`) implemented and passing against isolated loopback PostgreSQL (`ttworkshop_test`) and headless Chromium; `AC-F05-06` / `STS-F05-06` explicitly recorded as `DEFERRED — pending F-06 migration 005 (#68)` (never falsely marked PASS).
-- [ ] Full automated regression (`npm run build`, `npm test`, Python `unittest`, hosted CI `build-test`) passes with zero regressions to Sprint 1 (`F-01`–`F-04`) and zero real secrets.
+- [x] Pre-implementation contract and `DEC-06` independently reviewed (`Formal APPROVE`) and merged to `sprint_2_staging` via [Issue #66](https://github.com/cottonlnwza/TTworkshop/issues/66) / [PR #74](https://github.com/cottonlnwza/TTworkshop/pull/74) (`292e4b59`).
+- [x] TDD **RED → GREEN** evidence recorded on exact commits (`6abd5ed` → `32ff4066`) in [Issue #67](https://github.com/cottonlnwza/TTworkshop/issues/67) and [`docs/evidence/p2-03-f05.md`](../evidence/p2-03-f05.md).
+- [x] All **9 core criteria** (`AC-F05-01`–`05` and `AC-F05-07`–`10` ↔ `STS-F05-01`–`05`, `07`–`10`) implemented and passing Author-locally against isolated loopback PostgreSQL (`ttworkshop_test`) and headless Chromium; `AC-F05-06` / `STS-F05-06` explicitly recorded as `DEFERRED — pending F-06 migration 005 (#68)`.
+- [ ] Full automated regression (`npm run build`, `npm test`, Python `unittest`, **hosted CI `build-test`**) passes on PR HEAD (Author-local 148/148 + 41/41 PASS on `32ff4066`; hosted CI pending PR push).
 - [ ] Evidence ledger (`docs/evidence/p2-03-f05.md`), contract execution record, and `docs/traceability.md` updated; independent Reviewer (`cottonlnwza`) Formal `APPROVE` and teammate merge of #67's single PR into `sprint_2_staging`.
 
 ### Stage B — Final Full-Contract Closure Gate (Required before closing Issue #67 / marking `Done`)
@@ -118,4 +120,5 @@ Base `/api/v1`. Success envelope `{"data": ...}`; failure envelope `{"error": {"
 
 **Change record:**
 - `v0.1` (2026-11-23, [Issue #66](https://github.com/cottonlnwza/TTworkshop/issues/66)): Initial pre-implementation Sprint 2 contract authored by `thananun-7203`; `PENDING INDEPENDENT PEER REVIEW` by `cottonlnwza`. Zero code or tests executed.
-- `v0.1.1` (2026-11-23, [PR #74](https://github.com/cottonlnwza/TTworkshop/pull/74) Round 1 Reviewer `R-01` & `R-02` remediation): Fixed `STS-F05-08` so single-record detail `GET /me/registrations/r1` (and `r2`) asserts returning only the requested record while list and Organizer roster return both rows (`R-01`); split Issue #67 DoD into Stage A (9 core STS staging merge gate, `STS-F05-06` explicitly deferred) and Stage B (final closure only after `F-06` `#68` merges migration `005` and verifies `STS-F05-06` on integrated `sprint_2_staging`), eliminating circular `F-05`/`F-06` gates (`R-02`). Zero code or tests executed.
+- `v0.1.1` (2026-11-23, [PR #74](https://github.com/cottonlnwza/TTworkshop/pull/74) Round 1 Reviewer `R-01` & `R-02` remediation): Fixed `STS-F05-08` single-record detail expectations (`R-01`) and split Issue #67 DoD into Stage A/Stage B (`R-02`). Independently approved and merged at `sprint_2_staging@292e4b59`.
+- `v0.2.0` (2026-11-23, [Issue #67](https://github.com/cottonlnwza/TTworkshop/issues/67)): Recorded Stage A implementation (`32ff4066`), TDD RED (`6abd5ed`) → GREEN (`32ff4066`), 9/10 core STS Author-local PASS (`13/13` F-05 tests; `148/148` full suite), and explicit `DEFERRED` status for `STS-F05-06`. Independent review, hosted CI on PR HEAD, staging merge, and Stage B closure remain pending.

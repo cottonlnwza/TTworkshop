@@ -28,11 +28,13 @@ export function createRegistrationRouter(
     if (!identity) return res.status(500).json(fail("INTERNAL", "Internal error"));
     const result = await pool.query<{
       id: string; workshop_id: string; title: string; starts_at: Date;
-      status: string; registered_at: string;
+      status: string; registered_at: string; cancelled_at: string | null;
     }>(
       "SELECT r.id::text AS id,r.workshop_id::text AS workshop_id,w.title,w.starts_at," +
       "r.status,to_char(r.registered_at AT TIME ZONE 'UTC'," +
-      "'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS registered_at " +
+      "'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS registered_at," +
+      "CASE WHEN r.cancelled_at IS NULL THEN NULL ELSE " +
+      "to_char(r.cancelled_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') END AS cancelled_at " +
       "FROM registrations r JOIN workshops w ON w.id=r.workshop_id " +
       "WHERE r.participant_user_id=$1 " +
       "AND ($2::timestamptz IS NULL OR (r.registered_at,r.id)<($2::timestamptz,$3::bigint)) " +
@@ -45,7 +47,8 @@ export function createRegistrationRouter(
       registration_id: row.id,
       workshop: { workshop_id: row.workshop_id, title: row.title, starts_at: row.starts_at },
       status: row.status,
-      registered_at: row.registered_at
+      registered_at: row.registered_at,
+      cancelled_at: row.cancelled_at
     }));
     const last = rows.at(-1);
     res.status(200).json({
@@ -61,11 +64,13 @@ export function createRegistrationRouter(
     if (!identity) return res.status(500).json(fail("INTERNAL", "Internal error"));
     const result = await pool.query<{
       id: string; workshop_id: string; title: string; starts_at: Date;
-      status: string; registered_at: string;
+      status: string; registered_at: string; cancelled_at: string | null;
     }>(
       "SELECT r.id::text AS id,r.workshop_id::text AS workshop_id,w.title,w.starts_at," +
       "r.status,to_char(r.registered_at AT TIME ZONE 'UTC'," +
-      "'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS registered_at " +
+      "'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS registered_at," +
+      "CASE WHEN r.cancelled_at IS NULL THEN NULL ELSE " +
+      "to_char(r.cancelled_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') END AS cancelled_at " +
       "FROM registrations r JOIN workshops w ON w.id=r.workshop_id " +
       "WHERE r.id=$1 AND r.participant_user_id=$2",
       [id, identity.id]
@@ -77,10 +82,123 @@ export function createRegistrationRouter(
         registration_id: row.id,
         workshop: { workshop_id: row.workshop_id, title: row.title, starts_at: row.starts_at },
         status: row.status,
-        registered_at: row.registered_at
+        registered_at: row.registered_at,
+        cancelled_at: row.cancelled_at
       }
     });
   });
+
+  router.post("/me/registrations/:id/cancel", noStore, requireParticipant, requireOrigin,
+    async (req: Request, res: Response, next) => {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] ?? "" : req.params.id;
+      if (!validId(id)) return res.status(404).json(fail("NOT_FOUND", "Registration not found"));
+      const identity = (req as Request & { identity?: { id: string } }).identity;
+      if (!identity) return res.status(500).json(fail("INTERNAL", "Internal error"));
+
+      const client = await pool.connect();
+      let inTransaction = false;
+      try {
+        await client.query("BEGIN");
+        inTransaction = true;
+        const owned = await client.query<{ id: string; workshop_id: string }>(
+          "SELECT id::text AS id, workshop_id::text AS workshop_id " +
+          "FROM registrations WHERE id=$1 AND participant_user_id=$2",
+          [id, identity.id]
+        );
+        if (!owned.rowCount) {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(404).json(fail("NOT_FOUND", "Registration not found"));
+        }
+        const workshopId = owned.rows[0]!.workshop_id;
+
+        // Acquire the workshop lock before locking the registration row to match
+        // POST /workshops/:id/registrations lock ordering and prevent deadlocks.
+        const workshop = await client.query<{
+          id: string; starts_at: Date | null; registration_deadline: Date | null;
+        }>(
+          "SELECT id::text AS id, starts_at, registration_deadline FROM workshops WHERE id=$1 FOR UPDATE",
+          [workshopId]
+        );
+        if (!workshop.rowCount) {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(404).json(fail("NOT_FOUND", "Registration not found"));
+        }
+
+        const reg = await client.query<{
+          id: string; status: string; checked_in_at: Date | null;
+        }>(
+          "SELECT id::text AS id, status, checked_in_at " +
+          "FROM registrations WHERE id=$1 AND participant_user_id=$2 FOR UPDATE",
+          [id, identity.id]
+        );
+        const regRow = reg.rows[0];
+        if (!regRow) {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(404).json(fail("NOT_FOUND", "Registration not found"));
+        }
+        if (regRow.status === "CANCELLED") {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(409).json(fail("ALREADY_CANCELLED", "Registration is already cancelled"));
+        }
+        if (regRow.checked_in_at !== null) {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(409).json(fail("ALREADY_CHECKED_IN", "Cannot cancel a checked-in registration"));
+        }
+
+        const workshopRow = workshop.rows[0]!;
+        if (!workshopRow.starts_at ||
+            (workshopRow.registration_deadline && workshopRow.registration_deadline > workshopRow.starts_at)) {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(409).json(fail("INVALID_DEADLINE", "Workshop registration deadline is invalid"));
+        }
+        const currentTime = now();
+        const effectiveDeadline = workshopRow.registration_deadline ?? workshopRow.starts_at;
+        if (currentTime.getTime() >= effectiveDeadline.getTime()) {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(409).json(fail("CANCELLATION_DEADLINE_PASSED", "Cancellation deadline has passed"));
+        }
+
+        const updated = await client.query<{
+          id: string; workshop_id: string; status: string; registered_at: string; cancelled_at: string;
+        }>(
+          "UPDATE registrations SET status='CANCELLED', cancelled_at=$2 " +
+          "WHERE id=$1 AND participant_user_id=$3 AND status='ACTIVE' " +
+          "RETURNING id::text AS id, workshop_id::text AS workshop_id, status," +
+          "to_char(registered_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS registered_at," +
+          "to_char(cancelled_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS cancelled_at",
+          [id, currentTime, identity.id]
+        );
+        if (!updated.rowCount) {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(409).json(fail("ALREADY_CANCELLED", "Registration is already cancelled"));
+        }
+        await client.query("COMMIT");
+        inTransaction = false;
+        const row = updated.rows[0]!;
+        return res.status(200).json({
+          data: {
+            registration_id: row.id,
+            workshop_id: row.workshop_id,
+            status: row.status,
+            registered_at: row.registered_at,
+            cancelled_at: row.cancelled_at
+          }
+        });
+      } catch (error) {
+        if (inTransaction) await client.query("ROLLBACK").catch(() => undefined);
+        return next(error);
+      } finally {
+        client.release();
+      }
+    });
 
   router.get("/organizer/workshops/:id/registrations", noStore, requireOrganizer,
     async (req: Request, res: Response) => {
@@ -96,10 +214,12 @@ export function createRegistrationRouter(
       const pagination = parseRegistrationPagination(req.query);
       if (!pagination) return res.status(400).json(fail("INVALID_PAGINATION", "Invalid pagination parameters"));
       const result = await pool.query<{
-        id: string; participant_user_id: string; status: string; registered_at: string;
+        id: string; participant_user_id: string; status: string; registered_at: string; cancelled_at: string | null;
       }>(
         "SELECT r.id::text AS id,r.participant_user_id::text AS participant_user_id,r.status," +
-        "to_char(r.registered_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS registered_at " +
+        "to_char(r.registered_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS registered_at," +
+        "CASE WHEN r.cancelled_at IS NULL THEN NULL ELSE " +
+        "to_char(r.cancelled_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') END AS cancelled_at " +
         "FROM registrations r WHERE r.workshop_id=$1 " +
         "AND ($2::timestamptz IS NULL OR (r.registered_at,r.id)<($2::timestamptz,$3::bigint)) " +
         "ORDER BY r.registered_at DESC,r.id DESC LIMIT $4",
@@ -111,7 +231,8 @@ export function createRegistrationRouter(
         registration_id: row.id,
         participant_id: row.participant_user_id,
         status: row.status,
-        registered_at: row.registered_at
+        registered_at: row.registered_at,
+        cancelled_at: row.cancelled_at
       }));
       const last = rows.at(-1);
       res.status(200).json({
