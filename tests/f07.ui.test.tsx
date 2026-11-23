@@ -3,6 +3,7 @@ import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { OrganizerApp } from "../web/OrganizerApp.js";
+import { ParticipantApp } from "../web/ParticipantApp.js";
 
 afterEach(() => {
   cleanup();
@@ -92,5 +93,48 @@ describe("F-07 Published Workshop Editing UI states", () => {
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("valid");
     expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("R-02: Participant discovery and detail render explicit registration_deadline and fall back to starts_at when null after refresh", async () => {
+    const withExplicitDeadline = {
+      id: "81",
+      title: "F07 Participant Deadline Workshop",
+      description: "Published description",
+      location: "Auditorium B",
+      starts_at: "2026-12-20T10:00:00.000Z",
+      ends_at: "2026-12-20T12:00:00.000Z",
+      capacity: 10,
+      remaining_seats: 8,
+      registration_deadline: "2026-12-18T15:30:00.000Z",
+      registration_closed: false,
+      registration_open: true,
+      status: "PUBLISHED" as const
+    };
+    const withDefaultDeadline = {
+      ...withExplicitDeadline,
+      registration_deadline: null
+    };
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: [withExplicitDeadline] }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: withExplicitDeadline }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: [withDefaultDeadline] }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: withDefaultDeadline }) });
+    vi.stubGlobal("fetch", fetcher);
+
+    render(<ParticipantApp />);
+    // Discovery list shows explicit registration_deadline
+    expect(await screen.findByText(/Registration deadline:/i)).toBeTruthy();
+    expect(screen.getByText(/2026-12-18 15:30:00Z/)).toBeTruthy();
+
+    // Detail view shows explicit registration_deadline
+    fireEvent.click(screen.getByRole("button", { name: "View details" }));
+    expect(await screen.findByText(/Registration deadline:/i)).toBeTruthy();
+    expect(screen.getByText(/2026-12-18 15:30:00Z/)).toBeTruthy();
+
+    // After refresh when deadline is reset to null, both list and detail fall back to starts_at (start time)
+    fireEvent.click(screen.getByRole("button", { name: "Refresh workshops" }));
+    expect(await screen.findByText(/2026-12-20 10:00:00Z \(start time\)/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "View details" }));
+    expect(await screen.findByText(/2026-12-20 10:00:00Z \(start time\)/)).toBeTruthy();
   });
 });

@@ -151,6 +151,7 @@ export function createWorkshopRouter(
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
+      const nowIso = now().toISOString();
       const current = await client.query<{
         id: string;
         owner_user_id: string;
@@ -163,11 +164,15 @@ export function createWorkshopRouter(
         status: string;
         registration_deadline: Date | null;
         registration_closed: boolean;
+        has_ended: boolean;
+        has_started: boolean;
       }>(
         `SELECT id, owner_user_id, title, description, location, starts_at, ends_at,
-                capacity, status, registration_deadline, registration_closed
+                capacity, status, registration_deadline, registration_closed,
+                (ends_at IS NOT NULL AND $3::timestamptz >= ends_at) AS has_ended,
+                (starts_at IS NOT NULL AND $3::timestamptz >= starts_at) AS has_started
          FROM workshops WHERE id = $1 AND owner_user_id = $2 FOR UPDATE`,
-        [id, identity.id]
+        [id, identity.id, nowIso]
       );
       if (!current.rowCount) {
         await client.query("ROLLBACK");
@@ -253,7 +258,7 @@ export function createWorkshopRouter(
         }
       }
 
-      if (w.ends_at && now().getTime() >= w.ends_at.getTime()) {
+      if (w.has_ended) {
         await client.query("ROLLBACK");
         return res.status(409).json(fail("WORKSHOP_ENDED", "Workshop has already ended"));
       }
@@ -266,14 +271,14 @@ export function createWorkshopRouter(
       const hasCapacity = hasProp("capacity");
       const hasRegistrationDeadline = hasProp("registration_deadline");
 
-      const parseRequiredText = (value: unknown, label: string): string | null => {
+      const parseRequiredText = (value: unknown): string | null => {
         if (typeof value !== "string" || value.trim().length === 0) return null;
         return value.trim();
       };
 
       let nextTitle = w.title;
       if (hasTitle) {
-        const parsed = parseRequiredText(body.title, "Title");
+        const parsed = parseRequiredText(body.title);
         if (!parsed) {
           await client.query("ROLLBACK");
           return res.status(400).json(fail("VALIDATION", "Title must be a non-empty string"));
@@ -283,7 +288,7 @@ export function createWorkshopRouter(
 
       let nextDescription = w.description;
       if (hasDescription) {
-        const parsed = parseRequiredText(body.description, "Description");
+        const parsed = parseRequiredText(body.description);
         if (!parsed) {
           await client.query("ROLLBACK");
           return res.status(400).json(fail("VALIDATION", "Description must be a non-empty string"));
@@ -293,7 +298,7 @@ export function createWorkshopRouter(
 
       let nextLocation = w.location;
       if (hasLocation) {
-        const parsed = parseRequiredText(body.location, "Location");
+        const parsed = parseRequiredText(body.location);
         if (!parsed) {
           await client.query("ROLLBACK");
           return res.status(400).json(fail("VALIDATION", "Location must be a non-empty string"));
@@ -311,62 +316,78 @@ export function createWorkshopRouter(
         nextCapacity = capVal;
       }
 
-      let parsedStart: Date | null = null;
+      let startsAtParam: string | null = null;
       if (hasStartsAt) {
-        parsedStart = parseDateTime(body.starts_at);
-        if (!parsedStart) {
+        if (!parseDateTime(body.starts_at)) {
           await client.query("ROLLBACK");
           return res.status(400).json(fail("VALIDATION", "Date-times must be valid ISO 8601 values with an explicit offset"));
         }
+        startsAtParam = body.starts_at as string;
       }
 
-      let parsedEnd: Date | null = null;
+      let endsAtParam: string | null = null;
       if (hasEndsAt) {
-        parsedEnd = parseDateTime(body.ends_at);
-        if (!parsedEnd) {
+        if (!parseDateTime(body.ends_at)) {
           await client.query("ROLLBACK");
           return res.status(400).json(fail("VALIDATION", "Date-times must be valid ISO 8601 values with an explicit offset"));
         }
+        endsAtParam = body.ends_at as string;
       }
 
-      let nextDeadline = w.registration_deadline;
+      let deadlineParam: string | null = null;
       if (hasRegistrationDeadline) {
         if (body.registration_deadline === null) {
-          nextDeadline = null;
+          deadlineParam = null;
         } else {
-          const parsed = parseDateTime(body.registration_deadline);
-          if (!parsed) {
+          if (!parseDateTime(body.registration_deadline)) {
             await client.query("ROLLBACK");
             return res.status(400).json(fail("VALIDATION", "Date-times must be valid ISO 8601 values with an explicit offset"));
           }
-          nextDeadline = parsed;
+          deadlineParam = body.registration_deadline as string;
         }
       }
 
-      const activeResult = await client.query<{ count: number }>(
-        "SELECT count(*)::int AS count FROM registrations WHERE workshop_id = $1 AND status = 'ACTIVE'",
-        [id]
+      // Compare schedule timestamps and chronological invariants at full PostgreSQL TIMESTAMPTZ precision
+      // so omitted columns and sub-millisecond microseconds are never truncated via JS Date.
+      const checkRes = await client.query<{
+        active_count: number;
+        starts_changed: boolean;
+        ends_changed: boolean;
+        invalid_time_order: boolean;
+        invalid_deadline_order: boolean;
+      }>(
+        `SELECT
+          (SELECT count(*)::int FROM registrations WHERE workshop_id = w.id AND status = 'ACTIVE') AS active_count,
+          (CASE WHEN $2 THEN $3::timestamptz IS DISTINCT FROM w.starts_at ELSE false END) AS starts_changed,
+          (CASE WHEN $4 THEN $5::timestamptz IS DISTINCT FROM w.ends_at ELSE false END) AS ends_changed,
+          (
+            (CASE WHEN $2 THEN $3::timestamptz ELSE w.starts_at END) IS NULL OR
+            (CASE WHEN $4 THEN $5::timestamptz ELSE w.ends_at END) IS NULL OR
+            (CASE WHEN $4 THEN $5::timestamptz ELSE w.ends_at END) <= (CASE WHEN $2 THEN $3::timestamptz ELSE w.starts_at END)
+          ) AS invalid_time_order,
+          (
+            (CASE WHEN $6 THEN $7::timestamptz ELSE w.registration_deadline END) IS NOT NULL AND
+            (CASE WHEN $2 THEN $3::timestamptz ELSE w.starts_at END) IS NOT NULL AND
+            (CASE WHEN $6 THEN $7::timestamptz ELSE w.registration_deadline END) > (CASE WHEN $2 THEN $3::timestamptz ELSE w.starts_at END)
+          ) AS invalid_deadline_order
+         FROM workshops w WHERE w.id = $1`,
+        [id, hasStartsAt, startsAtParam, hasEndsAt, endsAtParam, hasRegistrationDeadline, deadlineParam]
       );
-      const activeCount = Number(activeResult.rows[0]?.count ?? 0);
+      const check = checkRes.rows[0]!;
+      const activeCount = Number(check.active_count ?? 0);
 
-      const startsChanged = hasStartsAt && parsedStart !== null && (!w.starts_at || parsedStart.getTime() !== w.starts_at.getTime());
-      const endsChanged = hasEndsAt && parsedEnd !== null && (!w.ends_at || parsedEnd.getTime() !== w.ends_at.getTime());
-      if ((startsChanged || endsChanged) && (activeCount > 0 || (w.starts_at !== null && now().getTime() >= w.starts_at.getTime()))) {
+      if ((check.starts_changed || check.ends_changed) && (activeCount > 0 || w.has_started)) {
         await client.query("ROLLBACK");
         return res.status(409).json(fail("SCHEDULE_LOCKED", "Workshop schedule cannot be changed after registrations exist or after start time"));
       }
-
-      const nextStart = hasStartsAt ? parsedStart! : w.starts_at;
-      const nextEnd = hasEndsAt ? parsedEnd! : w.ends_at;
-      if (!nextStart || !nextEnd || nextEnd.getTime() <= nextStart.getTime()) {
+      if (check.invalid_time_order) {
         await client.query("ROLLBACK");
         return res.status(400).json(fail("VALIDATION", "End time must be after start time"));
       }
-      if (nextDeadline && nextDeadline.getTime() > nextStart.getTime()) {
+      if (check.invalid_deadline_order) {
         await client.query("ROLLBACK");
         return res.status(400).json(fail("VALIDATION", "Registration deadline cannot be later than start time"));
       }
-
       if (nextCapacity == null || nextCapacity < activeCount) {
         await client.query("ROLLBACK");
         return res.status(409).json(fail("CAPACITY_BELOW_ACTIVE", "Capacity cannot be reduced below current active registrations"));
@@ -377,14 +398,20 @@ export function createWorkshopRouter(
           title = $3,
           description = $4,
           location = $5,
-          starts_at = $6,
-          ends_at = $7,
-          capacity = $8,
-          registration_deadline = $9,
+          starts_at = CASE WHEN $6 THEN $7::timestamptz ELSE starts_at END,
+          ends_at = CASE WHEN $8 THEN $9::timestamptz ELSE ends_at END,
+          capacity = $10,
+          registration_deadline = CASE WHEN $11 THEN $12::timestamptz ELSE registration_deadline END,
           updated_at = now()
          WHERE id = $1 AND owner_user_id = $2 AND status = 'PUBLISHED'
          RETURNING id, owner_user_id, title, description, location, starts_at, ends_at, capacity, status, registration_deadline, registration_closed, created_at, updated_at`,
-        [id, identity.id, nextTitle, nextDescription, nextLocation, nextStart, nextEnd, nextCapacity, nextDeadline]
+        [
+          id, identity.id, nextTitle, nextDescription, nextLocation,
+          hasStartsAt, startsAtParam,
+          hasEndsAt, endsAtParam,
+          nextCapacity,
+          hasRegistrationDeadline, deadlineParam
+        ]
       );
       await client.query("COMMIT");
       return res.status(200).json({ data: { ...updated.rows[0], active_registrations_count: activeCount } });

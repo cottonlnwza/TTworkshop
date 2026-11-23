@@ -245,7 +245,7 @@ export function createRegistrationRouter(
   // the authenticated server-side session by requireParticipant.
   router.get("/workshops", requireParticipant, async (_req: Request, res: Response) => {
     const result = await pool.query(
-      `SELECT w.id,w.title,w.location,w.starts_at,w.capacity,w.registration_closed,
+      `SELECT w.id,w.title,w.location,w.starts_at,w.capacity,w.registration_deadline,w.registration_closed,
               GREATEST(w.capacity-COUNT(r.id)::int,0)::int AS remaining_seats,
               CASE WHEN (w.registration_closed OR w.starts_at IS NULL OR w.registration_deadline>w.starts_at) THEN false
                    ELSE COUNT(r.id)<w.capacity AND $1::timestamptz<COALESCE(w.registration_deadline,w.starts_at) END AS registration_open

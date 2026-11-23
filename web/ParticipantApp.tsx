@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 type WorkshopSummary = {
   id: string; title: string; location: string; starts_at: string;
   capacity: number; remaining_seats: number; registration_open: boolean;
+  registration_deadline?: string | null;
   registration_closed?: boolean;
 };
 type Workshop = WorkshopSummary & {
@@ -146,6 +147,7 @@ export function ParticipantApp() {
         <p><strong>Location:</strong> {selected.location}</p>
         <p><strong>Starts:</strong> {displayTime(selected.starts_at)}</p>
         <p><strong>Ends:</strong> {displayTime(selected.ends_at)}</p>
+        <p><strong>Registration deadline:</strong> {displayTime(selected.registration_deadline ?? selected.starts_at)}{selected.registration_deadline ? "" : " (start time)"}</p>
         <p><strong>Seats remaining:</strong> {selected.remaining_seats} / {selected.capacity}</p>
         <p><strong>Registration:</strong> {selected.registration_closed ? "Closed" : selected.remaining_seats <= 0 ? "Full" : selected.registration_open ? "Open" : "Closed"}</p>
         <button type="button" disabled={registering || registeredWorkshopIds.has(selected.id) ||
@@ -157,6 +159,7 @@ export function ParticipantApp() {
         <p className="muted">No published workshops are available right now.</p> :
         <ul className="workshop-list">{workshops.map(workshop => <li key={workshop.id}>
           <h2>{workshop.title}</h2><p className="muted">{workshop.location} · {displayTime(workshop.starts_at)}</p>
+          <p><strong>Registration deadline:</strong> {displayTime(workshop.registration_deadline ?? workshop.starts_at)}{workshop.registration_deadline ? "" : " (start time)"}</p>
           <p>Seats remaining: {workshop.remaining_seats} / {workshop.capacity}</p>
           <p><strong>Registration:</strong> {workshop.registration_closed ? "Closed" : workshop.remaining_seats <= 0 ? "Full" : workshop.registration_open ? "Open" : "Closed"}</p>
           <button type="button" onClick={() => { void viewDetails(workshop); }}>View details</button>

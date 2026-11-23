@@ -180,9 +180,10 @@ describe("F-07 real Chrome UI -> Express API -> PostgreSQL", () => {
       await page.click('button:has-text("Save Published Changes")');
       await page.waitForSelector('[role="alert"]:has-text("Capacity cannot be reduced below current active registrations")');
 
-      // 2. Save valid updated location & increased capacity (7)
+      // 2. Save valid updated location, increased capacity (7), and new deadline (2026-12-19T14:00 BKK = 2026-12-19T07:00Z)
       await page.fill('#pub-edit-location', 'Room 707-Updated');
       await page.fill('#pub-edit-capacity', '7');
+      await page.fill('#pub-edit-deadline', '2026-12-19T14:00');
       await page.click('button:has-text("Save Published Changes")');
       await page.waitForSelector('text=Published workshop updated');
       await page.waitForSelector('text=Room 707-Updated');
@@ -194,6 +195,18 @@ describe("F-07 real Chrome UI -> Express API -> PostgreSQL", () => {
       await page.waitForSelector('text=Room 707-Updated');
       await page.click('button:has-text("Edit workshop")');
       await page.waitForSelector('text=Active Registrations: 2 / 7');
+      await page.click('button:has-text("Sign out")');
+
+      // 4. R-02: Participant sees updated location, capacity, and visible registration deadline in discovery & detail
+      await page.waitForSelector('input[type="email"]');
+      await page.fill('input[type="email"]', participantAEmail);
+      await page.fill('input[type="password"]', password);
+      await page.click('button:has-text("Sign in")');
+      await page.waitForSelector('text=Room 707-Updated');
+      await page.waitForSelector('text=Seats remaining: 5 / 7');
+      await page.waitForSelector('text=Registration deadline: 2026-12-19 07:00:00Z');
+      await page.click('button:has-text("View details")');
+      await page.waitForSelector('text=Registration deadline: 2026-12-19 07:00:00Z');
     } finally {
       await context.close();
     }

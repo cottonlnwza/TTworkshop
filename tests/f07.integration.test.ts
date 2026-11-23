@@ -565,6 +565,86 @@ describe("F-07 Published Workshop Editing & Atomic Capacity Guard (PostgreSQL in
     expect(dbRow.rows[0].title).toBe("Protected F07");
   });
 
+  it("R-01: metadata-only partial PATCH preserves exact PostgreSQL microsecond timestamps on a locked workshop, distinguishes omitted vs null deadline, and compares schedule at storage precision", async () => {
+    const workshopId = await seedWorkshop({
+      title: "Microsecond Workshop",
+      location: "Room Micro-1",
+      startsAt: "2026-12-15T10:00:00.123456Z",
+      endsAt: "2026-12-15T12:00:00.654321Z",
+      deadline: "2026-12-14T18:00:00.789123Z"
+    });
+    await seedRegistration(workshopId, ids.participantA, "ACTIVE");
+    const orgCookie = await login(emails.organizerA);
+
+    const readExactTimes = async () => {
+      const r = await pool.query<{
+        location: string;
+        starts_us: string;
+        ends_us: string;
+        deadline_us: string | null;
+      }>(
+        "SELECT location, " +
+        "to_char(starts_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS starts_us, " +
+        "to_char(ends_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS ends_us, " +
+        "CASE WHEN registration_deadline IS NULL THEN NULL ELSE " +
+        "to_char(registration_deadline AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') END AS deadline_us " +
+        "FROM workshops WHERE id = $1",
+        [workshopId]
+      );
+      return r.rows[0]!;
+    };
+
+    // 1. Metadata-only PATCH omits starts_at, ends_at, registration_deadline -> zero microsecond truncation
+    const locOnly = await request(app)
+      .patch(`/api/v1/organizer/workshops/${workshopId}`)
+      .set("Origin", origin)
+      .set("Cookie", orgCookie)
+      .send({ location: "Room Micro-2" });
+    expect(locOnly.status).toBe(200);
+    const afterLoc = await readExactTimes();
+    expect(afterLoc.location).toBe("Room Micro-2");
+    expect(afterLoc.starts_us).toBe("2026-12-15T10:00:00.123456Z");
+    expect(afterLoc.ends_us).toBe("2026-12-15T12:00:00.654321Z");
+    expect(afterLoc.deadline_us).toBe("2026-12-14T18:00:00.789123Z");
+
+    // 2. Supplying millisecond-truncated starts_at (.123Z != .123456Z) on a locked workshop -> 409 SCHEDULE_LOCKED
+    const truncatedStart = await request(app)
+      .patch(`/api/v1/organizer/workshops/${workshopId}`)
+      .set("Origin", origin)
+      .set("Cookie", orgCookie)
+      .send({ starts_at: "2026-12-15T10:00:00.123Z", location: "Room Should-Not-Save" });
+    expect(truncatedStart.status).toBe(409);
+    expect(truncatedStart.body.error.code).toBe("SCHEDULE_LOCKED");
+    const afterReject = await readExactTimes();
+    expect(afterReject.location).toBe("Room Micro-2");
+    expect(afterReject.starts_us).toBe("2026-12-15T10:00:00.123456Z");
+
+    // 3. Supplying exact microsecond instant (different offset) on a locked workshop -> unchanged -> 200, microseconds preserved
+    const exactSameOffset = await request(app)
+      .patch(`/api/v1/organizer/workshops/${workshopId}`)
+      .set("Origin", origin)
+      .set("Cookie", orgCookie)
+      .send({ starts_at: "2026-12-15T17:00:00.123456+07:00", location: "Room Micro-3" });
+    expect(exactSameOffset.status).toBe(200);
+    const afterExact = await readExactTimes();
+    expect(afterExact.location).toBe("Room Micro-3");
+    expect(afterExact.starts_us).toBe("2026-12-15T10:00:00.123456Z");
+    expect(afterExact.ends_us).toBe("2026-12-15T12:00:00.654321Z");
+    expect(afterExact.deadline_us).toBe("2026-12-14T18:00:00.789123Z");
+
+    // 4. Explicit registration_deadline: null clears deadline while keeping exact starts_at/ends_at microseconds
+    const explicitNull = await request(app)
+      .patch(`/api/v1/organizer/workshops/${workshopId}`)
+      .set("Origin", origin)
+      .set("Cookie", orgCookie)
+      .send({ registration_deadline: null });
+    expect(explicitNull.status).toBe(200);
+    const afterNull = await readExactTimes();
+    expect(afterNull.deadline_us).toBeNull();
+    expect(afterNull.starts_us).toBe("2026-12-15T10:00:00.123456Z");
+    expect(afterNull.ends_us).toBe("2026-12-15T12:00:00.654321Z");
+  });
+
   it("STS-F07-09: edited PUBLISHED workshop persists across a real API process restart while DRAFT updates and double-publish 409 stay intact", async () => {
     const workshopId = await seedWorkshop({ title: "Before Restart", location: "Room Old", capacity: 4 });
     const draftId = await seedWorkshop({ title: "Draft Intact", status: "DRAFT", capacity: 3 });
