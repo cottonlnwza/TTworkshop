@@ -90,15 +90,29 @@ describe("F-08 Event Check-in UI states", () => {
         starts_at: "2026-12-15T10:00:00.000Z"
       }
     };
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => ({ data: [checkedInReg], pagination: { next_cursor: null } })
-    }));
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: [checkedInReg], pagination: { next_cursor: null } })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: checkedInReg })
+      })
+    );
 
-    render(<ParticipantRegistrationViews />);
+    const { unmount } = render(<ParticipantRegistrationViews />);
     expect(await screen.findByText(/Checked in/i)).toBeTruthy();
     const cancelBtn = screen.getByRole("button", { name: "Cancel registration" }) as HTMLButtonElement;
     expect(cancelBtn.disabled).toBe(true);
+    unmount();
+
+    // Detail view (/my-registrations/:id) also displays Checked in and disables Cancel registration
+    render(<ParticipantRegistrationViews registrationId="201" />);
+    expect(await screen.findByText(/Checked in/i)).toBeTruthy();
+    const detailCancelBtn = screen.getByRole("button", { name: "Cancel registration" }) as HTMLButtonElement;
+    expect(detailCancelBtn.disabled).toBe(true);
   });
 });

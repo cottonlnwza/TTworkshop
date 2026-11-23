@@ -28,13 +28,15 @@ export function createRegistrationRouter(
     if (!identity) return res.status(500).json(fail("INTERNAL", "Internal error"));
     const result = await pool.query<{
       id: string; workshop_id: string; title: string; starts_at: Date;
-      status: string; registered_at: string; cancelled_at: string | null;
+      status: string; registered_at: string; cancelled_at: string | null; checked_in_at: string | null;
     }>(
       "SELECT r.id::text AS id,r.workshop_id::text AS workshop_id,w.title,w.starts_at," +
       "r.status,to_char(r.registered_at AT TIME ZONE 'UTC'," +
       "'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS registered_at," +
       "CASE WHEN r.cancelled_at IS NULL THEN NULL ELSE " +
-      "to_char(r.cancelled_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') END AS cancelled_at " +
+      "to_char(r.cancelled_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') END AS cancelled_at," +
+      "CASE WHEN r.checked_in_at IS NULL THEN NULL ELSE " +
+      "to_char(r.checked_in_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') END AS checked_in_at " +
       "FROM registrations r JOIN workshops w ON w.id=r.workshop_id " +
       "WHERE r.participant_user_id=$1 " +
       "AND ($2::timestamptz IS NULL OR (r.registered_at,r.id)<($2::timestamptz,$3::bigint)) " +
@@ -48,7 +50,8 @@ export function createRegistrationRouter(
       workshop: { workshop_id: row.workshop_id, title: row.title, starts_at: row.starts_at },
       status: row.status,
       registered_at: row.registered_at,
-      cancelled_at: row.cancelled_at
+      cancelled_at: row.cancelled_at,
+      checked_in_at: row.checked_in_at
     }));
     const last = rows.at(-1);
     res.status(200).json({
@@ -64,13 +67,15 @@ export function createRegistrationRouter(
     if (!identity) return res.status(500).json(fail("INTERNAL", "Internal error"));
     const result = await pool.query<{
       id: string; workshop_id: string; title: string; starts_at: Date;
-      status: string; registered_at: string; cancelled_at: string | null;
+      status: string; registered_at: string; cancelled_at: string | null; checked_in_at: string | null;
     }>(
       "SELECT r.id::text AS id,r.workshop_id::text AS workshop_id,w.title,w.starts_at," +
       "r.status,to_char(r.registered_at AT TIME ZONE 'UTC'," +
       "'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS registered_at," +
       "CASE WHEN r.cancelled_at IS NULL THEN NULL ELSE " +
-      "to_char(r.cancelled_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') END AS cancelled_at " +
+      "to_char(r.cancelled_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') END AS cancelled_at," +
+      "CASE WHEN r.checked_in_at IS NULL THEN NULL ELSE " +
+      "to_char(r.checked_in_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') END AS checked_in_at " +
       "FROM registrations r JOIN workshops w ON w.id=r.workshop_id " +
       "WHERE r.id=$1 AND r.participant_user_id=$2",
       [id, identity.id]
@@ -83,7 +88,8 @@ export function createRegistrationRouter(
         workshop: { workshop_id: row.workshop_id, title: row.title, starts_at: row.starts_at },
         status: row.status,
         registered_at: row.registered_at,
-        cancelled_at: row.cancelled_at
+        cancelled_at: row.cancelled_at,
+        checked_in_at: row.checked_in_at
       }
     });
   });
@@ -214,12 +220,15 @@ export function createRegistrationRouter(
       const pagination = parseRegistrationPagination(req.query);
       if (!pagination) return res.status(400).json(fail("INVALID_PAGINATION", "Invalid pagination parameters"));
       const result = await pool.query<{
-        id: string; participant_user_id: string; status: string; registered_at: string; cancelled_at: string | null;
+        id: string; participant_user_id: string; status: string;
+        registered_at: string; cancelled_at: string | null; checked_in_at: string | null;
       }>(
         "SELECT r.id::text AS id,r.participant_user_id::text AS participant_user_id,r.status," +
         "to_char(r.registered_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS registered_at," +
         "CASE WHEN r.cancelled_at IS NULL THEN NULL ELSE " +
-        "to_char(r.cancelled_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') END AS cancelled_at " +
+        "to_char(r.cancelled_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') END AS cancelled_at," +
+        "CASE WHEN r.checked_in_at IS NULL THEN NULL ELSE " +
+        "to_char(r.checked_in_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') END AS checked_in_at " +
         "FROM registrations r WHERE r.workshop_id=$1 " +
         "AND ($2::timestamptz IS NULL OR (r.registered_at,r.id)<($2::timestamptz,$3::bigint)) " +
         "ORDER BY r.registered_at DESC,r.id DESC LIMIT $4",
@@ -232,13 +241,125 @@ export function createRegistrationRouter(
         participant_id: row.participant_user_id,
         status: row.status,
         registered_at: row.registered_at,
-        cancelled_at: row.cancelled_at
+        cancelled_at: row.cancelled_at,
+        checked_in_at: row.checked_in_at
       }));
       const last = rows.at(-1);
       res.status(200).json({
         data,
         pagination: { next_cursor: hasMore && last ? encodeRegistrationCursor(last) : null }
       });
+    });
+
+  // POST /api/v1/organizer/workshops/:workshopId/registrations/:registrationId/check-in (F-08 / BR-14 / DEC-09)
+  router.post("/organizer/workshops/:workshopId/registrations/:registrationId/check-in",
+    noStore, requireOrganizer, requireOrigin, async (req: Request, res: Response, next) => {
+      const workshopId = Array.isArray(req.params.workshopId) ? req.params.workshopId[0] ?? "" : req.params.workshopId;
+      const registrationId = Array.isArray(req.params.registrationId) ? req.params.registrationId[0] ?? "" : req.params.registrationId;
+      if (!validId(workshopId) || !validId(registrationId)) {
+        return res.status(404).json(fail("NOT_FOUND", "Workshop or registration not found"));
+      }
+      const identity = (req as Request & { identity?: { id: string } }).identity;
+      if (!identity) return res.status(500).json(fail("INTERNAL", "Internal error"));
+
+      const client = await pool.connect();
+      let inTransaction = false;
+      try {
+        await client.query("BEGIN");
+        inTransaction = true;
+
+        // Acquire workshops FOR UPDATE before registrations FOR UPDATE (matches F-03/F-05/F-07 lock order).
+        const ws = await client.query<{ id: string; status: string }>(
+          "SELECT id::text AS id, status FROM workshops WHERE id=$1 AND owner_user_id=$2 FOR UPDATE",
+          [workshopId, identity.id]
+        );
+        if (!ws.rowCount) {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(404).json(fail("NOT_FOUND", "Workshop not found"));
+        }
+        if (ws.rows[0]!.status !== "PUBLISHED") {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(409).json(fail("INVALID_STATE", "Only published workshops support check-in"));
+        }
+
+        const reg = await client.query<{ id: string; status: string; checked_in_at: Date | null }>(
+          "SELECT id::text AS id, status, checked_in_at " +
+          "FROM registrations WHERE id=$1 AND workshop_id=$2 FOR UPDATE",
+          [registrationId, workshopId]
+        );
+        if (!reg.rowCount) {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(404).json(fail("NOT_FOUND", "Registration not found"));
+        }
+        const regRow = reg.rows[0]!;
+        if (regRow.status !== "ACTIVE") {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(409).json(fail("INVALID_STATE", "Only ACTIVE registrations can be checked in"));
+        }
+        if (regRow.checked_in_at !== null) {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(409).json(fail("ALREADY_CHECKED_IN", "Registration is already checked in"));
+        }
+
+        // Sample time AFTER acquiring both FOR UPDATE locks and evaluate inclusive [starts_at, ends_at]
+        // directly in PostgreSQL TIMESTAMPTZ precision (DEC-09 §1.2).
+        const lockedNowIso = now().toISOString();
+        const win = await client.query<{ invalid_window: boolean; before_start: boolean; after_end: boolean }>(
+          "SELECT (starts_at IS NULL OR ends_at IS NULL) AS invalid_window, " +
+          "($2::timestamptz < starts_at) AS before_start, " +
+          "($2::timestamptz > ends_at) AS after_end " +
+          "FROM workshops WHERE id=$1",
+          [workshopId, lockedNowIso]
+        );
+        const wCheck = win.rows[0]!;
+        if (wCheck.invalid_window) {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(409).json(fail("INVALID_STATE", "Workshop schedule is invalid for check-in"));
+        }
+        if (wCheck.before_start) {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(409).json(fail("CHECKIN_WINDOW_CLOSED", "Check-in has not opened yet"));
+        }
+        if (wCheck.after_end) {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(409).json(fail("CHECKIN_WINDOW_CLOSED", "Check-in window has closed"));
+        }
+
+        const updated = await client.query<{
+          registration_id: string; participant_id: string; status: string;
+          registered_at: string; cancelled_at: string | null; checked_in_at: string;
+        }>(
+          "UPDATE registrations SET checked_in_at=$3::timestamptz " +
+          "WHERE id=$1 AND workshop_id=$2 AND status='ACTIVE' AND checked_in_at IS NULL " +
+          "RETURNING id::text AS registration_id, participant_user_id::text AS participant_id, status," +
+          "to_char(registered_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS registered_at," +
+          "CASE WHEN cancelled_at IS NULL THEN NULL ELSE " +
+          "to_char(cancelled_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') END AS cancelled_at," +
+          "to_char(checked_in_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS checked_in_at",
+          [registrationId, workshopId, lockedNowIso]
+        );
+        if (!updated.rowCount) {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(409).json(fail("ALREADY_CHECKED_IN", "Registration is already checked in"));
+        }
+        await client.query("COMMIT");
+        inTransaction = false;
+        return res.status(200).json({ data: updated.rows[0] });
+      } catch (error) {
+        if (inTransaction) await client.query("ROLLBACK").catch(() => undefined);
+        return next(error);
+      } finally {
+        client.release();
+      }
     });
 
   // Participant-only published discovery. The caller's role is derived from
