@@ -1,6 +1,6 @@
 # F-09 — Workshop Filtering and Attendance Reporting
 
-> **PROPOSED pre-implementation contract v0.1.1 — PENDING INDEPENDENT PEER REVIEW — 2026-11-23** · Contracts [Issue #70 (`P2-C2`)](https://github.com/cottonlnwza/TTworkshop/issues/70) · Planned Sprint 3 Implementations **`P3-01`** (Filtering & Search) and **`P3-02`** (Attendance Summary & NFR-04/05 Verification)
+> **PROPOSED pre-implementation contract v0.1.2 — PENDING INDEPENDENT PEER REVIEW — 2026-11-23** · Contracts [Issue #70 (`P2-C2`)](https://github.com/cottonlnwza/TTworkshop/issues/70) · Planned Sprint 3 Implementations **`P3-01`** (Filtering & Search) and **`P3-02`** (Attendance Summary & NFR-04/05 Verification)
 > Source: `docs/srs.md` FR-14, FR-15, BR-01, BR-15, NFR-01, NFR-04, NFR-05; `docs/features.md` F-09; `docs/system-sds.md` §§3–6; proposed scoped policy [`DEC-09`](../decisions/dec-09-checkin-reporting-filtering.md) and accepted [`DEC-04`](../decisions/dec-04-workshop-time.md), [`DEC-11`](../decisions/dec-11-published-workshop-discovery-access.md). **No `F-09` application code has been written and zero `F-09` STS have been executed.** This draft does not assert global SRS/SDS or instructor approval.
 
 ## 1. Purpose, dependencies, and boundaries
@@ -23,7 +23,7 @@
    - Authenticate `PARTICIPANT` (`401`/`403`, preserving `DEC-11`).
    - Parse optional query parameters:
      - `q`: trim; if length > 100 → `400 VALIDATION`. Escape literal backslash (`\`), percent (`%`), and underscore (`_`) in the bound parameter (`%` + `q.replace(/([\\_%])/g, "\\$1")` + `%`) and filter with a **single-character** PostgreSQL `ESCAPE` literal under default `standard_conforming_strings = on`:
-       - Raw SQL: `w.title ILIKE $p ESCAPE '\' OR w.location ILIKE $p ESCAPE '\' OR w.description ILIKE $p ESCAPE '\'` *(note: PostgreSQL requires a 1-character SQL escape literal; in TypeScript/JavaScript source strings this is written `"ESCAPE '\\\\'"` so the SQL sent to PostgreSQL contains a single `\`; sending raw SQL `ESCAPE '\\'` is rejected by PostgreSQL 15+ with `invalid escape string`)*.
+       - Raw SQL: `w.title ILIKE $p ESCAPE '\' OR w.location ILIKE $p ESCAPE '\' OR w.description ILIKE $p ESCAPE '\'` *(note: PostgreSQL requires a 1-character SQL escape literal; in TypeScript/JavaScript source strings this is written with two source backslashes as `"ESCAPE '\\'"` so the SQL sent to PostgreSQL contains a single `\`; sending raw SQL with two backslashes `ESCAPE '\\'` is rejected by PostgreSQL 15+ with SQLSTATE `22025` `invalid escape string`)*.
      - `availability`: optional `all` (default) | `open` | `full` | `closed`; any other value → `400 VALIDATION`.
        - `open`: `registration_open = true`.
        - `full`: `remaining_seats = 0`.
@@ -111,4 +111,5 @@ Base `/api/v1`. Success envelope `{"data": ...}`; failure envelope `{"error": {"
 
 **Change record:**
 - `v0.1` (2026-11-23, [Issue #70](https://github.com/cottonlnwza/TTworkshop/issues/70)): Initial pre-implementation Sprint 3 contract authored by `thananun-7203`; `PENDING INDEPENDENT PEER REVIEW` by `cottonlnwza`. Zero code or tests executed.
-- `v0.1.1` (2026-11-23, [PR #78](https://github.com/cottonlnwza/TTworkshop/pull/78) Round 1 `R-03` remediation): Explicitly distinguished single-character raw SQL `ESCAPE '\'` under PostgreSQL 15+ `standard_conforming_strings = on` from host-language JS/TS string escaping (`"ESCAPE '\\\\'"`), and expanded `STS-F09-01` to cover literal `%`, `_`, and `\` searches against look-alike non-matches. Still `PROPOSED / NOT EXECUTED`.
+- `v0.1.1` (2026-11-23, [PR #78](https://github.com/cottonlnwza/TTworkshop/pull/78) Round 1 `R-03` remediation): Explicitly distinguished single-character raw SQL `ESCAPE '\'` under PostgreSQL 15+ `standard_conforming_strings = on` from host-language JS/TS string escaping, and expanded `STS-F09-01` to cover literal `%`, `_`, and `\` searches against look-alike non-matches.
+- `v0.1.2` (2026-11-23, [PR #78](https://github.com/cottonlnwza/TTworkshop/pull/78) Round 2 `R-03` correction): Corrected the JS/TS source string example in §2.1 to use two source backslashes (`"ESCAPE '\\'"`), emitting a single `\` in the SQL sent to PostgreSQL. Still `PROPOSED / NOT EXECUTED`.
