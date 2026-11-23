@@ -245,15 +245,16 @@ export function createRegistrationRouter(
   // the authenticated server-side session by requireParticipant.
   router.get("/workshops", requireParticipant, async (_req: Request, res: Response) => {
     const result = await pool.query(
-      `SELECT w.id,w.title,w.location,w.starts_at,w.capacity,
+      `SELECT w.id,w.title,w.location,w.starts_at,w.capacity,w.registration_closed,
               GREATEST(w.capacity-COUNT(r.id)::int,0)::int AS remaining_seats,
-              CASE WHEN (w.starts_at IS NULL OR w.registration_deadline>w.starts_at) THEN false
-                   ELSE COUNT(r.id)<w.capacity AND now()<COALESCE(w.registration_deadline,w.starts_at) END AS registration_open
+              CASE WHEN (w.registration_closed OR w.starts_at IS NULL OR w.registration_deadline>w.starts_at) THEN false
+                   ELSE COUNT(r.id)<w.capacity AND $1::timestamptz<COALESCE(w.registration_deadline,w.starts_at) END AS registration_open
        FROM workshops w
        LEFT JOIN registrations r ON r.workshop_id=w.id AND r.status='ACTIVE'
        WHERE w.status='PUBLISHED'
        GROUP BY w.id
-       ORDER BY w.starts_at ASC,w.id ASC`
+       ORDER BY w.starts_at ASC,w.id ASC`,
+      [now()]
     );
     res.status(200).json({ data: result.rows });
   });
@@ -263,14 +264,14 @@ export function createRegistrationRouter(
     if (!validId(id)) return res.status(404).json(fail("NOT_FOUND", "Workshop not found"));
     const result = await pool.query(
       `SELECT w.id,w.title,w.description,w.location,w.starts_at,w.ends_at,w.capacity,
-              w.registration_deadline,w.status,
+              w.registration_deadline,w.registration_closed,w.status,
               GREATEST(w.capacity-COUNT(r.id)::int,0)::int AS remaining_seats,
-              CASE WHEN (w.starts_at IS NULL OR w.registration_deadline>w.starts_at) THEN false
-                   ELSE COUNT(r.id)<w.capacity AND now()<COALESCE(w.registration_deadline,w.starts_at) END AS registration_open
+              CASE WHEN (w.registration_closed OR w.starts_at IS NULL OR w.registration_deadline>w.starts_at) THEN false
+                   ELSE COUNT(r.id)<w.capacity AND $2::timestamptz<COALESCE(w.registration_deadline,w.starts_at) END AS registration_open
        FROM workshops w
        LEFT JOIN registrations r ON r.workshop_id=w.id AND r.status='ACTIVE'
        WHERE w.id=$1 AND w.status='PUBLISHED'
-       GROUP BY w.id`, [id]
+       GROUP BY w.id`, [id, now()]
     );
     if (!result.rowCount) return res.status(404).json(fail("NOT_FOUND", "Workshop not found"));
     res.status(200).json({ data: result.rows[0] });
@@ -293,9 +294,9 @@ export function createRegistrationRouter(
         inTransaction = true;
         const workshop = await client.query<{
           id: string; status: string; starts_at: Date | null;
-          registration_deadline: Date | null; capacity: number;
+          registration_deadline: Date | null; registration_closed: boolean; capacity: number;
         }>(
-          `SELECT id,status,starts_at,registration_deadline,capacity
+          `SELECT id,status,starts_at,registration_deadline,registration_closed,capacity
            FROM workshops WHERE id=$1 AND status='PUBLISHED' FOR UPDATE`, [id]
         );
         if (!workshop.rowCount) {
@@ -304,6 +305,11 @@ export function createRegistrationRouter(
           return res.status(404).json(fail("NOT_FOUND", "Workshop not found"));
         }
         const row = workshop.rows[0]!;
+        if (row.registration_closed) {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(409).json(fail("REGISTRATION_CLOSED", "Workshop registration is closed"));
+        }
         if (!row.starts_at || (row.registration_deadline && row.registration_deadline > row.starts_at)) {
           await client.query("ROLLBACK");
           inTransaction = false;

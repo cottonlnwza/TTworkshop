@@ -12,6 +12,7 @@ type Workshop = {
   capacity: number | null;
   status: "DRAFT" | "PUBLISHED";
   registration_deadline: string | null;
+  registration_closed?: boolean;
   created_at: string;
 };
 
@@ -233,9 +234,22 @@ export function OrganizerApp() {
                     <button onClick={() => { setSelectedId(w.id); setView("detail"); }}>Edit / Publish</button>
                   )}
                   {w.status === "PUBLISHED" && (
-                    <a href={"/organizer/workshops/" + encodeURIComponent(w.id) + "/registrations"}>
-                      View registrations
-                    </a>
+                    <>
+                      <p className="muted">
+                        Registration: {w.registration_closed ? "Manually Closed" : "Open"} · Deadline:{" "}
+                        {w.registration_deadline ? formatDisplay(w.registration_deadline) : "Default (start time)"}
+                      </p>
+                      <a href={"/organizer/workshops/" + encodeURIComponent(w.id) + "/registrations"}>
+                        View registrations
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedId(w.id); setView("detail"); }}
+                        style={{ marginLeft: "0.5rem" }}
+                      >
+                        Manage Registration
+                      </button>
+                    </>
                   )}
                 </li>
               ))}
@@ -336,6 +350,76 @@ function WorkshopDetail({ id, onPublish, onBack }: { id: string; onPublish: (id:
     }
   }
 
+  async function handleToggleRegistration(action: "close" | "reopen") {
+    if (!workshop || workshop.status !== "PUBLISHED" || saving) return;
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      const endpoint = action === "close" ? "close-registration" : "reopen-registration";
+      const res = await fetch(`${apiUrl}/organizer/workshops/${workshop.id}/${endpoint}`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", Origin: window.location.origin },
+        body: "{}"
+      });
+      const data: unknown = await res.json();
+      if (!res.ok) throw new Error(responseError(data, "Unable to update registration status"));
+      if (data && typeof data === "object" && "data" in data) {
+        setWorkshop(data.data as Workshop);
+      }
+      setSuccess(action === "close" ? "Registration closed" : "Registration reopened");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update registration status");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeadlineUpdate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!workshop || workshop.status !== "PUBLISHED" || saving) return;
+    const inputEl = event.currentTarget.elements.namedItem("registration_deadline") as HTMLInputElement | null;
+    if (inputEl?.validity?.badInput) {
+      setSuccess("");
+      setError("Please enter a valid registration deadline date and time.");
+      return;
+    }
+    const rawFromInput = inputEl ? inputEl.value : new FormData(event.currentTarget).get("registration_deadline");
+    const raw = typeof rawFromInput === "string" ? rawFromInput : "";
+    let registration_deadline: string | null = null;
+    if (raw !== "") {
+      const converted = localDateTimeToIso(raw.trim());
+      if (!converted) {
+        setSuccess("");
+        setError("Please enter a valid registration deadline date and time.");
+        return;
+      }
+      registration_deadline = converted;
+    }
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch(`${apiUrl}/organizer/workshops/${workshop.id}/registration-deadline`, {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", Origin: window.location.origin },
+        body: JSON.stringify({ registration_deadline })
+      });
+      const data: unknown = await res.json();
+      if (!res.ok) throw new Error(responseError(data, "Unable to update registration deadline"));
+      if (data && typeof data === "object" && "data" in data) {
+        setWorkshop(data.data as Workshop);
+      }
+      setSuccess("Registration deadline updated");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update registration deadline");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (loading) return <p>Loading...</p>;
   if (!workshop) return <p className="error">{error || "Not found"}</p>;
 
@@ -343,6 +427,10 @@ function WorkshopDetail({ id, onPublish, onBack }: { id: string; onPublish: (id:
     <section className="panel">
       <h2>{workshop.title || "Untitled Draft"}</h2>
       <p><strong>Status:</strong> {workshop.status}</p>
+      {workshop.status === "PUBLISHED" && (
+        <p><strong>Registration Status:</strong> {workshop.registration_closed ? "Manually Closed" : "Open"}</p>
+      )}
+      {!isEditing && error && <p role="alert" className="error">{error}</p>}
       {success && <p role="status" className="success">{success}</p>}
 
       {workshop.status === "DRAFT" && isEditing ? (
@@ -372,7 +460,7 @@ function WorkshopDetail({ id, onPublish, onBack }: { id: string; onPublish: (id:
           <p><strong>Start:</strong> {workshop.starts_at ? formatDisplay(workshop.starts_at) : "N/A"}</p>
           <p><strong>End:</strong> {workshop.ends_at ? formatDisplay(workshop.ends_at) : "N/A"}</p>
           <p><strong>Capacity:</strong> {workshop.capacity ?? "N/A"}</p>
-          <p><strong>Deadline:</strong> {workshop.registration_deadline ? formatDisplay(workshop.registration_deadline) : "N/A"}</p>
+          <p><strong>Deadline:</strong> {workshop.registration_deadline ? formatDisplay(workshop.registration_deadline) : workshop.status === "PUBLISHED" ? "Default (start time)" : "N/A"}</p>
           {workshop.status === "DRAFT" && (
             <>
               <button type="button" onClick={() => { setIsEditing(true); setError(""); }}>Edit Draft</button>
@@ -380,6 +468,30 @@ function WorkshopDetail({ id, onPublish, onBack }: { id: string; onPublish: (id:
                 Publish Workshop
               </button>
             </>
+          )}
+          {workshop.status === "PUBLISHED" && (
+            <div style={{ marginTop: "1rem" }}>
+              {workshop.registration_closed ? (
+                <button type="button" disabled={saving} onClick={() => { void handleToggleRegistration("reopen"); }}>
+                  {saving ? "Updating..." : "Reopen registration"}
+                </button>
+              ) : (
+                <button type="button" disabled={saving} onClick={() => { void handleToggleRegistration("close"); }}>
+                  {saving ? "Updating..." : "Close registration"}
+                </button>
+              )}
+              <form onSubmit={handleDeadlineUpdate} style={{ marginTop: "1rem" }} noValidate>
+                <label htmlFor="published-deadline">Update Registration Deadline (optional, blank = start time)</label>
+                <input
+                  key={`${workshop.id}:${workshop.registration_deadline ?? ""}`}
+                  id="published-deadline"
+                  name="registration_deadline"
+                  type="datetime-local"
+                  defaultValue={dateTimeLocal(workshop.registration_deadline)}
+                />
+                <button type="submit" disabled={saving}>{saving ? "Saving..." : "Update deadline"}</button>
+              </form>
+            </div>
           )}
         </>
       )}

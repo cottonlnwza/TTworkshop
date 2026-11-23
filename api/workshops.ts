@@ -3,6 +3,10 @@ import type { Pool } from "pg";
 
 type Identity = { id: string; email: string; role: "PARTICIPANT" | "ORGANIZER" };
 const fail = (code: string, message: string) => ({ error: { code, message } });
+const validId = (value: string): boolean => {
+  if (!/^[1-9]\d{0,18}$/.test(value)) return false;
+  return BigInt(value) <= 9223372036854775807n;
+};
 
 function parseDateTime(value: unknown): Date | null {
   if (typeof value !== "string") return null;
@@ -47,7 +51,8 @@ function invalidTextField(fields: {
 export function createWorkshopRouter(
   pool: Pool,
   requireOrigin: RequestHandler,
-  requireOrganizerWithIdentity: RequestHandler
+  requireOrganizerWithIdentity: RequestHandler,
+  now: () => Date = () => new Date()
 ) {
   const router = Router();
   // Browsers control the Origin header and commonly omit it on same-origin GETs.
@@ -96,7 +101,7 @@ export function createWorkshopRouter(
       const result = await pool.query(
         `INSERT INTO workshops (owner_user_id, title, description, location, starts_at, ends_at, capacity, registration_deadline, status)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'DRAFT')
-         RETURNING id, owner_user_id, title, description, location, starts_at, ends_at, capacity, status, registration_deadline, created_at`,
+         RETURNING id, owner_user_id, title, description, location, starts_at, ends_at, capacity, status, registration_deadline, registration_closed, created_at`,
         [identity.id, title || null, description || null, location || null, start, end, cap, deadline]
       );
       res.status(201).json({ data: result.rows[0] });
@@ -109,7 +114,7 @@ export function createWorkshopRouter(
   router.get("/organizer/workshops", requireReadOrigin, requireOrganizerWithIdentity, async (req: Request, res: Response) => {
     const identity = (req as any).identity as Identity;
     const result = await pool.query(
-      `SELECT id, owner_user_id, title, description, location, starts_at, ends_at, capacity, status, registration_deadline, created_at
+      `SELECT id, owner_user_id, title, description, location, starts_at, ends_at, capacity, status, registration_deadline, registration_closed, created_at
        FROM workshops WHERE owner_user_id = $1 ORDER BY created_at DESC`,
       [identity.id]
     );
@@ -121,7 +126,7 @@ export function createWorkshopRouter(
     const identity = (req as any).identity as Identity;
     const { id } = req.params;
     const result = await pool.query(
-      `SELECT id, owner_user_id, title, description, location, starts_at, ends_at, capacity, status, registration_deadline, created_at
+      `SELECT id, owner_user_id, title, description, location, starts_at, ends_at, capacity, status, registration_deadline, registration_closed, created_at
        FROM workshops WHERE id = $1 AND owner_user_id = $2`,
       [id, identity.id]
     );
@@ -249,7 +254,7 @@ export function createWorkshopRouter(
       const result = await client.query(
         `UPDATE workshops SET status = 'PUBLISHED', updated_at = now()
          WHERE id = $1 AND owner_user_id = $2 AND status = 'DRAFT'
-         RETURNING id, owner_user_id, title, description, location, starts_at, ends_at, capacity, status, registration_deadline, updated_at`,
+         RETURNING id, owner_user_id, title, description, location, starts_at, ends_at, capacity, status, registration_deadline, registration_closed, updated_at`,
         [id, identity.id]
       );
       if (!result.rowCount) {
@@ -261,6 +266,159 @@ export function createWorkshopRouter(
     } catch (err) {
       await client.query("ROLLBACK").catch(() => undefined);
       return res.status(500).json(fail("INTERNAL", "Failed to publish workshop"));
+    } finally {
+      client.release();
+    }
+  });
+
+  // POST /api/v1/organizer/workshops/:id/close-registration - Manual closure (F-06 / BR-10)
+  router.post("/organizer/workshops/:id/close-registration", requireOrigin, requireOrganizerWithIdentity, async (req: Request, res: Response) => {
+    const identity = (req as any).identity as Identity;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] ?? "" : req.params.id;
+    if (!validId(id)) return res.status(404).json(fail("NOT_FOUND", "Workshop not found or access denied"));
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const current = await client.query<{ status: string; registration_closed: boolean }>(
+        "SELECT status, registration_closed FROM workshops WHERE id = $1 AND owner_user_id = $2 FOR UPDATE",
+        [id, identity.id]
+      );
+      if (!current.rowCount) {
+        await client.query("ROLLBACK");
+        return res.status(404).json(fail("NOT_FOUND", "Workshop not found or access denied"));
+      }
+      const w = current.rows[0]!;
+      if (w.status !== "PUBLISHED") {
+        await client.query("ROLLBACK");
+        return res.status(409).json(fail("INVALID_STATE", "Only published workshops can close registration"));
+      }
+      if (w.registration_closed) {
+        await client.query("ROLLBACK");
+        return res.status(409).json(fail("INVALID_STATE", "Registration is already closed"));
+      }
+      const updated = await client.query(
+        `UPDATE workshops SET registration_closed = true, updated_at = now()
+         WHERE id = $1 AND owner_user_id = $2 AND status = 'PUBLISHED'
+         RETURNING id, owner_user_id, title, description, location, starts_at, ends_at, capacity, status, registration_deadline, registration_closed, updated_at`,
+        [id, identity.id]
+      );
+      await client.query("COMMIT");
+      return res.status(200).json({ data: updated.rows[0] });
+    } catch {
+      await client.query("ROLLBACK").catch(() => undefined);
+      return res.status(500).json(fail("INTERNAL", "Failed to close registration"));
+    } finally {
+      client.release();
+    }
+  });
+
+  // POST /api/v1/organizer/workshops/:id/reopen-registration - Manual reopen (F-06 / BR-11)
+  router.post("/organizer/workshops/:id/reopen-registration", requireOrigin, requireOrganizerWithIdentity, async (req: Request, res: Response) => {
+    const identity = (req as any).identity as Identity;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] ?? "" : req.params.id;
+    if (!validId(id)) return res.status(404).json(fail("NOT_FOUND", "Workshop not found or access denied"));
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const current = await client.query<{
+        status: string; starts_at: Date | null; registration_deadline: Date | null; registration_closed: boolean;
+      }>(
+        "SELECT status, starts_at, registration_deadline, registration_closed FROM workshops WHERE id = $1 AND owner_user_id = $2 FOR UPDATE",
+        [id, identity.id]
+      );
+      if (!current.rowCount) {
+        await client.query("ROLLBACK");
+        return res.status(404).json(fail("NOT_FOUND", "Workshop not found or access denied"));
+      }
+      const w = current.rows[0]!;
+      if (w.status !== "PUBLISHED") {
+        await client.query("ROLLBACK");
+        return res.status(409).json(fail("INVALID_STATE", "Only published workshops can reopen registration"));
+      }
+      if (!w.registration_closed) {
+        await client.query("ROLLBACK");
+        return res.status(409).json(fail("INVALID_STATE", "Registration is already open"));
+      }
+      if (!w.starts_at || (w.registration_deadline && w.registration_deadline > w.starts_at)) {
+        await client.query("ROLLBACK");
+        return res.status(409).json(fail("INVALID_DEADLINE", "Workshop registration deadline is invalid"));
+      }
+      const effectiveDeadline = w.registration_deadline ?? w.starts_at;
+      if (now().getTime() >= effectiveDeadline.getTime()) {
+        await client.query("ROLLBACK");
+        return res.status(409).json(fail("DEADLINE_PASSED", "Registration deadline has passed"));
+      }
+      const updated = await client.query(
+        `UPDATE workshops SET registration_closed = false, updated_at = now()
+         WHERE id = $1 AND owner_user_id = $2 AND status = 'PUBLISHED'
+         RETURNING id, owner_user_id, title, description, location, starts_at, ends_at, capacity, status, registration_deadline, registration_closed, updated_at`,
+        [id, identity.id]
+      );
+      await client.query("COMMIT");
+      return res.status(200).json({ data: updated.rows[0] });
+    } catch {
+      await client.query("ROLLBACK").catch(() => undefined);
+      return res.status(500).json(fail("INTERNAL", "Failed to reopen registration"));
+    } finally {
+      client.release();
+    }
+  });
+
+  // PATCH /api/v1/organizer/workshops/:id/registration-deadline - Published deadline update (F-06 / BR-08)
+  router.patch("/organizer/workshops/:id/registration-deadline", requireOrigin, requireOrganizerWithIdentity, async (req: Request, res: Response) => {
+    const identity = (req as any).identity as Identity;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] ?? "" : req.params.id;
+    if (!validId(id)) return res.status(404).json(fail("NOT_FOUND", "Workshop not found or access denied"));
+
+    const body = req.body && typeof req.body === "object" ? req.body as Record<string, unknown> : {};
+    if (!Object.prototype.hasOwnProperty.call(body, "registration_deadline")) {
+      return res.status(400).json(fail("VALIDATION", "registration_deadline is required"));
+    }
+    const rawDeadline = body.registration_deadline;
+    const deadline = rawDeadline === null ? null : parseDateTime(rawDeadline);
+    if (rawDeadline !== null && !deadline) {
+      return res.status(400).json(fail("VALIDATION", "Date-times must be valid ISO 8601 values with an explicit offset"));
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const current = await client.query<{
+        status: string; starts_at: Date | null; ends_at: Date | null;
+      }>(
+        "SELECT status, starts_at, ends_at FROM workshops WHERE id = $1 AND owner_user_id = $2 FOR UPDATE",
+        [id, identity.id]
+      );
+      if (!current.rowCount) {
+        await client.query("ROLLBACK");
+        return res.status(404).json(fail("NOT_FOUND", "Workshop not found or access denied"));
+      }
+      const w = current.rows[0]!;
+      if (w.status !== "PUBLISHED") {
+        await client.query("ROLLBACK");
+        return res.status(409).json(fail("INVALID_STATE", "Only published workshops can update registration deadline here"));
+      }
+      if (w.ends_at && now().getTime() >= w.ends_at.getTime()) {
+        await client.query("ROLLBACK");
+        return res.status(409).json(fail("WORKSHOP_ENDED", "Workshop has already ended"));
+      }
+      if (deadline && w.starts_at && deadline > w.starts_at) {
+        await client.query("ROLLBACK");
+        return res.status(400).json(fail("VALIDATION", "Registration deadline cannot be later than start time"));
+      }
+      const updated = await client.query(
+        `UPDATE workshops SET registration_deadline = $3, updated_at = now()
+         WHERE id = $1 AND owner_user_id = $2 AND status = 'PUBLISHED'
+         RETURNING id, owner_user_id, title, description, location, starts_at, ends_at, capacity, status, registration_deadline, registration_closed, updated_at`,
+        [id, identity.id, deadline]
+      );
+      await client.query("COMMIT");
+      return res.status(200).json({ data: updated.rows[0] });
+    } catch {
+      await client.query("ROLLBACK").catch(() => undefined);
+      return res.status(500).json(fail("INTERNAL", "Failed to update registration deadline"));
     } finally {
       client.release();
     }

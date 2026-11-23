@@ -106,7 +106,7 @@ export function createApp(pool: Pool, options: Options) {
     next();
   };
 
-  const workshopRouter = createWorkshopRouter(pool, requireOrigin, requireOrganizerWithIdentity);
+  const workshopRouter = createWorkshopRouter(pool, requireOrigin, requireOrganizerWithIdentity, options.now);
   app.use("/api/v1", workshopRouter);
   const registrationRouter = createRegistrationRouter(
     pool, requireRole("PARTICIPANT"), requireOrigin, requireRole("ORGANIZER"), options.now
