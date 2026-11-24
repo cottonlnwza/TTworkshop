@@ -1,6 +1,6 @@
 # DEC-14 — Cross-Workshop Schedule-Conflict Prevention (`BR-05b`) & Advisory Lock Serialization
 
-> **v0.1.1 — PROPOSED / PENDING INDEPENDENT PEER REVIEW (PR #86 Round 2 `R-02`/`R-03` remediation) — 2026-11-24 (Asia/Bangkok)**
+> **v0.2.0 — ACCEPTED FOR `L7-01` STAGING SCOPE (`421705d3`); `L7-02` IMPLEMENTATION PR CANDIDATE (`0389eee7`, AUTHOR-LOCAL PASS; HOSTED CI/REVIEW PENDING) — 2026-11-25 (Asia/Bangkok)**
 > Owner scope: [Issue #85 (`L7-01`)](https://github.com/cottonlnwza/TTworkshop/issues/85) · Implementation: [Issue #83 (`L7-02`)](https://github.com/cottonlnwza/TTworkshop/issues/83) · Release: [Issue #84 (`L7-03`)](https://github.com/cottonlnwza/TTworkshop/issues/84)
 > Linked requirements: `FR-07`, `BR-01`, `BR-05` (preserved), **`BR-05b`** (new), `BR-06`, `BR-09`, `BR-12`, `BR-16`; `NFR-01`, `NFR-02`, `NFR-03`
 > Baseline references: Accepted Sprint 1 baseline (`main@4efbcfac51872b3b78542c35cc01c24182`, Cloud Run `ttworkshop-00017-poy`, original D1 `3f5ec15a1bc2a94d1b16003e1baa531dff4a7256`) · Deliverable 2 `main` anchor (`b111ffcd114f03effd2175991b23d4f702362c3f`)
@@ -72,7 +72,7 @@ To preserve 100% of existing Sprint 1 (`F-03`) and Sprint 2 (`F-05`/`F-06`) erro
    - **Disjoint key space from migrations:** `api/migrate.ts` line 14 uses `pg_advisory_xact_lock(48033401)` (strictly positive `BIGINT`). Using `-($1::bigint)` maps all `users.id >= 1` bijectively into the strictly **negative `BIGINT` range** `[-9223372036854775807, -1]`:
      - **Zero collision** with migration lock `48033401` or any future positive system/job advisory lock IDs.
      - **Full `BIGINT` fidelity** across all PostgreSQL identity values (`1 .. 2^63 - 1`), avoiding `int4` truncation or hash collisions.
-     - **Least-privilege design rationale (`R-03`):** By PostgreSQL design, `pg_advisory_xact_lock` is a built-in advisory lock function requiring no `UPDATE` table privilege on `public.users` (unlike `SELECT ... FROM users FOR UPDATE`). Note: existing `tests/runtime-db-privileges.integration.test.ts` at this HEAD grants DML including `UPDATE` on `public.users` and covers startup/DDL and `schema_migrations` access; it does **not** yet exercise the proposed registration advisory lock under a role lacking `users` `UPDATE`. Runtime-role validation of the new advisory lock without `users` `UPDATE` privilege is **planned in `L7-02` (#83)** (`NOT EXECUTED`).
+     - **Least-privilege design rationale & `L7-02` verification (`R-03`):** By PostgreSQL design, `pg_advisory_xact_lock` is a built-in advisory lock function requiring no `UPDATE` table privilege on `public.users` (unlike `SELECT ... FROM users FOR UPDATE`). Existing `tests/runtime-db-privileges.integration.test.ts` covers startup/DDL/migration history under a role with `users` `UPDATE`; under `L7-02` (#83), a dedicated test (`ttworkshop_runtime_no_users_update_test`, lacking `public.users` `UPDATE`) verifies Author-locally on `0389eee7` that `SELECT ... FROM public.users FOR UPDATE` fails with `42501` while `pg_advisory_xact_lock(-($1::bigint))` succeeds (hosted PR CI & independent review pending).
      - **Automatic cleanup:** Transaction-scoped (`_xact_`) releases automatically on `COMMIT` or `ROLLBACK`.
 3. **Strict deadlock-free global lock hierarchy:**
    ```text
@@ -98,5 +98,5 @@ To preserve 100% of existing Sprint 1 (`F-03`) and Sprint 2 (`F-05`/`F-06`) erro
 ## 4. Consequences & Review Gate
 
 - **Zero DB migrations** (`db/migrations/` remains `001`–`005`); safe for Cloud Run / Cloud SQL deployment in `L7-03` (#84).
-- **Pre-implementation gate:** Requires independent six-axis review, `Formal APPROVE`, and merge of [Issue #85 (`L7-01`)](https://github.com/cottonlnwza/TTworkshop/issues/85) into `sprint_2_staging` by `cottonlnwza` **before** any test or code commit in [Issue #83 (`L7-02`)](https://github.com/cottonlnwza/TTworkshop/issues/83).
-- **Status:** `PROPOSED / PENDING INDEPENDENT PEER REVIEW` under `L7-01` (#85); `AC-F03-14`–`17` / `STS-F03-14`–`17` are **`PLANNED / NOT EXECUTED`**.
+- **Pre-implementation gate (`L7-01` #85):** **MET** — independently approved (6/6 axes) by `cottonlnwza` via [PR #86](https://github.com/cottonlnwza/TTworkshop/pull/86) (`65a5965c`) and merged into `sprint_2_staging@421705d3f0c8d7c4f489b573f8471621c2035098` (post-merge CI Run `#45445346823` PASS; #85 CLOSED).
+- **Implementation status (`L7-02` #83):** Author-local TDD `RED` (`70f67afe`) → `GREEN` (`24dfdfdd`) → full regression (`0389eee7`: `195/195` Vitest across 32 files including `STS-F03-14`–`17` and `R-03` runtime-role advisory-lock test without `users` `UPDATE`, `41/41` Python, `npm run build` PASS) recorded in [`docs/labs/lab-07/implementation-and-regression.md`](../labs/lab-07/implementation-and-regression.md). Hosted PR CI, independent review, and staging merge remain pending.
