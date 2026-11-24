@@ -369,4 +369,243 @@ describe("F-03 published discovery and capacity-safe registration", () => {
       await pool.query("ALTER TABLE workshops VALIDATE CONSTRAINT published_deadline");
     }
   });
+
+  it("STS-F03-14: BR-05b rejects overlapping ACTIVE workshops with 409 SCHEDULE_CONFLICT while preserving isolation and error precedence", async () => {
+    currentTime = new Date("2026-12-01T08:00:00.000Z");
+    const w1 = await seedWorkshop({
+      capacity: 5,
+      startsAt: new Date("2026-12-01T10:00:00.000Z"),
+      endsAt: new Date("2026-12-01T12:00:00.000Z")
+    });
+    const wPartial = await seedWorkshop({
+      capacity: 5,
+      startsAt: new Date("2026-12-01T11:00:00.000Z"),
+      endsAt: new Date("2026-12-01T13:00:00.000Z")
+    });
+    const wContained = await seedWorkshop({
+      capacity: 5,
+      startsAt: new Date("2026-12-01T10:30:00.000Z"),
+      endsAt: new Date("2026-12-01T11:30:00.000Z")
+    });
+    const wIdentical = await seedWorkshop({
+      capacity: 5,
+      startsAt: new Date("2026-12-01T10:00:00.000Z"),
+      endsAt: new Date("2026-12-01T12:00:00.000Z")
+    });
+    const wFull = await seedWorkshop({
+      capacity: 1,
+      startsAt: new Date("2026-12-01T11:00:00.000Z"),
+      endsAt: new Date("2026-12-01T13:00:00.000Z")
+    });
+    const wClosed = await seedWorkshop({
+      capacity: 5,
+      startsAt: new Date("2026-12-01T11:00:00.000Z"),
+      endsAt: new Date("2026-12-01T13:00:00.000Z")
+    });
+    await pool.query("UPDATE workshops SET registration_closed=true WHERE id=$1", [wClosed]);
+    const wExpired = await seedWorkshop({
+      capacity: 5,
+      startsAt: new Date("2026-12-01T11:00:00.000Z"),
+      endsAt: new Date("2026-12-01T13:00:00.000Z"),
+      deadline: new Date("2026-12-01T07:00:00.000Z")
+    });
+
+    const participantA = await login(participantEmails[0]!);
+    const participantB = await login(participantEmails[1]!);
+    const participantC = await login(participantEmails[2]!);
+
+    // Participant A registers for W1 (10:00-12:00Z).
+    expect((await request(app).post(`/api/v1/workshops/${w1}/registrations`)
+      .set("Origin", origin).set("Cookie", participantA).send({})).status).toBe(201);
+
+    // Partial, contained, and identical overlaps for Participant A are rejected (forged body ignored).
+    for (const conflictId of [wPartial, wContained, wIdentical]) {
+      const res = await request(app).post(`/api/v1/workshops/${conflictId}/registrations`)
+        .set("Origin", origin).set("Cookie", participantA)
+        .send({ participant_user_id: 999999 });
+      expect(res.status).toBe(409);
+      expect(res.body.error.code).toBe("SCHEDULE_CONFLICT");
+    }
+
+    // Participant B is not blocked by Participant A's ACTIVE registration.
+    expect((await request(app).post(`/api/v1/workshops/${wPartial}/registrations`)
+      .set("Origin", origin).set("Cookie", participantB).send({})).status).toBe(201);
+
+    // Fill wFull with independent Participant C, then verify preserved error precedence for Participant A.
+    expect((await request(app).post(`/api/v1/workshops/${wFull}/registrations`)
+      .set("Origin", origin).set("Cookie", participantC).send({})).status).toBe(201);
+
+    const dupSame = await request(app).post(`/api/v1/workshops/${w1}/registrations`)
+      .set("Origin", origin).set("Cookie", participantA).send({});
+    expect(dupSame.status).toBe(409);
+    expect(dupSame.body.error.code).toBe("DUPLICATE_ACTIVE");
+
+    const fullErr = await request(app).post(`/api/v1/workshops/${wFull}/registrations`)
+      .set("Origin", origin).set("Cookie", participantA).send({});
+    expect(fullErr.status).toBe(409);
+    expect(fullErr.body.error.code).toBe("CAPACITY_FULL");
+
+    const closedErr = await request(app).post(`/api/v1/workshops/${wClosed}/registrations`)
+      .set("Origin", origin).set("Cookie", participantA).send({});
+    expect(closedErr.status).toBe(409);
+    expect(closedErr.body.error.code).toBe("REGISTRATION_CLOSED");
+
+    const expiredErr = await request(app).post(`/api/v1/workshops/${wExpired}/registrations`)
+      .set("Origin", origin).set("Cookie", participantA).send({});
+    expect(expiredErr.status).toBe(409);
+    expect(expiredErr.body.error.code).toBe("DEADLINE_PASSED");
+
+    const userA = await pool.query("SELECT id FROM users WHERE email=$1", [participantEmails[0]]);
+    const countA = await pool.query(
+      "SELECT count(*)::int AS n FROM registrations WHERE participant_user_id=$1 AND status='ACTIVE'",
+      [userA.rows[0].id]
+    );
+    expect(countA.rows[0].n).toBe(1);
+  });
+
+  it("STS-F03-15: BR-05b permits two-direction back-to-back workshops and isolated F-05 cancellation releases sole overlap", async () => {
+    currentTime = new Date("2026-12-01T07:00:00.000Z");
+    const w1 = await seedWorkshop({
+      capacity: 5,
+      startsAt: new Date("2026-12-01T10:00:00.000Z"),
+      endsAt: new Date("2026-12-01T12:00:00.000Z")
+    });
+    const wAfter = await seedWorkshop({
+      capacity: 5,
+      startsAt: new Date("2026-12-01T12:00:00.000Z"),
+      endsAt: new Date("2026-12-01T14:00:00.000Z")
+    });
+    const wBefore = await seedWorkshop({
+      capacity: 5,
+      startsAt: new Date("2026-12-01T08:00:00.000Z"),
+      endsAt: new Date("2026-12-01T10:00:00.000Z")
+    });
+    const wOverlap = await seedWorkshop({
+      capacity: 5,
+      startsAt: new Date("2026-12-01T11:00:00.000Z"),
+      endsAt: new Date("2026-12-01T13:00:00.000Z")
+    });
+
+    // Fixture (a): Participant A verifies both back-to-back boundary directions.
+    const participantA = await login(participantEmails[0]!);
+    expect((await request(app).post(`/api/v1/workshops/${w1}/registrations`)
+      .set("Origin", origin).set("Cookie", participantA).send({})).status).toBe(201);
+    expect((await request(app).post(`/api/v1/workshops/${wAfter}/registrations`)
+      .set("Origin", origin).set("Cookie", participantA).send({})).status).toBe(201);
+    expect((await request(app).post(`/api/v1/workshops/${wBefore}/registrations`)
+      .set("Origin", origin).set("Cookie", participantA).send({})).status).toBe(201);
+
+    // Fixture (b): Isolated Participant B holds W1 as the sole ACTIVE overlap with W_overlap,
+    // cancels W1 via F-05, and registers for W_overlap while preserving W1's CANCELLED history row.
+    const participantB = await login(participantEmails[1]!);
+    const regW1 = await request(app).post(`/api/v1/workshops/${w1}/registrations`)
+      .set("Origin", origin).set("Cookie", participantB).send({});
+    expect(regW1.status).toBe(201);
+    const cancelRes = await request(app).post(`/api/v1/me/registrations/${regW1.body.data.id}/cancel`)
+      .set("Origin", origin).set("Cookie", participantB).send({});
+    expect(cancelRes.status).toBe(200);
+    expect(cancelRes.body.data.status).toBe("CANCELLED");
+
+    const regOverlap = await request(app).post(`/api/v1/workshops/${wOverlap}/registrations`)
+      .set("Origin", origin).set("Cookie", participantB).send({});
+    expect(regOverlap.status).toBe(201);
+    expect(regOverlap.body.data.status).toBe("ACTIVE");
+
+    const userB = await pool.query("SELECT id FROM users WHERE email=$1", [participantEmails[1]]);
+    const rowsB = await pool.query<{ workshop_id: string; status: string; cancelled_at: Date | null }>(
+      "SELECT workshop_id::text AS workshop_id, status, cancelled_at FROM registrations WHERE participant_user_id=$1 ORDER BY id ASC",
+      [userB.rows[0].id]
+    );
+    expect(rowsB.rows).toHaveLength(2);
+    expect(rowsB.rows[0]?.workshop_id).toBe(w1);
+    expect(rowsB.rows[0]?.status).toBe("CANCELLED");
+    expect(rowsB.rows[0]?.cancelled_at).not.toBeNull();
+    expect(rowsB.rows[1]?.workshop_id).toBe(wOverlap);
+    expect(rowsB.rows[1]?.status).toBe("ACTIVE");
+    expect(rowsB.rows[1]?.cancelled_at).toBeNull();
+  });
+
+  it("STS-F03-16: Concurrent dual-workshop overlapping requests by the same Participant commit exactly one ACTIVE row", async () => {
+    currentTime = new Date("2026-12-01T08:00:00.000Z");
+    const w1 = await seedWorkshop({
+      capacity: 5,
+      startsAt: new Date("2026-12-01T10:00:00.000Z"),
+      endsAt: new Date("2026-12-01T12:00:00.000Z")
+    });
+    const w2 = await seedWorkshop({
+      capacity: 5,
+      startsAt: new Date("2026-12-01T11:00:00.000Z"),
+      endsAt: new Date("2026-12-01T13:00:00.000Z")
+    });
+    const participantA = await login(participantEmails[0]!);
+
+    let release!: () => void;
+    const barrier = new Promise<void>(resolvePromise => { release = resolvePromise; });
+    const pending = [w1, w2].map(async workshopId => {
+      await barrier;
+      return request(app).post(`/api/v1/workshops/${workshopId}/registrations`)
+        .set("Origin", origin).set("Cookie", participantA).send({});
+    });
+    release();
+    const responses = await Promise.all(pending);
+
+    expect(responses.map(r => r.status).sort()).toEqual([201, 409]);
+    const rejected = responses.find(r => r.status === 409);
+    expect(rejected?.body.error.code).toBe("SCHEDULE_CONFLICT");
+
+    const userA = await pool.query("SELECT id FROM users WHERE email=$1", [participantEmails[0]]);
+    const activeRows = await pool.query(
+      "SELECT count(*)::int AS n FROM registrations WHERE participant_user_id=$1 AND status='ACTIVE'",
+      [userA.rows[0].id]
+    );
+    expect(activeRows.rows[0].n).toBe(1);
+  }, 30000);
+
+  it("R-01 (DEC-14): preserves exact PostgreSQL TIMESTAMPTZ microsecond precision for adjacency, sub-millisecond overlap, and sub-millisecond positive intervals", async () => {
+    currentTime = new Date("2026-12-01T08:00:00.000Z");
+    const organizer = await pool.query("SELECT id FROM users WHERE email='organizer@example.test'");
+    const ownerId = organizer.rows[0].id;
+    const seedExact = async (title: string, startsAtSql: string, endsAtSql: string): Promise<string> => {
+      const inserted = await pool.query<{ id: string }>(
+        `INSERT INTO workshops
+          (owner_user_id,title,description,location,starts_at,ends_at,capacity,registration_deadline,status)
+         VALUES ($1,$2,'Microsecond TIMESTAMPTZ fixture','Room US',$3::timestamptz,$4::timestamptz,5,NULL,'PUBLISHED')
+         RETURNING id::text AS id`,
+        [ownerId, title, startsAtSql, endsAtSql]
+      );
+      return inserted.rows[0]!.id;
+    };
+
+    // Case 1: exact microsecond back-to-back adjacency [10:00, 12:00:00.000400) vs [12:00:00.000400, 13:00) -> 201
+    const adjExisting = await seedExact("Adj Existing", "2026-12-01T10:00:00Z", "2026-12-01T12:00:00.000400Z");
+    const adjTarget = await seedExact("Adj Target", "2026-12-01T12:00:00.000400Z", "2026-12-01T13:00:00Z");
+    const participantA = await login(participantEmails[0]!);
+    expect((await request(app).post(`/api/v1/workshops/${adjExisting}/registrations`)
+      .set("Origin", origin).set("Cookie", participantA).send({})).status).toBe(201);
+    const adjRes = await request(app).post(`/api/v1/workshops/${adjTarget}/registrations`)
+      .set("Origin", origin).set("Cookie", participantA).send({});
+    expect(adjRes.status).toBe(201);
+
+    // Case 2: real 200-microsecond overlap [12:00:00.000200, 13:00) vs [11:00, 12:00:00.000400) -> 409 SCHEDULE_CONFLICT, 0 rows added
+    const ovExisting = await seedExact("Overlap Existing", "2026-12-01T12:00:00.000200Z", "2026-12-01T13:00:00Z");
+    const ovTarget = await seedExact("Overlap Target", "2026-12-01T11:00:00Z", "2026-12-01T12:00:00.000400Z");
+    const participantB = await login(participantEmails[1]!);
+    expect((await request(app).post(`/api/v1/workshops/${ovExisting}/registrations`)
+      .set("Origin", origin).set("Cookie", participantB).send({})).status).toBe(201);
+    const ovRes = await request(app).post(`/api/v1/workshops/${ovTarget}/registrations`)
+      .set("Origin", origin).set("Cookie", participantB).send({});
+    expect(ovRes.status).toBe(409);
+    expect(ovRes.body.error.code).toBe("SCHEDULE_CONFLICT");
+    const ovCount = await pool.query<{ n: number }>(
+      "SELECT count(*)::int AS n FROM registrations WHERE workshop_id=$1", [ovTarget]
+    );
+    expect(ovCount.rows[0]!.n).toBe(0);
+
+    // Case 3: valid 800-microsecond positive interval inside one millisecond [11:00:00.000100, 11:00:00.000900) -> 201
+    const subMsTarget = await seedExact("Sub-ms Target", "2026-12-01T11:00:00.000100Z", "2026-12-01T11:00:00.000900Z");
+    const participantC = await login(participantEmails[2]!);
+    const subMsRes = await request(app).post(`/api/v1/workshops/${subMsTarget}/registrations`)
+      .set("Origin", origin).set("Cookie", participantC).send({});
+    expect(subMsRes.status).toBe(201);
+  });
 });
