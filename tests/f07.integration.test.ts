@@ -317,9 +317,18 @@ describe("F-07 Published Workshop Editing & Atomic Capacity Guard (PostgreSQL in
     const orgCookie = await login(emails.organizerA);
     const partCookie = await login(emails.participantB);
 
-    // Run multiple synchronized rounds to exercise interleavings under FOR UPDATE
+    // Run multiple synchronized rounds to exercise interleavings under FOR UPDATE.
+    // Assign distinct non-overlapping daily slots per round so BR-05b (DEC-14)
+    // cross-workshop schedule-conflict checks do not reject later rounds for participantB.
     for (let round = 0; round < 5; round += 1) {
-      const workshopId = await seedWorkshop({ capacity: 2 });
+      const day = 15 + round;
+      const deadlineDay = 14 + round;
+      const workshopId = await seedWorkshop({
+        capacity: 2,
+        startsAt: `2026-12-${day}T10:00:00Z`,
+        endsAt: `2026-12-${day}T12:00:00Z`,
+        deadline: `2026-12-${deadlineDay}T18:00:00Z`
+      });
       await seedRegistration(workshopId, ids.participantA, "ACTIVE");
 
       const [patchRes, regRes] = await Promise.all([

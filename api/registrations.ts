@@ -398,7 +398,7 @@ export function createRegistrationRouter(
     res.status(200).json({ data: result.rows[0] });
   });
 
-  router.post("/workshops/:id/registrations", requireParticipant, requireOrigin,
+  router.post("/workshops/:id/registrations", noStore, requireParticipant, requireOrigin,
     async (req: Request, res: Response, next) => {
       const id = Array.isArray(req.params.id) ? req.params.id[0] ?? "" : req.params.id;
       if (!validId(id)) return res.status(404).json(fail("NOT_FOUND", "Workshop not found"));
@@ -413,11 +413,17 @@ export function createRegistrationRouter(
       try {
         await client.query("BEGIN");
         inTransaction = true;
+        // DEC-14 / BR-05b: serialize per-Participant registration writes using a
+        // negative BIGINT advisory lock disjoint from migration lock 48033401,
+        // acquired before workshops FOR UPDATE to keep a deadlock-free lock order.
+        await client.query("SELECT pg_advisory_xact_lock(-($1::bigint))", [identity.id]);
         const workshop = await client.query<{
-          id: string; status: string; starts_at: Date | null;
-          registration_deadline: Date | null; registration_closed: boolean; capacity: number;
+          id: string; status: string; registration_closed: boolean; capacity: number;
+          invalid_schedule: boolean;
         }>(
-          `SELECT id,status,starts_at,registration_deadline,registration_closed,capacity
+          `SELECT id,status,registration_closed,capacity,
+                  (starts_at IS NULL OR ends_at IS NULL OR ends_at <= starts_at
+                   OR (registration_deadline IS NOT NULL AND registration_deadline > starts_at)) AS invalid_schedule
            FROM workshops WHERE id=$1 AND status='PUBLISHED' FOR UPDATE`, [id]
         );
         if (!workshop.rowCount) {
@@ -431,13 +437,18 @@ export function createRegistrationRouter(
           inTransaction = false;
           return res.status(409).json(fail("REGISTRATION_CLOSED", "Workshop registration is closed"));
         }
-        if (!row.starts_at || (row.registration_deadline && row.registration_deadline > row.starts_at)) {
+        if (row.invalid_schedule) {
           await client.query("ROLLBACK");
           inTransaction = false;
           return res.status(409).json(fail("INVALID_DEADLINE", "Workshop registration deadline is invalid"));
         }
-        const effectiveDeadline = row.registration_deadline ?? row.starts_at;
-        if (now().getTime() >= effectiveDeadline.getTime()) {
+        // Sample time AFTER acquiring locks and evaluate effective deadline directly
+        // in PostgreSQL TIMESTAMPTZ precision (no JS Date microsecond truncation).
+        const deadlineCheck = await client.query<{ deadline_passed: boolean }>(
+          "SELECT ($2::timestamptz >= COALESCE(registration_deadline, starts_at)) AS deadline_passed FROM workshops WHERE id=$1",
+          [id, now().toISOString()]
+        );
+        if (deadlineCheck.rows[0]!.deadline_passed) {
           await client.query("ROLLBACK");
           inTransaction = false;
           return res.status(409).json(fail("DEADLINE_PASSED", "Registration deadline has passed"));
@@ -449,6 +460,40 @@ export function createRegistrationRouter(
           await client.query("ROLLBACK");
           inTransaction = false;
           return res.status(409).json(fail("CAPACITY_FULL", "Workshop capacity is full"));
+        }
+        // Preserve BR-05 DUPLICATE_ACTIVE precedence before BR-05b cross-workshop overlap.
+        const sameWorkshopActive = await client.query<{ id: string }>(
+          "SELECT id::text AS id FROM registrations WHERE workshop_id=$1 AND participant_user_id=$2 AND status='ACTIVE' LIMIT 1",
+          [id, identity.id]
+        );
+        if (sameWorkshopActive.rowCount) {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(409).json(fail("DUPLICATE_ACTIVE", "An active registration already exists"));
+        }
+        // DEC-14 / BR-05b (R-01): compare persisted existing and locked target intervals
+        // directly in PostgreSQL TIMESTAMPTZ precision (zero JS Date round-trip).
+        const overlapping = await client.query<{ workshop_id: string }>(
+          `SELECT r.workshop_id::text AS workshop_id
+           FROM registrations r
+           JOIN workshops w ON w.id = r.workshop_id
+           JOIN workshops t ON t.id = $2
+           WHERE r.participant_user_id = $1
+             AND r.status = 'ACTIVE'
+             AND r.workshop_id <> $2
+             AND w.starts_at IS NOT NULL
+             AND w.ends_at IS NOT NULL
+             AND w.starts_at < t.ends_at
+             AND t.starts_at < w.ends_at
+           LIMIT 1`,
+          [identity.id, id]
+        );
+        if (overlapping.rowCount) {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(409).json(
+            fail("SCHEDULE_CONFLICT", "Registration conflicts with an existing active workshop schedule")
+          );
         }
         const inserted = await client.query(
           `INSERT INTO registrations(workshop_id,participant_user_id,status)
