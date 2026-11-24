@@ -138,4 +138,50 @@ describe("F-03 actual Chrome Participant journey", () => {
       await context.close();
     }
   }, 60000);
+
+  it("STS-F03-17: detail view shows 409 SCHEDULE_CONFLICT alert in real Chrome when Participant already holds an overlapping ACTIVE registration", async () => {
+    const context = await browser.newContext();
+    try {
+      const first = await pool.query("SELECT id FROM users WHERE email=$1", [participantEmail]);
+      const owner = await pool.query("SELECT id FROM users WHERE email=$1", [organizerEmail]);
+      const baseWs = await pool.query<{ starts_at: Date; ends_at: Date }>(
+        "SELECT starts_at, ends_at FROM workshops WHERE id=$1", [workshopId]
+      );
+      const overlapStart = new Date(baseWs.rows[0]!.starts_at.getTime() + 30 * 60 * 1000);
+      const overlapEnd = new Date(baseWs.rows[0]!.ends_at.getTime() + 30 * 60 * 1000);
+      const overlapWs = await pool.query<{ id: string }>(
+        `INSERT INTO workshops(owner_user_id,title,description,location,starts_at,ends_at,capacity,status)
+         VALUES($1,'F03 Overlapping Workshop','Overlaps F03 Browser Workshop','Lab 4',$2,$3,3,'PUBLISHED') RETURNING id::text AS id`,
+        [owner.rows[0].id, overlapStart, overlapEnd]
+      );
+      const overlapWorkshopId = overlapWs.rows[0]!.id;
+      await pool.query(
+        "INSERT INTO registrations(workshop_id,participant_user_id,status) VALUES($1,$2,'ACTIVE')",
+        [workshopId, first.rows[0].id]
+      );
+
+      const page = await context.newPage();
+      await page.goto(webOrigin);
+      await page.getByLabel("Email").fill(participantEmail);
+      await page.getByLabel("Password").fill(password);
+      await page.getByRole("button", { name: "Sign in" }).click();
+      await page.getByRole("heading", { name: "Discover workshops" }).waitFor();
+
+      const overlapItem = page.locator("li", { hasText: "F03 Overlapping Workshop" });
+      await overlapItem.getByRole("button", { name: "View details" }).click();
+      await page.getByRole("heading", { name: "F03 Overlapping Workshop" }).waitFor();
+      await page.getByRole("button", { name: "Register for workshop" }).click();
+
+      await page.getByRole("alert").getByText(/conflicts with an existing active workshop schedule/i).waitFor();
+      expect(await page.getByRole("status").getByText(/Registration confirmed/).count()).toBe(0);
+      expect(await page.getByRole("button", { name: "Already registered" }).count()).toBe(0);
+
+      const stored = await pool.query<{ n: number }>(
+        "SELECT count(*)::int AS n FROM registrations WHERE workshop_id=$1", [overlapWorkshopId]
+      );
+      expect(stored.rows[0]!.n).toBe(0);
+    } finally {
+      await context.close();
+    }
+  }, 60000);
 });
