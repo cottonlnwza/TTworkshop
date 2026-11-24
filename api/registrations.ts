@@ -398,7 +398,7 @@ export function createRegistrationRouter(
     res.status(200).json({ data: result.rows[0] });
   });
 
-  router.post("/workshops/:id/registrations", requireParticipant, requireOrigin,
+  router.post("/workshops/:id/registrations", noStore, requireParticipant, requireOrigin,
     async (req: Request, res: Response, next) => {
       const id = Array.isArray(req.params.id) ? req.params.id[0] ?? "" : req.params.id;
       if (!validId(id)) return res.status(404).json(fail("NOT_FOUND", "Workshop not found"));
@@ -413,11 +413,15 @@ export function createRegistrationRouter(
       try {
         await client.query("BEGIN");
         inTransaction = true;
+        // DEC-14 / BR-05b: serialize per-Participant registration writes using a
+        // negative BIGINT advisory lock disjoint from migration lock 48033401,
+        // acquired before workshops FOR UPDATE to keep a deadlock-free lock order.
+        await client.query("SELECT pg_advisory_xact_lock(-($1::bigint))", [identity.id]);
         const workshop = await client.query<{
-          id: string; status: string; starts_at: Date | null;
+          id: string; status: string; starts_at: Date | null; ends_at: Date | null;
           registration_deadline: Date | null; registration_closed: boolean; capacity: number;
         }>(
-          `SELECT id,status,starts_at,registration_deadline,registration_closed,capacity
+          `SELECT id,status,starts_at,ends_at,registration_deadline,registration_closed,capacity
            FROM workshops WHERE id=$1 AND status='PUBLISHED' FOR UPDATE`, [id]
         );
         if (!workshop.rowCount) {
@@ -431,7 +435,8 @@ export function createRegistrationRouter(
           inTransaction = false;
           return res.status(409).json(fail("REGISTRATION_CLOSED", "Workshop registration is closed"));
         }
-        if (!row.starts_at || (row.registration_deadline && row.registration_deadline > row.starts_at)) {
+        if (!row.starts_at || !row.ends_at || row.ends_at.getTime() <= row.starts_at.getTime() ||
+            (row.registration_deadline && row.registration_deadline > row.starts_at)) {
           await client.query("ROLLBACK");
           inTransaction = false;
           return res.status(409).json(fail("INVALID_DEADLINE", "Workshop registration deadline is invalid"));
@@ -449,6 +454,39 @@ export function createRegistrationRouter(
           await client.query("ROLLBACK");
           inTransaction = false;
           return res.status(409).json(fail("CAPACITY_FULL", "Workshop capacity is full"));
+        }
+        // Preserve BR-05 DUPLICATE_ACTIVE precedence before BR-05b cross-workshop overlap.
+        const sameWorkshopActive = await client.query<{ id: string }>(
+          "SELECT id::text AS id FROM registrations WHERE workshop_id=$1 AND participant_user_id=$2 AND status='ACTIVE' LIMIT 1",
+          [id, identity.id]
+        );
+        if (sameWorkshopActive.rowCount) {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(409).json(fail("DUPLICATE_ACTIVE", "An active registration already exists"));
+        }
+        // DEC-14 / BR-05b: reject overlapping ACTIVE registration in a different workshop
+        // using half-open UTC instant intervals [starts_at, ends_at).
+        const overlapping = await client.query<{ workshop_id: string }>(
+          `SELECT r.workshop_id::text AS workshop_id
+           FROM registrations r
+           JOIN workshops w ON w.id = r.workshop_id
+           WHERE r.participant_user_id = $1
+             AND r.status = 'ACTIVE'
+             AND r.workshop_id <> $2
+             AND w.starts_at IS NOT NULL
+             AND w.ends_at IS NOT NULL
+             AND w.starts_at < $4::timestamptz
+             AND $3::timestamptz < w.ends_at
+           LIMIT 1`,
+          [identity.id, id, row.starts_at, row.ends_at]
+        );
+        if (overlapping.rowCount) {
+          await client.query("ROLLBACK");
+          inTransaction = false;
+          return res.status(409).json(
+            fail("SCHEDULE_CONFLICT", "Registration conflicts with an existing active workshop schedule")
+          );
         }
         const inserted = await client.query(
           `INSERT INTO registrations(workshop_id,participant_user_id,status)
