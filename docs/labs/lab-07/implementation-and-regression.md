@@ -16,7 +16,9 @@
 | **Commit 1 — `RED` (Tests ONLY)** | `70f67afe22f93617a8367505793ec23da7f26e1a` | `tests/f03.integration.test.ts`, `tests/f03.ui.test.tsx`, `tests/f03.browser.test.ts`, `tests/runtime-db-privileges.integration.test.ts` | `npm run build` PASS (0 TS errors); targeted run on pre-change code: **2 failed \| 2 passed (4 files), 3 failed \| 26 passed (29 tests)** (`STS-F03-14`, `STS-F03-16`, `STS-F03-17` Chrome E2E failed due to missing `BR-05b`) |
 | **Commit 2 — `GREEN` (Code ONLY)** | `24dfdfdd76779ba3b851f274598e6500cc1b8c7b` | `api/registrations.ts`, `web/ParticipantApp.tsx` | Zero test edits; `npm run build` PASS; targeted run: **4/4 files, 29/29 tests PASS (0 failed, 0 skipped)**; full suite exposed 1 legitimate fixture overlap in `STS-F07-04` (`31 passed \| 1 failed (32)`, `194 passed \| 1 failed (195)`) |
 | **Commit 3 — Regression Fixture Alignment** | `0389eee736cc52709c3f3689296555cdf6e5f0f2` | `tests/f07.integration.test.ts` | Assigned distinct non-overlapping daily slots across the 5 rounds of `STS-F07-04` (preserving 100% of original assertions); full regression: **`npm run build` PASS**, **`npm test` 32/32 files, 195/195 tests PASS**, **`python -m unittest` 41/41 PASS** |
-| **Commit 4 — Part B Evidence & Docs** | *(HEAD of `L7-02` PR)* | `docs/labs/lab-07/implementation-and-regression.md`, `docs/contracts/f-03-discovery-registration.md`, `docs/decisions/dec-14-schedule-conflict.md`, `docs/traceability.md` | Records exact SHAs, outputs, diff summary, and Author-local vs pending hosted CI/review provenance |
+| **Commit 4 — Part B Evidence & Docs** | `b2fc95a6f48e330899d45f0b3ed8fe755b20295d` | `docs/labs/lab-07/implementation-and-regression.md`, `docs/contracts/f-03-discovery-registration.md`, `docs/decisions/dec-14-schedule-conflict.md`, `docs/traceability.md` | Round 1 PR #87 candidate HEAD (Hosted CI Run `#45450812959` PASS `195/195`; independent review identified `R-01` JS `Date` microsecond truncation) |
+| **Commit 5 — Round 2 `R-01` Fix** | `950d4b68e81e4f5073b2e23ec6058af72d87becb` | `api/registrations.ts`, `tests/f03.integration.test.ts` | Moved target schedule guard, post-lock deadline check, and `BR-05b` overlap predicate (`w.starts_at < t.ends_at AND t.starts_at < w.ends_at`) directly into PostgreSQL `TIMESTAMPTZ` precision; added 3-case microsecond `R-01` test (`RED` FAIL → `GREEN` PASS); full regression: **`npm run build` PASS**, **`npm test` 32/32 files, 196/196 tests PASS**, **`python -m unittest` 41/41 PASS** |
+| **Commit 6 — Round 2 Evidence Addendum** | *(Round 2 HEAD of PR #87)* | `docs/labs/lab-07/implementation-and-regression.md`, `docs/contracts/f-03-discovery-registration.md`, `docs/decisions/dec-14-schedule-conflict.md`, `docs/traceability.md` | Appends `R-01` remediation evidence while preserving all historical Round 1 RED/GREEN records verbatim |
 
 ---
 
@@ -108,10 +110,27 @@ Executed by Author `thananun-7203` (ComTon, Windows, Node `v24.14.0`, Python `3.
 
 ---
 
-## 5. Evidence Boundaries & Remaining Gates
+## 5. PR #87 Round 2 `R-01` Remediation — Exact PostgreSQL `TIMESTAMPTZ` Microsecond Precision (`950d4b68e81e4f5073b2e23ec6058af72d87becb`)
 
-- All test counts above are **Author-local** executions on `0389eee736cc52709c3f3689296555cdf6e5f0f2` (and `RED` `70f67afe` / `GREEN` `24dfdfdd`).
+During independent six-axis review of PR #87 Round 1 HEAD `b2fc95a6`, Reviewer `cottonlnwza` reproduced binding finding **`R-01`**: materializing locked target `starts_at`/`ends_at` through JavaScript `Date` dropped PostgreSQL `TIMESTAMPTZ` microseconds, flipping exact microsecond adjacency (`[10:00, 12:00:00.000400)` vs `[12:00:00.000400, 13:00)` → `409`), permitting a 200-microsecond overlap (`[12:00:00.000200, 13:00)` vs `[11:00, 12:00:00.000400)` → `201`), and rejecting a valid 800-microsecond interval inside one millisecond (`[11:00:00.000100, 11:00:00.000900)` → `409 INVALID_DEADLINE`).
+
+1. **`R-01` TDD RED Reproduction (on unfixed `b2fc95a6`):**
+   - Added `R-01 (DEC-14)` test in `tests/f03.integration.test.ts` inserting exact `TIMESTAMPTZ` strings via SQL for all three microsecond cases.
+   - `node --env-file-if-exists=.env ./node_modules/vitest/vitest.mjs run tests/f03.integration.test.ts -t "R-01 \(DEC-14\)"` → **FAIL (`1 failed | 17 skipped (18)`)**: `AssertionError: expected 409 to be 201` on Case 1 microsecond adjacency.
+2. **PostgreSQL-Native Precision Fix (`950d4b68e81e4f5073b2e23ec6058af72d87becb`):**
+   - Evaluated `invalid_schedule` (`starts_at IS NULL OR ends_at IS NULL OR ends_at <= starts_at OR (registration_deadline IS NOT NULL AND registration_deadline > starts_at)`) directly in the `FOR UPDATE` query, evaluated `deadline_passed` post-lock in PostgreSQL (`$2::timestamptz >= COALESCE(registration_deadline, starts_at)`), and evaluated `BR-05b` overlap by joining the locked target row (`JOIN workshops t ON t.id = $2 ... AND w.starts_at < t.ends_at AND t.starts_at < w.ends_at`) with zero JavaScript `Date` round-trip while retaining the exact transaction, lock order (`advisory_lock → workshops FOR UPDATE`), and error precedence.
+3. **Round 2 Verification on `950d4b68e81e4f5073b2e23ec6058af72d87becb` (Author-local, ComTon Windows, Node `v24.14.0`, Python `3.12.10`, isolated loopback PostgreSQL & headless Chromium):**
+   - `tests/f03.integration.test.ts`: **PASS — 1/1 file, 18/18 tests passed** (`21.82s`, including all 3 `R-01` microsecond cases)
+   - `npm run build` (`tsc --noEmit && vite build`): **PASS** (`0` TS errors, `20` modules, `466ms`)
+   - `npm test` (full Vitest suite): **PASS — 32/32 files, 196/196 tests passed, 0 failed, 0 skipped** (`147.32s`)
+   - `python -m unittest discover -s tests -p "test_*.py" -v`: **PASS — 41/41 tests passed, 0 failed, 0 skipped** (`0.011s`)
+
+---
+
+## 6. Evidence Boundaries & Remaining Gates
+
+- Historical Round 1 test counts (`0389eee7`, `195/195` Vitest, `41/41` Python; Hosted CI Run `#45450812959` PASS) and Round 2 `R-01` remediation counts (`950d4b68`, `196/196` Vitest, `41/41` Python) are both preserved above.
 - **Pending gates before `L7-02` closure:**
-  1. Exact-HEAD hosted PR CI (`build-test` in `.github/workflows/ci.yml`) on the `L7-02` PR HEAD.
-  2. Independent six-axis review (`Formal APPROVE`) and staging merge into `sprint_2_staging` by `cottonlnwza` inspecting both `RED` (`70f67afe`) and `GREEN` (`24dfdfdd` + `0389eee7`) commits.
+  1. Exact-HEAD hosted PR CI (`build-test` in `.github/workflows/ci.yml`) on the Round 2 PR #87 HEAD.
+  2. Independent Round 2 six-axis re-review (`Formal APPROVE`) and staging merge into `sprint_2_staging` by `cottonlnwza`.
   3. Release PR to `main`, GCP Cloud Run deployment, post-deployment checks, Part C metrics, Part D readiness, and Lab 7 PDF assembly remain scoped to [Issue #84 (`L7-03`)](https://github.com/cottonlnwza/TTworkshop/issues/84).
