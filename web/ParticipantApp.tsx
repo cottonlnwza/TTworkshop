@@ -53,7 +53,7 @@ export function ParticipantApp() {
   useEffect(() => { void loadWorkshops(); }, []);
 
   async function viewDetails(workshop: WorkshopSummary) {
-    setLoadingDetails(true); setError(""); setSelected(null);
+    setLoadingDetails(true); setError(""); setSuccess(""); setSelected(null);
     try {
       const response = await fetch(`${api}/workshops/${workshop.id}`, { credentials: "same-origin" });
       const body: unknown = await response.json();
@@ -154,7 +154,7 @@ export function ParticipantApp() {
           selected.remaining_seats <= 0 || !selected.registration_open} onClick={register}>
           {registering ? "Registering…" : registeredWorkshopIds.has(selected.id) ? "Already registered" : "Register for workshop"}
         </button>
-        <button type="button" className="secondary" onClick={() => { setSelected(null); setError(""); }}>Back to workshops</button>
+        <button type="button" className="secondary" onClick={() => { setSelected(null); setError(""); setSuccess(""); }}>Back to workshops</button>
       </article> : loadingDetails ? <p role="status">Loading workshop details…</p> : loading ? <p role="status">Loading workshops…</p> : workshops.length === 0 ?
         <p className="muted">No published workshops are available right now.</p> :
         <ul className="workshop-list">{workshops.map(workshop => <li key={workshop.id}>

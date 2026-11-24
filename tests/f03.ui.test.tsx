@@ -93,4 +93,38 @@ describe("F-03 Participant UI states", () => {
     expect((screen.getByRole("button", { name: "Already registered" }) as HTMLButtonElement).disabled).toBe(true);
     expect(fetcher).toHaveBeenCalledTimes(5);
   });
+
+  it("STS-F03-17: displays 409 SCHEDULE_CONFLICT reason on detail view without false success and refreshes availability", async () => {
+    const summary = {
+      id: workshop.id, title: workshop.title, location: workshop.location, starts_at: workshop.starts_at,
+      capacity: workshop.capacity, remaining_seats: workshop.remaining_seats, registration_open: true
+    };
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: [summary] }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: workshop }) })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        json: async () => ({
+          error: {
+            code: "SCHEDULE_CONFLICT",
+            message: "Registration conflicts with an existing active workshop schedule"
+          }
+        })
+      })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: [summary] }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ data: workshop }) });
+    vi.stubGlobal("fetch", fetcher);
+    render(<ParticipantApp />);
+    fireEvent.click(await screen.findByRole("button", { name: "View details" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Register for workshop" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Registration conflicts with an existing active workshop schedule"
+    );
+    expect(screen.queryByText(/Registration confirmed/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Register for workshop" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Already registered" })).toBeNull();
+    expect(fetcher).toHaveBeenCalledTimes(5);
+  });
 });
