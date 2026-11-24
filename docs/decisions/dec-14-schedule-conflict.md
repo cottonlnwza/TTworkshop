@@ -1,6 +1,6 @@
 # DEC-14 — Cross-Workshop Schedule-Conflict Prevention (`BR-05b`) & Advisory Lock Serialization
 
-> **v0.1 — PROPOSED / PENDING INDEPENDENT PEER REVIEW — 2026-11-24 (Asia/Bangkok)**
+> **v0.1.1 — PROPOSED / PENDING INDEPENDENT PEER REVIEW (PR #86 Round 2 `R-02`/`R-03` remediation) — 2026-11-24 (Asia/Bangkok)**
 > Owner scope: [Issue #85 (`L7-01`)](https://github.com/cottonlnwza/TTworkshop/issues/85) · Implementation: [Issue #83 (`L7-02`)](https://github.com/cottonlnwza/TTworkshop/issues/83) · Release: [Issue #84 (`L7-03`)](https://github.com/cottonlnwza/TTworkshop/issues/84)
 > Linked requirements: `FR-07`, `BR-01`, `BR-05` (preserved), **`BR-05b`** (new), `BR-06`, `BR-09`, `BR-12`, `BR-16`; `NFR-01`, `NFR-02`, `NFR-03`
 > Baseline references: Accepted Sprint 1 baseline (`main@4efbcfac51872b3b78542c35cc01c24182`, Cloud Run `ttworkshop-00017-poy`, original D1 `3f5ec15a1bc2a94d1b16003e1baa531dff4a7256`) · Deliverable 2 `main` anchor (`b111ffcd114f03effd2175991b23d4f702362c3f`)
@@ -27,7 +27,7 @@ Under CPE334 Lab 7 (adaptive/perfective maintenance on a Sprint 1 rule) and the 
 3. **Exact boundaries:**
    - **Back-to-back workshops allowed:** If `existing.ends_at = target.starts_at` or `target.ends_at = existing.starts_at`, the predicate evaluates to `false` and registration is **permitted** (`201 ACTIVE`).
    - **1-second (or sub-second) overlap rejected:** Any strictly positive intersection returns **`409 SCHEDULE_CONFLICT`** with zero DB mutation.
-   - **Defensive null/invalid target schedule:** If the target workshop has `starts_at IS NULL`, `ends_at IS NULL`, or `ends_at <= starts_at` in persisted data, fail closed with `409 INVALID_DEADLINE` / `409 INVALID_STATE` before attempting overlap comparison.
+   - **Defensive null/invalid target schedule (`R-02`):** Normal `PUBLISHED` rows already satisfy schema constraints `published_required` (non-null `starts_at`/`ends_at`) and `valid_time_order` (`ends_at > starts_at`) from migration `002`. As defense-in-depth for malformed persisted data written outside F-02 API validation, if the target workshop has `starts_at IS NULL`, `ends_at IS NULL`, or `ends_at <= starts_at`, fail closed with the single explicit code **`409 INVALID_DEADLINE`** before attempting overlap comparison (matching §2.2 step 4 and `F-03` §4).
 4. **History & cancellation compatibility (`F-05` / `BR-09` / `BR-12`):**
    - Only registrations with `status = 'ACTIVE'` participate in the conflict query.
    - `CANCELLED` registrations are excluded from conflict checks and their historical rows (`status = 'CANCELLED'`, `cancelled_at`) are preserved untouched. Cancelling an overlapping `ACTIVE` registration immediately releases the Participant's schedule slot for another workshop.
@@ -72,7 +72,7 @@ To preserve 100% of existing Sprint 1 (`F-03`) and Sprint 2 (`F-05`/`F-06`) erro
    - **Disjoint key space from migrations:** `api/migrate.ts` line 14 uses `pg_advisory_xact_lock(48033401)` (strictly positive `BIGINT`). Using `-($1::bigint)` maps all `users.id >= 1` bijectively into the strictly **negative `BIGINT` range** `[-9223372036854775807, -1]`:
      - **Zero collision** with migration lock `48033401` or any future positive system/job advisory lock IDs.
      - **Full `BIGINT` fidelity** across all PostgreSQL identity values (`1 .. 2^63 - 1`), avoiding `int4` truncation or hash collisions.
-     - **Least-privilege compatible:** Executable by any PostgreSQL runtime role without requiring `UPDATE` privileges on `public.users` (verified against `tests/runtime-db-privileges.integration.test.ts`).
+     - **Least-privilege design rationale (`R-03`):** By PostgreSQL design, `pg_advisory_xact_lock` is a built-in advisory lock function requiring no `UPDATE` table privilege on `public.users` (unlike `SELECT ... FROM users FOR UPDATE`). Note: existing `tests/runtime-db-privileges.integration.test.ts` at this HEAD grants DML including `UPDATE` on `public.users` and covers startup/DDL and `schema_migrations` access; it does **not** yet exercise the proposed registration advisory lock under a role lacking `users` `UPDATE`. Runtime-role validation of the new advisory lock without `users` `UPDATE` privilege is **planned in `L7-02` (#83)** (`NOT EXECUTED`).
      - **Automatic cleanup:** Transaction-scoped (`_xact_`) releases automatically on `COMMIT` or `ROLLBACK`.
 3. **Strict deadlock-free global lock hierarchy:**
    ```text
