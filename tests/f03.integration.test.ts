@@ -560,4 +560,52 @@ describe("F-03 published discovery and capacity-safe registration", () => {
     );
     expect(activeRows.rows[0].n).toBe(1);
   }, 30000);
+
+  it("R-01 (DEC-14): preserves exact PostgreSQL TIMESTAMPTZ microsecond precision for adjacency, sub-millisecond overlap, and sub-millisecond positive intervals", async () => {
+    currentTime = new Date("2026-12-01T08:00:00.000Z");
+    const organizer = await pool.query("SELECT id FROM users WHERE email='organizer@example.test'");
+    const ownerId = organizer.rows[0].id;
+    const seedExact = async (title: string, startsAtSql: string, endsAtSql: string): Promise<string> => {
+      const inserted = await pool.query<{ id: string }>(
+        `INSERT INTO workshops
+          (owner_user_id,title,description,location,starts_at,ends_at,capacity,registration_deadline,status)
+         VALUES ($1,$2,'Microsecond TIMESTAMPTZ fixture','Room US',$3::timestamptz,$4::timestamptz,5,NULL,'PUBLISHED')
+         RETURNING id::text AS id`,
+        [ownerId, title, startsAtSql, endsAtSql]
+      );
+      return inserted.rows[0]!.id;
+    };
+
+    // Case 1: exact microsecond back-to-back adjacency [10:00, 12:00:00.000400) vs [12:00:00.000400, 13:00) -> 201
+    const adjExisting = await seedExact("Adj Existing", "2026-12-01T10:00:00Z", "2026-12-01T12:00:00.000400Z");
+    const adjTarget = await seedExact("Adj Target", "2026-12-01T12:00:00.000400Z", "2026-12-01T13:00:00Z");
+    const participantA = await login(participantEmails[0]!);
+    expect((await request(app).post(`/api/v1/workshops/${adjExisting}/registrations`)
+      .set("Origin", origin).set("Cookie", participantA).send({})).status).toBe(201);
+    const adjRes = await request(app).post(`/api/v1/workshops/${adjTarget}/registrations`)
+      .set("Origin", origin).set("Cookie", participantA).send({});
+    expect(adjRes.status).toBe(201);
+
+    // Case 2: real 200-microsecond overlap [12:00:00.000200, 13:00) vs [11:00, 12:00:00.000400) -> 409 SCHEDULE_CONFLICT, 0 rows added
+    const ovExisting = await seedExact("Overlap Existing", "2026-12-01T12:00:00.000200Z", "2026-12-01T13:00:00Z");
+    const ovTarget = await seedExact("Overlap Target", "2026-12-01T11:00:00Z", "2026-12-01T12:00:00.000400Z");
+    const participantB = await login(participantEmails[1]!);
+    expect((await request(app).post(`/api/v1/workshops/${ovExisting}/registrations`)
+      .set("Origin", origin).set("Cookie", participantB).send({})).status).toBe(201);
+    const ovRes = await request(app).post(`/api/v1/workshops/${ovTarget}/registrations`)
+      .set("Origin", origin).set("Cookie", participantB).send({});
+    expect(ovRes.status).toBe(409);
+    expect(ovRes.body.error.code).toBe("SCHEDULE_CONFLICT");
+    const ovCount = await pool.query<{ n: number }>(
+      "SELECT count(*)::int AS n FROM registrations WHERE workshop_id=$1", [ovTarget]
+    );
+    expect(ovCount.rows[0]!.n).toBe(0);
+
+    // Case 3: valid 800-microsecond positive interval inside one millisecond [11:00:00.000100, 11:00:00.000900) -> 201
+    const subMsTarget = await seedExact("Sub-ms Target", "2026-12-01T11:00:00.000100Z", "2026-12-01T11:00:00.000900Z");
+    const participantC = await login(participantEmails[2]!);
+    const subMsRes = await request(app).post(`/api/v1/workshops/${subMsTarget}/registrations`)
+      .set("Origin", origin).set("Cookie", participantC).send({});
+    expect(subMsRes.status).toBe(201);
+  });
 });
